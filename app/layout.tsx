@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "北メル | 北大生のためのフリマ",
+  title: "北フリ | 北大生のためのフリマ",
   description: "北海道大学の学生同士で教科書や自転車などを気軽に売り買いできるフリマアプリ",
 };
 

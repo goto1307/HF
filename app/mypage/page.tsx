@@ -14,6 +14,7 @@ type Item = {
   nickname: string;
   image_url: string | null;
   image_urls: string[] | null;
+  sold: boolean;
 };
 
 type Review = {
@@ -26,7 +27,7 @@ type Review = {
 
 const RATING_LABELS: Record<string, string> = { good: "良い", normal: "普通", bad: "悪い" };
 const RATING_COLORS: Record<string, string> = {
-  good: "bg-emerald-50 text-emerald-700",
+  good: "bg-orange-50 text-orange-700",
   normal: "bg-stone-100 text-stone-600",
   bad: "bg-red-50 text-red-600",
 };
@@ -143,7 +144,7 @@ export default function MyPage() {
                 className="w-16 h-16 rounded-full object-cover border border-stone-200"
               />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-emerald-700 text-white flex items-center justify-center text-xl font-bold">
+              <div className="w-16 h-16 rounded-full bg-orange-700 text-white flex items-center justify-center text-xl font-bold">
                 {(user?.user_metadata?.nickname || user?.email || "?")[0]}
               </div>
             )}
@@ -161,7 +162,7 @@ export default function MyPage() {
         {nothingYet ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 shadow-sm">
             <p className="text-stone-400 mb-4">評価がありません。出品してみましょう！</p>
-            <button onClick={() => router.push("/sell")} className="bg-emerald-700 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-800 transition-colors shadow-sm">
+            <button onClick={() => router.push("/sell")} className="bg-orange-700 text-white px-6 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm">
               ＋ 出品する
             </button>
           </div>
@@ -176,23 +177,27 @@ export default function MyPage() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {purchases.map((item) => (
-                    <Link
-                      href={`/items/${item.id}/chat`}
-                      key={item.id}
-                      className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow block"
-                    >
-                      {(item.image_urls?.[0] ?? item.image_url) ? (
-                        <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
-                      ) : (
-                        <div className="bg-emerald-50 h-32 flex items-center justify-center text-emerald-200 text-3xl">📦</div>
-                      )}
+                    <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                      <Link href={`/items/${item.id}`}>
+                        {(item.image_urls?.[0] ?? item.image_url) ? (
+                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
+                        ) : (
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
+                        )}
+                      </Link>
                       <div className="p-3">
-                        <p className="text-xs text-emerald-700 font-bold mb-1">{item.category}</p>
+                        <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
                         <p className="font-bold mb-1 text-sm truncate">{item.title}</p>
-                        <p className="text-emerald-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
-                        <p className="text-xs text-stone-400 truncate">出品者：{item.nickname}</p>
+                        <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
+                        <p className="text-xs text-stone-400 truncate mb-2">出品者：{item.nickname}</p>
+                        <button
+                          onClick={() => router.push(`/items/${item.id}/chat`)}
+                          className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
+                        >
+                          個別チャットを見る
+                        </button>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               )}
@@ -237,30 +242,37 @@ export default function MyPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {items.map((item) => (
                     <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <Link href={`/items/${item.id}`}>
+                      <Link href={`/items/${item.id}`} className="relative block">
                         {(item.image_urls?.[0] ?? item.image_url) ? (
-                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
+                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className={`w-full h-32 object-cover ${item.sold ? "opacity-50" : ""}`} />
                         ) : (
-                          <div className="bg-emerald-50 h-32 flex items-center justify-center text-emerald-200 text-3xl">📦</div>
+                          <div className={`bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl ${item.sold ? "opacity-50" : ""}`}>📦</div>
+                        )}
+                        {item.sold && (
+                          <div className="absolute top-2 -right-8 w-32 rotate-45 bg-red-600 text-white text-xs font-extrabold text-center py-0.5 shadow-md tracking-wider">
+                            SOLD OUT
+                          </div>
                         )}
                       </Link>
                       <div className="p-3">
-                        <p className="text-xs text-emerald-700 font-bold mb-1">{item.category}</p>
+                        <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
                         <p className="font-bold mb-1 text-sm truncate">{item.title}</p>
-                        <p className="text-emerald-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
+                        <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <div className="flex flex-col gap-1.5">
                           <button
                             onClick={() => router.push(`/items/${item.id}/chat`)}
-                            className="w-full bg-emerald-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-emerald-800 transition-colors"
+                            className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
                           >
-                            問い合わせを見る
+                            {item.sold ? "個別チャットを見る" : "問い合わせを見る"}
                           </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
-                          >
-                            削除する
-                          </button>
+                          {!item.sold && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
+                            >
+                              削除する
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

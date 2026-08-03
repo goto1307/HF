@@ -62,32 +62,32 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="北大メールアドレス"
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-600 transition-colors text-sm"
+              className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
             />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="パスワード"
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-600 transition-colors text-sm"
+              className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
             />
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-emerald-800 transition-colors shadow-sm"
+              className="w-full bg-orange-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm"
             >
               {loading ? "ログイン中..." : "ログイン"}
             </button>
           </form>
           <button
             onClick={() => router.push("/register")}
-            className="w-full border border-emerald-700 text-emerald-700 py-3 rounded-full font-bold hover:bg-emerald-50 transition-colors"
+            className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-50 transition-colors"
           >
             新規登録はこちら
           </button>
           <button
             onClick={() => router.push("/reset")}
-            className="text-center text-sm text-stone-500 hover:text-emerald-700 transition-colors"
+            className="text-center text-sm text-stone-500 hover:text-orange-700 transition-colors"
           >
             パスワードを忘れた方はこちら
           </button>

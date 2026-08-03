@@ -41,12 +41,12 @@ export default function Reset() {
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleReset()}
                 placeholder="北大メールアドレス"
-                className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-600 transition-colors text-sm"
+                className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
               />
               <button
                 onClick={handleReset}
                 disabled={loading}
-                className="w-full bg-emerald-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-emerald-800 transition-colors shadow-sm"
+                className="w-full bg-orange-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm"
               >
                 {loading ? "送信中..." : "再設定メールを送る"}
               </button>
@@ -54,7 +54,7 @@ export default function Reset() {
           )}
           <button
             onClick={() => router.push("/login")}
-            className="text-center text-sm text-stone-500 hover:text-emerald-700 transition-colors"
+            className="text-center text-sm text-stone-500 hover:text-orange-700 transition-colors"
           >
             ログインに戻る
           </button>

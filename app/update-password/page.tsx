@@ -42,7 +42,7 @@ export default function UpdatePassword() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="新しいパスワード（6文字以上）"
-                className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-600 transition-colors text-sm"
+                className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
               />
               <input
                 type="password"
@@ -50,12 +50,12 @@ export default function UpdatePassword() {
                 onChange={(e) => setConfirm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
                 placeholder="新しいパスワード（確認）"
-                className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-600 transition-colors text-sm"
+                className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
               />
               <button
                 onClick={handleUpdate}
                 disabled={loading}
-                className="w-full bg-emerald-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-emerald-800 transition-colors shadow-sm"
+                className="w-full bg-orange-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm"
               >
                 {loading ? "更新中..." : "パスワードを更新"}
               </button>
