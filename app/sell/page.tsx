@@ -5,8 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 
-const categories = ["教科書", "自転車", "家電・家具", "衣類", "貸します", "その他"];
-const AREAS = ["北8条エリア", "北18条エリア", "北24条エリア", "エルムの森周辺", "工学部周辺", "農学部周辺"];
+const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
+const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
 
 export default function Sell() {
   const router = useRouter();
@@ -154,6 +154,11 @@ export default function Sell() {
               <option value="">選択してください</option>
               {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
+            {category === "自転車" && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                ⚠ 自転車の譲渡には防犯登録の名義変更が必要です。お忘れなく。
+              </p>
+            )}
           </div>
 
           <div>
