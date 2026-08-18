@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import FoxMascot from "@/components/FoxMascot";
+import StarRating from "@/components/StarRating";
 
 type Item = {
   id: number;
@@ -21,16 +22,9 @@ type Item = {
 type Review = {
   id: number;
   reviewer_nickname: string;
-  rating: "good" | "normal" | "bad";
+  rating: number;
   comment: string | null;
   created_at: string;
-};
-
-const RATING_LABELS: Record<string, string> = { good: "良い", normal: "普通", bad: "悪い" };
-const RATING_COLORS: Record<string, string> = {
-  good: "bg-orange-50 text-orange-700",
-  normal: "bg-stone-100 text-stone-600",
-  bad: "bg-red-50 text-red-600",
 };
 
 export default function MyPage() {
@@ -90,9 +84,7 @@ export default function MyPage() {
   }, [authLoading, user, router]);
 
   const loading = authLoading || dataLoading;
-  const goodCount = reviews.filter((r) => r.rating === "good").length;
-  const normalCount = reviews.filter((r) => r.rating === "normal").length;
-  const badCount = reviews.filter((r) => r.rating === "bad").length;
+  const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const nothingYet = !loading && items.length === 0 && reviews.length === 0 && purchases.length === 0;
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,16 +208,17 @@ export default function MyPage() {
                 </p>
               ) : (
                 <div>
-                  <p className="text-sm text-stone-600 mb-4">
-                    良い {goodCount}・普通 {normalCount}・悪い {badCount}
-                  </p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <StarRating value={Math.round(avgRating)} size={18} />
+                    <p className="text-sm text-stone-600">
+                      {avgRating.toFixed(1)}（{reviews.length}件）
+                    </p>
+                  </div>
                   <div className="flex flex-col gap-3">
                     {reviews.map((review) => (
                       <div key={review.id} className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm">
                         <div className="flex justify-between items-center mb-1.5">
-                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${RATING_COLORS[review.rating]}`}>
-                            {RATING_LABELS[review.rating]}
-                          </span>
+                          <StarRating value={review.rating} size={14} />
                           <span className="text-xs text-stone-400">{new Date(review.created_at).toLocaleDateString()}</span>
                         </div>
                         <p className="text-xs text-stone-500 mb-1">{review.reviewer_nickname}</p>

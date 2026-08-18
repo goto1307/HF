@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import StarRating from "@/components/StarRating";
 
 type Item = {
   id: number;
@@ -47,7 +48,6 @@ function quickTimeValue(daysFromNow: number, hour: number) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const RATING_LABELS: Record<string, string> = { good: "良い", normal: "普通", bad: "悪い" };
 const COMMON_LOCATIONS = ["北部食堂前", "正門前", "生協前", "図書館前"];
 const QUICK_TIMES = [
   { label: "今日18時", value: () => quickTimeValue(0, 18) },
@@ -76,7 +76,7 @@ export default function ItemChat() {
   const [checkedItems, setCheckedItems] = useState({ received: false, paid: false, condition: false });
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const [reviewRating, setReviewRating] = useState("good");
+  const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -614,20 +614,8 @@ export default function ItemChat() {
                     ) : (
                       <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
                         <p className="font-bold text-sm mb-2">出品者の評価</p>
-                        <div className="flex gap-3 mb-3">
-                          {Object.entries(RATING_LABELS).map(([value, label]) => (
-                            <label key={value} className="flex items-center gap-1 text-sm">
-                              <input
-                                type="radio"
-                                name="chatReviewRating"
-                                value={value}
-                                checked={reviewRating === value}
-                                onChange={() => setReviewRating(value)}
-                                className="accent-orange-700"
-                              />
-                              {label}
-                            </label>
-                          ))}
+                        <div className="mb-3">
+                          <StarRating value={reviewRating} onChange={setReviewRating} size={28} />
                         </div>
                         <textarea
                           value={reviewComment}

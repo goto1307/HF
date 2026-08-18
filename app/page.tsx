@@ -7,8 +7,8 @@ import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import FoxMascot from "@/components/FoxMascot";
 
-const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "貸します", "その他"];
-const AREAS = ["すべて", "北8条エリア", "北18条エリア", "北24条エリア", "エルムの森周辺", "工学部周辺", "農学部周辺"];
+const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "その他"];
+const AREAS = ["すべて", "北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
 const CONDITIONS = ["新品", "中古"];
 const SORTS = [
   { key: "new", label: "新着順" },
@@ -128,7 +128,7 @@ function HomeContent() {
     if (onlyAvailable && item.sold) return false;
     if (selectedCategory !== "すべて" && item.category !== selectedCategory) return false;
     if (selectedArea !== "すべて" && item.area !== selectedArea) return false;
-    if (selectedConditions.size > 0 && !selectedConditions.has(item.condition || "")) return false;
+    if (selectedConditions.size > 0 && item.condition && !selectedConditions.has(item.condition)) return false;
     if (minPrice && item.price < Number(minPrice)) return false;
     if (maxPrice && item.price > Number(maxPrice)) return false;
     if (query) {
@@ -468,6 +468,10 @@ function HomeContent() {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="w-full bg-orange-700 text-white py-2.5 rounded-full font-bold text-sm text-center">
+            検索する（{sorted.length}件）
           </div>
         </aside>
         )}

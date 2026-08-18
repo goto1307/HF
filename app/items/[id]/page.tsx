@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import StarRating from "@/components/StarRating";
 
 type Item = {
   id: number;
@@ -34,8 +35,6 @@ type Message = {
   created_at: string;
 };
 
-const RATING_LABELS: Record<string, string> = { good: "良い", normal: "普通", bad: "悪い" };
-
 export default function ItemDetail() {
   const params = useParams();
   const router = useRouter();
@@ -48,10 +47,11 @@ export default function ItemDetail() {
   const [reportDetail, setReportDetail] = useState("");
   const [reporting, setReporting] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const [reviewRating, setReviewRating] = useState("good");
+  const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [sellerRating, setSellerRating] = useState<{ avg: number; count: number } | null>(null);
   const [activeImage, setActiveImage] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
   const [likedByMe, setLikedByMe] = useState(false);
@@ -92,6 +92,20 @@ export default function ItemDetail() {
 
     return () => { supabase.removeChannel(channel); };
   }, [params.id]);
+
+  useEffect(() => {
+    if (!item) return;
+    const fetchSellerRating = async () => {
+      const { data } = await supabase.from("review").select("rating").eq("seller_id", item.user_id);
+      if (data && data.length > 0) {
+        const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
+        setSellerRating({ avg, count: data.length });
+      } else {
+        setSellerRating(null);
+      }
+    };
+    fetchSellerRating();
+  }, [item?.id, item?.user_id]);
 
   useEffect(() => {
     if (!user) { setAlreadyReviewed(false); return; }
@@ -283,6 +297,11 @@ export default function ItemDetail() {
             {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
           </p>
           <p className="text-sm text-stone-400 mb-3">❤️ {likeCount}件のいいね</p>
+          {item.category === "自転車" && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+              ⚠ 自転車の譲渡には防犯登録の名義変更が必要です。取引の際はお忘れなく。
+            </p>
+          )}
           <p className="text-stone-600 mb-2 whitespace-pre-wrap">{item.detail}</p>
           {item.area && <p className="text-sm text-stone-500">場所：{item.area}</p>}
           {(item.available_from || item.available_until) && (
@@ -291,7 +310,15 @@ export default function ItemDetail() {
               〜{item.available_until ? new Date(item.available_until).toLocaleDateString() : "未定"}
             </p>
           )}
-          <p className="text-sm text-stone-500">出品者：{item.nickname}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-stone-500">出品者：{item.nickname}</p>
+            {sellerRating && (
+              <span className="flex items-center gap-1 text-xs text-stone-500">
+                <StarRating value={Math.round(sellerRating.avg)} size={13} />
+                {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
+              </span>
+            )}
+          </div>
           {item.hashtags && item.hashtags.length > 0 && (
             <div className="flex gap-1.5 flex-wrap mt-2">
               {item.hashtags.map((tag) => (
@@ -316,20 +343,8 @@ export default function ItemDetail() {
         {showReviewForm && (
           <div className="border border-orange-200 rounded-2xl p-4 mb-4 bg-orange-50">
             <p className="font-bold text-sm mb-2">出品者の評価</p>
-            <div className="flex gap-3 mb-3">
-              {Object.entries(RATING_LABELS).map(([value, label]) => (
-                <label key={value} className="flex items-center gap-1 text-sm">
-                  <input
-                    type="radio"
-                    name="reviewRating"
-                    value={value}
-                    checked={reviewRating === value}
-                    onChange={() => setReviewRating(value)}
-                    className="accent-orange-700"
-                  />
-                  {label}
-                </label>
-              ))}
+            <div className="mb-3">
+              <StarRating value={reviewRating} onChange={setReviewRating} size={28} />
             </div>
             <textarea
               value={reviewComment}
