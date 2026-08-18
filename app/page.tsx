@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import FoxMascot from "@/components/FoxMascot";
 
 const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "貸します", "その他"];
 const AREAS = ["すべて", "北8条エリア", "北18条エリア", "北24条エリア", "エルムの森周辺", "工学部周辺", "農学部周辺"];
@@ -64,6 +65,16 @@ function HomeContent() {
   const [likedByMe, setLikedByMe] = useState<Set<number>>(new Set());
   const { user } = useAuth();
   const router = useRouter();
+  const [heroDismissed, setHeroDismissed] = useState(false);
+
+  useEffect(() => {
+    setHeroDismissed(localStorage.getItem("heroDismissed") === "1");
+  }, []);
+
+  const dismissHero = () => {
+    localStorage.setItem("heroDismissed", "1");
+    setHeroDismissed(true);
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -139,6 +150,45 @@ function HomeContent() {
   return (
     <div className="min-h-screen bg-stone-50">
       <Header />
+
+      {!user && !heroDismissed && (
+        <div className="relative overflow-hidden bg-gradient-to-br from-orange-700 via-[#d9531f] to-orange-600 text-white">
+          <button
+            onClick={dismissHero}
+            className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors text-lg leading-none"
+            aria-label="閉じる"
+          >
+            ×
+          </button>
+          <div className="absolute -top-24 right-10 w-56 h-56 rounded-full bg-white/10" aria-hidden />
+          <div className="absolute -bottom-20 left-[8%] w-36 h-36 rounded-full bg-white/10" aria-hidden />
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-7 sm:py-9 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
+            <div className="max-w-md">
+              <span className="inline-block text-[11px] sm:text-xs font-extrabold bg-white/20 px-3 py-1 rounded-full mb-2.5">
+                🦊 北大生限定のフリマ
+              </span>
+              <h1 className="text-lg sm:text-2xl font-extrabold leading-snug mb-2 text-balance">
+                いらないが、誰かの「ちょうどいい」になる。
+              </h1>
+              <p className="text-xs sm:text-sm opacity-90 leading-relaxed mb-4">
+                教科書、自転車、部屋のもの。キャンパスの中だけで、ちょうどいい売り買いを。
+              </p>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <Link href="/register" className="bg-white text-orange-700 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-orange-50 transition-colors">
+                  新規登録
+                </Link>
+                <Link href="/login" className="border border-white/70 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/10 transition-colors">
+                  ログイン
+                </Link>
+                <button onClick={dismissHero} className="text-sm font-bold underline opacity-80 hover:opacity-100 transition-opacity px-2">
+                  登録しないで続ける
+                </button>
+              </div>
+            </div>
+            <FoxMascot size={92} className="shrink-0 drop-shadow-lg hidden sm:block" />
+          </div>
+        </div>
+      )}
 
       {query && (
         <div className="max-w-6xl mx-auto px-4 pt-4">
@@ -437,7 +487,8 @@ function HomeContent() {
               ))}
             </div>
           ) : sorted.length === 0 ? (
-            <div className="text-center py-24">
+            <div className="flex flex-col items-center py-20">
+              <FoxMascot size={88} className="mb-3 opacity-90" />
               <p className="text-stone-400">条件に合う商品がありません</p>
             </div>
           ) : (
@@ -481,7 +532,7 @@ function HomeContent() {
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{item.condition}</span>
                       )}
                     </div>
-                    <p className="font-bold mb-1 text-sm truncate group-hover:text-orange-800">{item.title}</p>
+                    <p className="font-bold mb-1 text-sm truncate text-blue-700 group-hover:text-blue-800">{item.title}</p>
                     <p className="text-orange-700 font-bold text-sm">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                     {item.hashtags && item.hashtags.length > 0 && (
                       <div className="flex gap-1 flex-wrap mt-1">
@@ -491,7 +542,7 @@ function HomeContent() {
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-stone-400 truncate">{item.area || item.nickname}</p>
+                      <p className="text-xs text-stone-400 truncate">{item.area || ""}</p>
                       <p className="text-xs text-stone-400 shrink-0 ml-1">{timeAgo(item.created_at)}</p>
                     </div>
                   </div>

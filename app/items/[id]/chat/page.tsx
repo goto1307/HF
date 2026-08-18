@@ -47,6 +47,7 @@ function quickTimeValue(daysFromNow: number, hour: number) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+const RATING_LABELS: Record<string, string> = { good: "良い", normal: "普通", bad: "悪い" };
 const COMMON_LOCATIONS = ["北部食堂前", "正門前", "生協前", "図書館前"];
 const QUICK_TIMES = [
   { label: "今日18時", value: () => quickTimeValue(0, 18) },
@@ -72,6 +73,12 @@ export default function ItemChat() {
   const [agreeingMeetup, setAgreeingMeetup] = useState(false);
   const [showMeetupForm, setShowMeetupForm] = useState(false);
   const [receiving, setReceiving] = useState(false);
+  const [checkedItems, setCheckedItems] = useState({ received: false, paid: false, condition: false });
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState("good");
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,14 +92,48 @@ export default function ItemChat() {
     fetchItem();
   }, [authLoading, user, params.id, router]);
 
+  useEffect(() => {
+    if (!item || !user || item.buyer_id !== user.id) return;
+    const checkReview = async () => {
+      const { data } = await supabase
+        .from("review")
+        .select("id")
+        .eq("item_id", item.id)
+        .eq("reviewer_id", user.id)
+        .maybeSingle();
+      setAlreadyReviewed(!!data);
+    };
+    checkReview();
+  }, [item, user]);
+
+  const handleSubmitReview = async () => {
+    if (!user || !item) return;
+    setSubmittingReview(true);
+    const { error } = await supabase.from("review").insert({
+      item_id: item.id,
+      seller_id: item.user_id,
+      reviewer_id: user.id,
+      reviewer_nickname: user.user_metadata?.nickname || "匿名ユーザー",
+      rating: reviewRating,
+      comment: reviewComment.trim() || null,
+    });
+    setSubmittingReview(false);
+    if (error) { alert("評価の投稿に失敗しました"); return; }
+    alert("評価を投稿しました！");
+    setShowReviewForm(false);
+    setAlreadyReviewed(true);
+  };
+
+  const allChecked = checkedItems.received && checkedItems.paid && checkedItems.condition;
+
   const handleReceived = async () => {
-    if (!item || !user) return;
+    if (!item || !user || !allChecked) return;
     setReceiving(true);
     const { error } = await supabase.rpc("mark_item_received", { p_item_id: item.id });
     setReceiving(false);
     if (error) { alert("受け取り確認に失敗しました"); return; }
     setItem({ ...item, received: true });
-    alert("受け取り完了を記録しました！商品ページから出品者を評価できます。");
+    alert("取引完了を記録しました！");
   };
 
   const isSeller = !!item && !!user && item.user_id === user.id;
@@ -474,50 +515,137 @@ export default function ItemChat() {
         <button onClick={() => router.push(`/items/${item.id}`)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 商品ページへ戻る
         </button>
-        <h2 className="text-xl font-bold mb-1">{item.title}</h2>
-        <p className="text-sm text-stone-500 mb-6">{isSeller ? "問い合わせ一覧" : `出品者：${item.nickname}`}</p>
+        <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
+        <p className="text-sm text-stone-500 mb-6">
+          {isSeller ? (item.sold && item.buyer_id ? "購入者とのチャット" : "問い合わせ一覧") : `出品者：${item.nickname}`}
+        </p>
 
         {isSeller ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-1 border border-stone-200 rounded-2xl bg-white shadow-sm overflow-hidden h-fit">
-              {conversationsLoading ? (
-                <p className="p-4 text-sm text-stone-400 text-center">読み込み中...</p>
-              ) : conversations.length === 0 ? (
-                <p className="p-4 text-sm text-stone-400 text-center">まだ問い合わせがありません</p>
-              ) : (
-                conversations.map((c) => (
-                  <button
-                    key={c.buyer_id}
-                    onClick={() => setSelectedBuyerId(c.buyer_id)}
-                    className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-stone-50 transition-colors ${selectedBuyerId === c.buyer_id ? "bg-orange-50" : ""}`}
-                  >
-                    <p className="font-bold text-sm truncate">{c.buyer_nickname}</p>
-                    <p className="text-xs text-stone-400 truncate">{c.last_message}</p>
-                  </button>
-                ))
-              )}
-            </div>
-            <div className="sm:col-span-2">
+          item.sold && item.buyer_id ? (
+            <>
               {meetupPanel}
               {chatPanel}
+            </>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-1 border border-stone-200 rounded-2xl bg-white shadow-sm overflow-hidden h-fit">
+                {conversationsLoading ? (
+                  <p className="p-4 text-sm text-stone-400 text-center">読み込み中...</p>
+                ) : conversations.length === 0 ? (
+                  <p className="p-4 text-sm text-stone-400 text-center">まだ問い合わせがありません</p>
+                ) : (
+                  conversations.map((c) => (
+                    <button
+                      key={c.buyer_id}
+                      onClick={() => setSelectedBuyerId(c.buyer_id)}
+                      className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-stone-50 transition-colors ${selectedBuyerId === c.buyer_id ? "bg-orange-50" : ""}`}
+                    >
+                      <p className="font-bold text-sm truncate">{c.buyer_nickname}</p>
+                      <p className="text-xs text-stone-400 truncate">{c.last_message}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="sm:col-span-2">
+                {meetupPanel}
+                {chatPanel}
+              </div>
             </div>
-          </div>
+          )
         ) : (
           <>
             {meetupPanel}
             {chatPanel}
             {item.sold && item.buyer_id === user?.id && (
-              <div className="mt-4">
-                {item.received ? (
-                  <p className="text-center text-sm font-bold text-orange-700 py-2">✓ 受け取り済みです</p>
+              <div className="mt-4 flex flex-col gap-3">
+                {!item.received ? (
+                  <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
+                    <p className="font-bold text-sm mb-3">取引完了の確認</p>
+                    <div className="flex flex-col gap-2 mb-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checkedItems.received}
+                          onChange={(e) => setCheckedItems((prev) => ({ ...prev, received: e.target.checked }))}
+                          className="accent-orange-700 w-4 h-4"
+                        />
+                        商品を受け取った
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checkedItems.paid}
+                          onChange={(e) => setCheckedItems((prev) => ({ ...prev, paid: e.target.checked }))}
+                          className="accent-orange-700 w-4 h-4"
+                        />
+                        代金を支払った
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checkedItems.condition}
+                          onChange={(e) => setCheckedItems((prev) => ({ ...prev, condition: e.target.checked }))}
+                          className="accent-orange-700 w-4 h-4"
+                        />
+                        商品の状態に問題がなかった
+                      </label>
+                    </div>
+                    <button
+                      onClick={handleReceived}
+                      disabled={receiving || !allChecked}
+                      className="w-full bg-orange-700 text-white py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      {receiving ? "処理中..." : "取引を完了する"}
+                    </button>
+                  </div>
                 ) : (
-                  <button
-                    onClick={handleReceived}
-                    disabled={receiving}
-                    className="w-full bg-orange-700 text-white py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm disabled:opacity-50"
-                  >
-                    {receiving ? "処理中..." : "受け取れました"}
-                  </button>
+                  <>
+                    <p className="text-center text-sm font-bold text-orange-700 py-2">✓ 取引完了しました</p>
+
+                    {alreadyReviewed ? (
+                      <p className="text-center text-xs text-stone-400">この出品者への評価は投稿済みです</p>
+                    ) : !showReviewForm ? (
+                      <button
+                        onClick={() => setShowReviewForm(true)}
+                        className="w-full border border-orange-300 text-orange-700 py-2.5 rounded-full font-bold text-sm hover:bg-orange-50 transition-colors"
+                      >
+                        ★ 出品者を評価する
+                      </button>
+                    ) : (
+                      <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
+                        <p className="font-bold text-sm mb-2">出品者の評価</p>
+                        <div className="flex gap-3 mb-3">
+                          {Object.entries(RATING_LABELS).map(([value, label]) => (
+                            <label key={value} className="flex items-center gap-1 text-sm">
+                              <input
+                                type="radio"
+                                name="chatReviewRating"
+                                value={value}
+                                checked={reviewRating === value}
+                                onChange={() => setReviewRating(value)}
+                                className="accent-orange-700"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                        <textarea
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          placeholder="コメント（任意）"
+                          className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white focus:border-orange-600 transition-colors"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => setShowReviewForm(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors">
+                            キャンセル
+                          </button>
+                          <button onClick={handleSubmitReview} disabled={submittingReview} className="flex-1 bg-orange-700 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors">
+                            {submittingReview ? "送信中..." : "評価を送信"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

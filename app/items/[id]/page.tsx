@@ -205,7 +205,7 @@ export default function ItemDetail() {
   const handleBuy = async () => {
     if (!item || !buyAgreed || !user) return;
     setBuying(true);
-    const { error } = await supabase.rpc("mark_item_sold", { p_item_id: item.id, p_buyer_id: user.id });
+    const { error } = await supabase.rpc("mark_item_sold", { p_item_id: item.id });
     setBuying(false);
     if (error) { alert("購入処理に失敗しました。もう一度お試しください。"); return; }
     setItem({ ...item, sold: true, buyer_id: user.id });
@@ -278,7 +278,7 @@ export default function ItemDetail() {
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">{item.condition}</span>
             )}
           </div>
-          <h2 className="text-2xl font-bold mb-2">{item.title}</h2>
+          <h2 className="text-2xl font-bold mb-2 text-blue-700">{item.title}</h2>
           <p className="text-3xl text-orange-700 font-bold mb-1">
             {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
           </p>

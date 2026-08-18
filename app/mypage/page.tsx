@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import FoxMascot from "@/components/FoxMascot";
 
 type Item = {
   id: number;
@@ -135,6 +136,9 @@ export default function MyPage() {
       <Header />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+        <button onClick={() => router.back()} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
+          <span aria-hidden>←</span> 戻る
+        </button>
         <div className="flex items-center gap-4 mb-8">
           <div className="relative shrink-0">
             {user?.user_metadata?.avatar_url ? (
@@ -161,6 +165,7 @@ export default function MyPage() {
 
         {nothingYet ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 shadow-sm">
+            <FoxMascot size={88} className="mx-auto mb-3 opacity-90" />
             <p className="text-stone-400 mb-4">評価がありません。出品してみましょう！</p>
             <button onClick={() => router.push("/sell")} className="bg-orange-700 text-white px-6 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm">
               ＋ 出品する
@@ -187,7 +192,7 @@ export default function MyPage() {
                       </Link>
                       <div className="p-3">
                         <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
-                        <p className="font-bold mb-1 text-sm truncate">{item.title}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <p className="text-xs text-stone-400 truncate mb-2">出品者：{item.nickname}</p>
                         <button
@@ -256,7 +261,7 @@ export default function MyPage() {
                       </Link>
                       <div className="p-3">
                         <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
-                        <p className="font-bold mb-1 text-sm truncate">{item.title}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <div className="flex flex-col gap-1.5">
                           <button
