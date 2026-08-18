@@ -326,16 +326,18 @@ function HomeContent() {
               <div className="flex items-center gap-2">
                 <input
                   type="number"
+                  min="0"
                   value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
+                  onChange={(e) => setMinPrice(e.target.value.replace("-", ""))}
                   placeholder="min"
                   className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-600"
                 />
                 <span className="text-stone-400">-</span>
                 <input
                   type="number"
+                  min="0"
                   value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
+                  onChange={(e) => setMaxPrice(e.target.value.replace("-", ""))}
                   placeholder="max"
                   className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-orange-600"
                 />
@@ -407,16 +409,18 @@ function HomeContent() {
             <div className="flex items-center gap-2">
               <input
                 type="number"
+                min="0"
                 value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
+                onChange={(e) => setMinPrice(e.target.value.replace("-", ""))}
                 placeholder="min"
                 className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-orange-600"
               />
               <span className="text-stone-400">-</span>
               <input
                 type="number"
+                min="0"
                 value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
+                onChange={(e) => setMaxPrice(e.target.value.replace("-", ""))}
                 placeholder="max"
                 className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-orange-600"
               />

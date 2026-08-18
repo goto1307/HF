@@ -26,6 +26,8 @@ export default function Sell() {
   const [availableUntil, setAvailableUntil] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const addHashtag = () => {
     const tag = hashtagInput.trim().replace(/^#/, "");
@@ -59,12 +61,17 @@ export default function Sell() {
     setPreviews(previews.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async () => {
+  const handleReview = () => {
     if (!user) { alert("ログインしてください"); router.push("/login"); return; }
     if (!title.trim()) { alert("タイトルを入力してください"); return; }
     if (!category) { alert("カテゴリを選択してください"); return; }
     if (!isFree && !price) { alert("価格を入力してください"); return; }
+    if (!agreed) { alert("出品規約への同意が必要です"); return; }
+    setShowConfirm(true);
+  };
 
+  const handleSubmit = async () => {
+    if (!user) { alert("ログインしてください"); router.push("/login"); return; }
     setLoading(true);
 
     const imageUrls: string[] = [];
@@ -145,7 +152,7 @@ export default function Sell() {
 
           <div>
             <label className="block text-sm font-bold mb-2">タイトル <span className="text-red-500">*</span></label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+            <input type="text" autoComplete="off" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
           </div>
 
           <div>
@@ -198,6 +205,7 @@ export default function Sell() {
             </div>
             <input
               type="text"
+              autoComplete="off"
               value={area}
               onChange={(e) => setArea(e.target.value)}
               placeholder="その他、大まかな場所を入力（住所は書かないでください）"
@@ -214,7 +222,7 @@ export default function Sell() {
             {!isFree && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-stone-500">¥</span>
-                <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+                <input type="number" min="0" autoComplete="off" value={price} onChange={(e) => setPrice(e.target.value.replace("-", ""))} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
               </div>
             )}
           </div>
@@ -264,6 +272,7 @@ export default function Sell() {
             )}
             <input
               type="text"
+              autoComplete="off"
               value={hashtagInput}
               onChange={(e) => setHashtagInput(e.target.value)}
               onKeyDown={(e) => {
@@ -279,11 +288,82 @@ export default function Sell() {
             <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="状態・付属品・受け渡し場所など" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm h-28 resize-none" />
           </div>
 
-          <button onClick={handleSubmit} disabled={loading} className="w-full bg-orange-700 text-white py-4 rounded-full font-bold text-lg disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm">
-            {loading ? "出品中..." : "出品する"}
+          <div className="border border-stone-200 rounded-xl p-4 bg-stone-50">
+            <p className="font-bold text-sm mb-2">出品する前に</p>
+            <ul className="text-xs text-stone-600 flex flex-col gap-1 mb-3 list-disc pl-5">
+              <li>商品の写真・説明・価格に誤りがないことを確認しました</li>
+              <li>利用規約で禁止されている物品ではないことを確認しました</li>
+              <li>商品の状態について、事実と異なる記載をしません</li>
+            </ul>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="accent-orange-700 w-4 h-4"
+              />
+              上記に同意して出品する
+            </label>
+          </div>
+
+          <button onClick={handleReview} disabled={!agreed} className="w-full bg-orange-700 text-white py-4 rounded-full font-bold text-lg disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm">
+            出品する
           </button>
         </div>
       </main>
+
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-lg max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {previews[0] ? (
+              <img src={previews[0]} alt="" className="w-full h-56 object-cover" />
+            ) : (
+              <div className="bg-orange-50 h-40 flex items-center justify-center text-orange-200 text-4xl">📦</div>
+            )}
+            <div className="p-6">
+              <p className="text-xs font-bold text-orange-700 mb-4 text-center">この内容で出品します。よろしいですか？</p>
+
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs text-orange-700 font-bold">{category}</p>
+                {condition && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{condition}</span>}
+              </div>
+              <p className="text-lg font-bold text-blue-700 mb-1">{title}</p>
+              <p className="text-2xl text-orange-700 font-bold mb-2">{isFree ? "無料" : `¥${Number(price || 0).toLocaleString()}`}</p>
+              {area && <p className="text-sm text-stone-500 mb-1">場所：{area}</p>}
+              {(availableFrom || availableUntil) && (
+                <p className="text-sm text-stone-500 mb-1">
+                  期間：{availableFrom || "未定"}〜{availableUntil || "未定"}
+                </p>
+              )}
+              {hashtags.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mt-2 mb-2">
+                  {hashtags.map((tag) => (
+                    <span key={tag} className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#{tag}</span>
+                  ))}
+                </div>
+              )}
+              {detail && <p className="text-sm text-stone-600 whitespace-pre-wrap mt-2 mb-2">{detail}</p>}
+
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  disabled={loading}
+                  className="flex-1 border border-stone-300 text-stone-600 py-3 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors disabled:opacity-50"
+                >
+                  戻って編集する
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="flex-1 bg-orange-700 text-white py-3 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors disabled:opacity-50"
+                >
+                  {loading ? "出品中..." : "この内容で出品する"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
