@@ -33,6 +33,8 @@ type Conversation = {
   last_created_at: string;
 };
 
+const RATING_LABELS: Record<string, string> = { good: "良い", normal: "普通", bad: "悪い" };
+
 function toLocalInputValue(iso: string) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -72,6 +74,12 @@ export default function ItemChat() {
   const [agreeingMeetup, setAgreeingMeetup] = useState(false);
   const [showMeetupForm, setShowMeetupForm] = useState(false);
   const [receiving, setReceiving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState("good");
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -92,11 +100,63 @@ export default function ItemChat() {
     setReceiving(false);
     if (error) { alert("受け取り確認に失敗しました"); return; }
     setItem({ ...item, received: true });
-    alert("受け取り完了を記録しました！商品ページから出品者を評価できます。");
+    await supabase.from("notification").insert({
+      user_id: user.id,
+      message: `「${item.title}」の受け取りが完了しました。出品者を評価しましょう。`,
+      item_id: item.id,
+    });
+    alert("受け取り完了を記録しました！このページから出品者を評価できます。");
+  };
+
+  const handleCancel = async () => {
+    if (!item) return;
+    if (!confirm("この取引をキャンセルしますか？出品は「販売中」に戻ります。")) return;
+    setCancelling(true);
+    const { error } = await supabase.rpc("cancel_purchase", { p_item_id: item.id });
+    setCancelling(false);
+    if (error) { alert(`キャンセルに失敗しました: ${error.message}`); return; }
+    alert("取引をキャンセルしました");
+    router.push(`/items/${item.id}`);
   };
 
   const isSeller = !!item && !!user && item.user_id === user.id;
   const buyerId = isSeller ? selectedBuyerId : user?.id ?? null;
+
+  useEffect(() => {
+    if (!user || !item || isSeller) { setAlreadyReviewed(false); return; }
+    const checkReview = async () => {
+      const { data } = await supabase
+        .from("review")
+        .select("id")
+        .eq("item_id", item.id)
+        .eq("reviewer_id", user.id)
+        .maybeSingle();
+      setAlreadyReviewed(!!data);
+    };
+    checkReview();
+  }, [item, user, isSeller]);
+
+  const handleSubmitReview = async () => {
+    if (!user || !item) return;
+    setSubmittingReview(true);
+    const { error } = await supabase.from("review").insert({
+      item_id: item.id,
+      seller_id: item.user_id,
+      reviewer_id: user.id,
+      reviewer_nickname: user.user_metadata?.nickname || "匿名ユーザー",
+      rating: reviewRating,
+      comment: reviewComment.trim() || null,
+    });
+    setSubmittingReview(false);
+    if (error) {
+      console.error("review insert failed:", error);
+      alert(`評価の投稿に失敗しました: ${error.message}`);
+      return;
+    }
+    alert("評価を投稿しました！");
+    setShowReviewForm(false);
+    setAlreadyReviewed(true);
+  };
 
   useEffect(() => {
     if (isSeller && item?.sold && item.buyer_id && !selectedBuyerId) {
@@ -471,11 +531,11 @@ export default function ItemChat() {
     <div className="min-h-screen bg-stone-50">
       <Header />
       <main className="max-w-3xl mx-auto px-4 py-8">
-        <button onClick={() => router.push(`/items/${item.id}`)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
+        <button onClick={() => router.replace(`/items/${item.id}`)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 商品ページへ戻る
         </button>
         <h2 className="text-xl font-bold mb-1">{item.title}</h2>
-        <p className="text-sm text-stone-500 mb-6">{isSeller ? "問い合わせ一覧" : `出品者：${item.nickname}`}</p>
+        <p className="text-sm text-stone-500 mb-6">{isSeller ? "取引一覧" : `出品者：${item.nickname}`}</p>
 
         {isSeller ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -483,7 +543,7 @@ export default function ItemChat() {
               {conversationsLoading ? (
                 <p className="p-4 text-sm text-stone-400 text-center">読み込み中...</p>
               ) : conversations.length === 0 ? (
-                <p className="p-4 text-sm text-stone-400 text-center">まだ問い合わせがありません</p>
+                <p className="p-4 text-sm text-stone-400 text-center">まだ取引がありません</p>
               ) : (
                 conversations.map((c) => (
                   <button
@@ -500,6 +560,15 @@ export default function ItemChat() {
             <div className="sm:col-span-2">
               {meetupPanel}
               {chatPanel}
+              {item.sold && !item.received && (
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  className="w-full mt-4 border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {cancelling ? "処理中..." : "この取引をキャンセルする"}
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -507,17 +576,70 @@ export default function ItemChat() {
             {meetupPanel}
             {chatPanel}
             {item.sold && item.buyer_id === user?.id && (
-              <div className="mt-4">
+              <div className="mt-4 flex flex-col gap-3">
                 {item.received ? (
                   <p className="text-center text-sm font-bold text-orange-700 py-2">✓ 受け取り済みです</p>
                 ) : (
+                  <>
+                    <button
+                      onClick={handleReceived}
+                      disabled={receiving}
+                      className="w-full bg-orange-700 text-white py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      {receiving ? "処理中..." : "受け取れました"}
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      disabled={cancelling}
+                      className="w-full border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {cancelling ? "処理中..." : "この取引をキャンセルする"}
+                    </button>
+                  </>
+                )}
+
+                {item.received && !alreadyReviewed && !showReviewForm && (
                   <button
-                    onClick={handleReceived}
-                    disabled={receiving}
-                    className="w-full bg-orange-700 text-white py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm disabled:opacity-50"
+                    onClick={() => setShowReviewForm(true)}
+                    className="text-orange-700 text-sm font-bold hover:text-orange-800 transition-colors"
                   >
-                    {receiving ? "処理中..." : "受け取れました"}
+                    ★ 出品者を評価する
                   </button>
+                )}
+                {alreadyReviewed && (
+                  <p className="text-center text-xs text-stone-400">この出品者への評価は投稿済みです</p>
+                )}
+                {showReviewForm && (
+                  <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
+                    <p className="font-bold text-sm mb-2">出品者の評価</p>
+                    <div className="flex gap-3 mb-3">
+                      {Object.entries(RATING_LABELS).map(([value, label]) => (
+                        <label key={value} className="flex items-center gap-1 text-sm">
+                          <input
+                            type="radio"
+                            name="reviewRating"
+                            value={value}
+                            checked={reviewRating === value}
+                            onChange={() => setReviewRating(value)}
+                            className="accent-orange-700"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="コメント（任意）"
+                      className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white focus:border-orange-600 transition-colors"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => setShowReviewForm(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors">キャンセル</button>
+                      <button onClick={handleSubmitReview} disabled={submittingReview} className="flex-1 bg-orange-700 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors">
+                        {submittingReview ? "送信中..." : "評価を送信"}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

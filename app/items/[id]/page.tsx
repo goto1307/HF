@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -59,6 +60,8 @@ export default function ItemDetail() {
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
   const [buyAgreed, setBuyAgreed] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
+  const [sellerStats, setSellerStats] = useState<{ avg: number; count: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -118,6 +121,21 @@ export default function ItemDetail() {
     fetchLikes();
   }, [params.id, user]);
 
+  useEffect(() => {
+    if (!item) { setSellerStats(null); return; }
+    const RATING_SCORE: Record<string, number> = { good: 5, normal: 3, bad: 1 };
+    const fetchSellerStats = async () => {
+      const { data } = await supabase.from("review").select("rating").eq("seller_id", item.user_id);
+      if (data && data.length > 0) {
+        const total = data.reduce((sum, r) => sum + (RATING_SCORE[r.rating] ?? 3), 0);
+        setSellerStats({ avg: total / data.length, count: data.length });
+      } else {
+        setSellerStats({ avg: 0, count: 0 });
+      }
+    };
+    fetchSellerStats();
+  }, [item?.user_id]);
+
   const toggleLike = async () => {
     if (!user) { alert("いいねするにはログインしてください"); router.push("/login"); return; }
     setTogglingLike(true);
@@ -143,6 +161,7 @@ export default function ItemDetail() {
   const sendMessage = async () => {
     if (!input.trim()) return;
     if (!user) { alert("メッセージを送るにはログインしてください"); router.push("/login"); return; }
+    if (item?.sold) { alert("この商品は売却済みのため、質問チャットは終了しています"); return; }
 
     const content = input;
     setInput("");
@@ -169,12 +188,13 @@ export default function ItemDetail() {
   };
 
   const handleReport = async () => {
+    if (!user) { alert("通報にはログインしてください"); router.push("/login"); return; }
     if (!reportReason) { alert("通報理由を選択してください"); return; }
     if (reportReason === "その他" && !reportDetail.trim()) { alert("詳細を入力してください"); return; }
     setReporting(true);
     const { error } = await supabase.from("report").insert({
       item_id: item?.id,
-      reason: reportReason === "その他" ? `その他：${reportDetail}` : reportReason,
+      reason: reportDetail.trim() ? `${reportReason}：${reportDetail.trim()}` : reportReason,
     });
     setReporting(false);
     if (error) { alert("通報に失敗しました"); return; }
@@ -196,7 +216,11 @@ export default function ItemDetail() {
       comment: reviewComment.trim() || null,
     });
     setSubmittingReview(false);
-    if (error) { alert("評価の投稿に失敗しました"); return; }
+    if (error) {
+      console.error("review insert failed:", error);
+      alert(`評価の投稿に失敗しました: ${error.message}`);
+      return;
+    }
     alert("評価を投稿しました！");
     setShowReviewForm(false);
     setAlreadyReviewed(true);
@@ -237,7 +261,14 @@ export default function ItemDetail() {
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mb-4">
           <div className="relative">
             {gallery.length > 0 ? (
-              <img src={gallery[activeImage]} alt={item.title} className={`w-full h-64 object-cover ${item.sold ? "opacity-50" : ""}`} />
+              <button
+                type="button"
+                onClick={() => setShowLightbox(true)}
+                className="block w-full cursor-zoom-in"
+                aria-label="画像を拡大表示"
+              >
+                <img src={gallery[activeImage]} alt={item.title} className={`w-full h-80 sm:h-96 object-cover ${item.sold ? "opacity-50" : ""}`} />
+              </button>
             ) : (
               <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 text-4xl ${item.sold ? "opacity-50" : ""}`}>📦</div>
             )}
@@ -245,15 +276,6 @@ export default function ItemDetail() {
               <div className="absolute top-4 -right-10 w-40 rotate-45 bg-red-600 text-white text-sm font-extrabold text-center py-1 shadow-md tracking-wider">
                 SOLD OUT
               </div>
-            )}
-            {!item.sold && (
-              <button
-                onClick={toggleLike}
-                disabled={togglingLike}
-                className="absolute top-3 right-3 bg-white/90 rounded-full w-10 h-10 flex items-center justify-center text-lg shadow hover:scale-110 transition-transform"
-              >
-                {likedByMe ? "❤️" : "🤍"}
-              </button>
             )}
           </div>
           {gallery.length > 1 && (
@@ -269,7 +291,38 @@ export default function ItemDetail() {
               ))}
             </div>
           )}
+          <div className="flex items-center gap-2 px-4 py-3 border-t border-stone-100">
+            <button
+              onClick={toggleLike}
+              disabled={togglingLike || item.sold}
+              className="flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:hover:bg-orange-50 rounded-full pl-2 pr-3.5 py-1.5 transition-colors"
+            >
+              <span className="text-lg">{likedByMe ? "❤️" : "🤍"}</span>
+              <span className="text-sm font-bold text-orange-700">{likeCount}件のいいね</span>
+            </button>
+          </div>
         </div>
+
+        {showLightbox && gallery.length > 0 && (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setShowLightbox(false)}
+          >
+            <button
+              onClick={() => setShowLightbox(false)}
+              className="absolute top-4 right-4 text-white text-3xl leading-none"
+              aria-label="閉じる"
+            >
+              ✕
+            </button>
+            <img
+              src={gallery[activeImage]}
+              alt={item.title}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 mb-4">
           <div className="flex items-center gap-2 mb-1">
@@ -282,22 +335,38 @@ export default function ItemDetail() {
           <p className="text-3xl text-orange-700 font-bold mb-1">
             {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
           </p>
-          <p className="text-sm text-stone-400 mb-3">❤️ {likeCount}件のいいね</p>
           <p className="text-stone-600 mb-2 whitespace-pre-wrap">{item.detail}</p>
-          {item.area && <p className="text-sm text-stone-500">場所：{item.area}</p>}
+          {item.area && <p className="text-sm text-stone-500">希望場所：{item.area}</p>}
           {(item.available_from || item.available_until) && (
             <p className="text-sm text-stone-500">
               期間：{item.available_from ? new Date(item.available_from).toLocaleDateString() : "未定"}
               〜{item.available_until ? new Date(item.available_until).toLocaleDateString() : "未定"}
             </p>
           )}
-          <p className="text-sm text-stone-500">出品者：{item.nickname}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Link href={`/users/${item.user_id}`} className="text-sm text-stone-500 hover:text-orange-700 hover:underline transition-colors">
+              出品者：{item.nickname}
+            </Link>
+            {sellerStats && sellerStats.count > 0 && (
+              <span className="text-xs font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full">
+                ★ {sellerStats.avg.toFixed(1)}（{sellerStats.count}件）
+              </span>
+            )}
+          </div>
           {item.hashtags && item.hashtags.length > 0 && (
             <div className="flex gap-1.5 flex-wrap mt-2">
               {item.hashtags.map((tag) => (
                 <span key={tag} className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#{tag}</span>
               ))}
             </div>
+          )}
+          {(isOwnItem || item.buyer_id === user?.id) && item.sold && (
+            <button
+              onClick={() => router.push(`/items/${item.id}/chat`)}
+              className="w-full mt-4 bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors"
+            >
+              取引ページを見る
+            </button>
           )}
         </div>
 
@@ -360,9 +429,12 @@ export default function ItemDetail() {
               <option value="不適切な内容">不適切な内容</option>
               <option value="その他">その他</option>
             </select>
-            {reportReason === "その他" && (
-              <textarea value={reportDetail} onChange={(e) => setReportDetail(e.target.value)} placeholder="詳細を入力してください" className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white" />
-            )}
+            <textarea
+              value={reportDetail}
+              onChange={(e) => setReportDetail(e.target.value)}
+              placeholder={reportReason === "その他" ? "詳細を入力してください" : "詳細（任意）"}
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white"
+            />
             <div className="flex gap-2 mt-2">
               <button onClick={() => setShowReport(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors">キャンセル</button>
               <button onClick={handleReport} disabled={reporting} className="flex-1 bg-red-500 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors">{reporting ? "送信中..." : "通報する"}</button>
@@ -371,7 +443,10 @@ export default function ItemDetail() {
         )}
 
         <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm mb-4">
-          <div className="bg-orange-700 text-white px-4 py-3 font-bold">みんなの質問チャット</div>
+          <div className="bg-orange-700 text-white px-4 py-3 font-bold flex items-center justify-between">
+            <span>みんなの質問チャット</span>
+            {item.sold && <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full">終了しました</span>}
+          </div>
           <div className="p-4 h-64 overflow-y-auto flex flex-col gap-3 bg-stone-50">
             {messages.length === 0 && (
               <p className="text-center text-stone-400 text-sm">まだメッセージがありません</p>
@@ -402,11 +477,11 @@ export default function ItemDetail() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={user ? "メッセージを入力..." : "ログインするとメッセージを送れます"}
-              className="flex-1 px-4 py-3 outline-none text-sm"
-              disabled={!user}
+              placeholder={item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力..." : "ログインするとメッセージを送れます"}
+              className="flex-1 px-4 py-3 outline-none text-sm disabled:bg-stone-100"
+              disabled={!user || item.sold}
             />
-            <button onClick={sendMessage} disabled={!user} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">
+            <button onClick={sendMessage} disabled={!user || item.sold} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">
               送信
             </button>
           </div>

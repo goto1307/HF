@@ -74,7 +74,14 @@ export default function Register() {
       },
     });
     setLoading(false);
-    if (error) { alert(`登録に失敗しました: ${error.message}`); return; }
+    if (error) {
+      if (error.code === "over_request_rate_limit" || error.status === 429) {
+        alert("試行回数が多すぎます。しばらく待ってから再度お試しください。");
+      } else {
+        alert("登録に失敗しました。入力内容をご確認のうえ、もう一度お試しください。");
+      }
+      return;
+    }
     alert("確認メールを送りました！メール内のリンクを開いて確認を完了してから、ログインしてください。");
     router.push("/login");
   };
