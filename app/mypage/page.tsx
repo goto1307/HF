@@ -108,11 +108,17 @@ export default function MyPage() {
     if (updateError) { alert("アイコンの更新に失敗しました"); return; }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("この商品を削除しますか？")) return;
-    const { error } = await supabase.from("item").delete().eq("id", id);
+  const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("item").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
     if (error) { alert("削除に失敗しました"); return; }
-    setItems(items.filter((item) => item.id !== id));
+    setItems(items.filter((item) => item.id !== deleteTarget.id));
+    setDeleteTarget(null);
   };
 
   if (loading) {
@@ -265,7 +271,7 @@ export default function MyPage() {
                           </button>
                           {!item.sold && (
                             <button
-                              onClick={() => handleDelete(item.id)}
+                              onClick={() => setDeleteTarget(item)}
                               className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
                             >
                               削除する
@@ -281,6 +287,38 @@ export default function MyPage() {
           </>
         )}
       </main>
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-bold text-sm mb-1 text-center">この商品を削除しますか？</p>
+            <p className="text-center text-blue-700 font-bold text-sm mb-4 truncate">{deleteTarget.title}</p>
+            <p className="text-xs text-stone-400 text-center mb-4">削除すると元に戻せません。</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {deleting ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
