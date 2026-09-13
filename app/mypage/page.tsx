@@ -236,26 +236,21 @@ export default function MyPage() {
               )}
             </section>
 
-            <section>
-              <h3 className="font-bold mb-4">出品した商品（{items.length}件）</h3>
-              {items.length === 0 ? (
+            <section id="selling">
+              <h3 className="font-bold mb-4">出品中の商品（{items.filter((item) => !item.sold).length}件）</h3>
+              {items.filter((item) => !item.sold).length === 0 ? (
                 <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">
-                  まだ出品した商品がありません
+                  現在出品中の商品はありません
                 </p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {items.map((item) => (
+                  {items.filter((item) => !item.sold).map((item) => (
                     <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                       <Link href={`/items/${item.id}`} className="relative block">
                         {(item.image_urls?.[0] ?? item.image_url) ? (
-                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className={`w-full h-32 object-cover ${item.sold ? "opacity-50" : ""}`} />
+                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
                         ) : (
-                          <div className={`bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl ${item.sold ? "opacity-50" : ""}`}>📦</div>
-                        )}
-                        {item.sold && (
-                          <div className="absolute top-2 -right-8 w-32 rotate-45 bg-red-600 text-white text-xs font-extrabold text-center py-0.5 shadow-md tracking-wider">
-                            SOLD OUT
-                          </div>
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
                         )}
                       </Link>
                       <div className="p-3">
@@ -267,17 +262,52 @@ export default function MyPage() {
                             onClick={() => router.push(`/items/${item.id}/chat`)}
                             className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
                           >
-                            {item.sold ? "個別チャットを見る" : "問い合わせを見る"}
+                            問い合わせを見る
                           </button>
-                          {!item.sold && (
-                            <button
-                              onClick={() => setDeleteTarget(item)}
-                              className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
-                            >
-                              削除する
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setDeleteTarget(item)}
+                            className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
+                          >
+                            削除する
+                          </button>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section id="sold" className="mt-10">
+              <h3 className="font-bold mb-4">売れた商品（{items.filter((item) => item.sold).length}件）</h3>
+              {items.filter((item) => item.sold).length === 0 ? (
+                <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">
+                  まだ売れた商品がありません
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {items.filter((item) => item.sold).map((item) => (
+                    <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                      <Link href={`/items/${item.id}`} className="relative block">
+                        {(item.image_urls?.[0] ?? item.image_url) ? (
+                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover opacity-50" />
+                        ) : (
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl opacity-50">📦</div>
+                        )}
+                        <div className="absolute top-2 -right-8 w-32 rotate-45 bg-red-600 text-white text-xs font-extrabold text-center py-0.5 shadow-md tracking-wider">
+                          SOLD OUT
+                        </div>
+                      </Link>
+                      <div className="p-3">
+                        <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
+                        <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
+                        <button
+                          onClick={() => router.push(`/items/${item.id}/chat`)}
+                          className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
+                        >
+                          個別チャットを見る
+                        </button>
                       </div>
                     </div>
                   ))}

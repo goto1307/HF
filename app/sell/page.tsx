@@ -152,7 +152,8 @@ export default function Sell() {
 
           <div>
             <label className="block text-sm font-bold mb-2">タイトル <span className="text-red-500">*</span></label>
-            <input type="text" autoComplete="off" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+            <input type="text" autoComplete="off" maxLength={45} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+            <p className="text-xs text-stone-400 text-right mt-1">{title.length}/45</p>
           </div>
 
           <div>
@@ -276,6 +277,7 @@ export default function Sell() {
               value={hashtagInput}
               onChange={(e) => setHashtagInput(e.target.value)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addHashtag(); }
               }}
               placeholder="例：教科書 (Enterで追加)"
@@ -285,7 +287,8 @@ export default function Sell() {
 
           <div>
             <label className="block text-sm font-bold mb-2">商品の説明</label>
-            <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="状態・付属品・受け渡し場所など" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm h-28 resize-none" />
+            <textarea maxLength={150} value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="状態・付属品・受け渡し場所など" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm h-28 resize-none" />
+            <p className="text-xs text-stone-400 text-right mt-1">{detail.length}/150</p>
           </div>
 
           <div className="border border-stone-200 rounded-xl p-4 bg-stone-50">

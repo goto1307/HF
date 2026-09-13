@@ -152,7 +152,8 @@ function HomeContent() {
       <Header />
 
       {!user && !heroDismissed && (
-        <div className="relative overflow-hidden bg-gradient-to-br from-orange-700 via-[#d9531f] to-orange-600 text-white">
+        <div className="relative overflow-hidden bg-gradient-to-br from-[#7a1f1f] via-[#a8351f] to-orange-600 text-white shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)]" aria-hidden />
           <button
             onClick={dismissHero}
             className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors text-lg leading-none"
@@ -162,19 +163,20 @@ function HomeContent() {
           </button>
           <div className="absolute -top-24 right-10 w-56 h-56 rounded-full bg-white/10" aria-hidden />
           <div className="absolute -bottom-20 left-[8%] w-36 h-36 rounded-full bg-white/10" aria-hidden />
-          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-7 sm:py-9 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-200/60 to-transparent" aria-hidden />
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
             <div className="max-w-md">
-              <span className="inline-block text-[11px] sm:text-xs font-extrabold bg-white/20 px-3 py-1 rounded-full mb-2.5">
+              <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-extrabold bg-white/15 backdrop-blur-sm border border-white/25 px-3 py-1 rounded-full mb-3 tracking-wide">
                 🦊 北大生限定のフリマ
               </span>
-              <h1 className="text-lg sm:text-2xl font-extrabold leading-snug mb-2 text-balance">
+              <h1 className="text-xl sm:text-3xl font-extrabold leading-snug mb-2 text-balance tracking-tight">
                 いらないが、誰かの「ちょうどいい」になる。
               </h1>
-              <p className="text-xs sm:text-sm opacity-90 leading-relaxed mb-4">
+              <p className="text-xs sm:text-sm text-amber-50/90 leading-relaxed mb-5">
                 教科書、自転車、部屋のもの。キャンパスの中だけで、ちょうどいい売り買いを。
               </p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <Link href="/register" className="bg-white text-orange-700 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-orange-50 transition-colors">
+                <Link href="/register" className="bg-white text-orange-800 px-5 py-2.5 rounded-full font-bold text-sm shadow-md hover:shadow-lg hover:bg-orange-50 transition-all">
                   新規登録
                 </Link>
                 <Link href="/login" className="border border-white/70 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/10 transition-colors">
@@ -185,7 +187,7 @@ function HomeContent() {
                 </button>
               </div>
             </div>
-            <FoxMascot size={92} className="shrink-0 drop-shadow-lg hidden sm:block" />
+            <FoxMascot size={96} className="shrink-0 drop-shadow-2xl hidden sm:block" />
           </div>
         </div>
       )}
@@ -204,10 +206,10 @@ function HomeContent() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full border font-bold text-sm transition-colors ${
+              className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${
                 selectedCategory === cat
-                  ? "bg-orange-700 text-white border-orange-700"
-                  : "bg-white text-orange-700 border-orange-200 hover:border-orange-400"
+                  ? "bg-gradient-to-br from-orange-600 to-orange-700 text-white border-orange-700 shadow-md"
+                  : "bg-white text-orange-700 border-orange-200 hover:border-orange-400 hover:shadow-sm"
               }`}
             >
               {cat}
@@ -474,7 +476,7 @@ function HomeContent() {
             </div>
           </div>
 
-          <div className="w-full bg-orange-700 text-white py-2.5 rounded-full font-bold text-sm text-center">
+          <div className="w-full bg-gradient-to-br from-orange-600 to-orange-700 text-white py-2.5 rounded-full font-bold text-sm text-center shadow-md">
             検索する（{sorted.length}件）
           </div>
         </aside>
@@ -500,22 +502,22 @@ function HomeContent() {
               <p className="text-stone-400">条件に合う商品がありません</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
               {sorted.map((item) => (
                 <Link
                   href={`/items/${item.id}`}
                   key={item.id}
-                  className="group relative border border-stone-200 rounded-2xl overflow-hidden bg-white hover:shadow-md hover:-translate-y-0.5 transition-all block"
+                  className="group relative border border-stone-200/70 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-xl hover:border-orange-200 hover:-translate-y-1 transition-all duration-300 block"
                 >
-                  <div className="relative">
+                  <div className="relative overflow-hidden">
                     {(item.image_urls?.[0] ?? item.image_url) ? (
                       <img
                         src={item.image_urls?.[0] ?? item.image_url ?? undefined}
                         alt={item.title}
-                        className={`w-full h-32 object-cover ${item.sold ? "opacity-50" : ""}`}
+                        className={`w-full h-32 object-cover transition-transform duration-500 group-hover:scale-110 ${item.sold ? "opacity-50" : ""}`}
                       />
                     ) : (
-                      <div className={`bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl ${item.sold ? "opacity-50" : ""}`}>
+                      <div className={`bg-gradient-to-br from-orange-50 to-amber-50 h-32 flex items-center justify-center text-orange-200 text-3xl ${item.sold ? "opacity-50" : ""}`}>
                         📦
                       </div>
                     )}
@@ -527,21 +529,21 @@ function HomeContent() {
                     {!item.sold && (
                       <button
                         onClick={(e) => toggleLike(e, item.id)}
-                        className="absolute top-1.5 right-1.5 bg-white/90 rounded-full w-7 h-7 flex items-center justify-center text-sm shadow hover:scale-110 transition-transform"
+                        className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-md hover:scale-110 transition-transform"
                       >
                         {likedByMe.has(item.id) ? "❤️" : "🤍"}
                       </button>
                     )}
                   </div>
-                  <div className="p-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <p className="text-xs text-orange-700 font-bold">{item.category}</p>
+                  <div className="p-3.5">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <p className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">{item.category}</p>
                       {item.condition && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{item.condition}</span>
                       )}
                     </div>
-                    <p className="font-bold mb-1 text-sm truncate text-blue-700 group-hover:text-blue-800">{item.title}</p>
-                    <p className="text-orange-700 font-bold text-sm">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
+                    <p className="font-bold mb-1.5 text-sm truncate text-blue-700 group-hover:text-blue-800">{item.title}</p>
+                    <p className="text-orange-700 font-extrabold text-base tracking-tight">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                     {item.hashtags && item.hashtags.length > 0 && (
                       <div className="flex gap-1 flex-wrap mt-1">
                         {item.hashtags.slice(0, 3).map((tag) => (
@@ -549,7 +551,7 @@ function HomeContent() {
                         ))}
                       </div>
                     )}
-                    <div className="flex items-center justify-between mt-1">
+                    <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-stone-100">
                       <p className="text-xs text-stone-400 truncate">{item.area || ""}</p>
                       <p className="text-xs text-stone-400 shrink-0 ml-1">{timeAgo(item.created_at)}</p>
                     </div>
@@ -563,7 +565,7 @@ function HomeContent() {
 
       <Link
         href="/sell"
-        className="fixed bottom-6 left-6 bg-orange-700 text-white px-6 py-4 rounded-full font-bold shadow-lg text-lg hover:bg-orange-800 hover:shadow-xl transition-all"
+        className="fixed bottom-6 left-6 bg-gradient-to-br from-orange-600 to-orange-700 text-white px-6 py-4 rounded-full font-bold shadow-xl ring-1 ring-white/20 text-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
       >
         ＋ 出品する
       </Link>
