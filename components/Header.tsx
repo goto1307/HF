@@ -104,16 +104,34 @@ export default function Header() {
             </span>
           </Link>
           {pathname === "/" && (
-            <div className="flex-1 max-w-md hidden sm:flex items-center bg-white rounded-full px-4 py-2">
-              <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="検索"
-                className="flex-1 outline-none text-sm text-stone-800"
-              />
+            <div className="flex-1 hidden sm:flex items-center gap-2">
+              <div className="flex-1 max-w-md flex items-center bg-white rounded-full px-4 py-2">
+                <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  placeholder="検索"
+                  className="flex-1 outline-none text-sm text-stone-800"
+                />
+              </div>
+              {user && (
+                <div className="hidden md:flex items-center gap-1.5 shrink-0">
+                  <Link
+                    href="/mypage#selling"
+                    className="text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors whitespace-nowrap"
+                  >
+                    出品した商品
+                  </Link>
+                  <Link
+                    href="/mypage#sold"
+                    className="text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors whitespace-nowrap"
+                  >
+                    売れた商品
+                  </Link>
+                </div>
+              )}
             </div>
           )}
           <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
