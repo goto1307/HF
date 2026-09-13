@@ -30,10 +30,8 @@ const ADMIN_EMAILS = ["debuchi.sora.b0@elms.hokudai.ac.jp", "goto.kanata.w1@elms
 export default function Header() {
   const { user } = useAuth();
   const isAdmin = !!user && !!user.email && ADMIN_EMAILS.includes(user.email);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -81,16 +79,6 @@ export default function Header() {
   const handleSearch = () => {
     const trimmed = query.trim();
     router.push(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : "/");
-  };
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    const { error } = await supabase.auth.signOut();
-    setLoggingOut(false);
-    setShowLogoutConfirm(false);
-    if (error) {
-      alert("ログアウトに失敗しました。もう一度お試しください。");
-    }
   };
 
   return (
@@ -227,12 +215,13 @@ export default function Header() {
                     初めての方に
                   </button>
                   {user && (
-                    <button
-                      onClick={() => { setShowMenu(false); setShowLogoutConfirm(true); }}
-                      className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                    <Link
+                      href="/logout"
+                      onClick={() => setShowMenu(false)}
+                      className="block w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
                     >
                       ログアウト
-                    </button>
+                    </Link>
                   )}
                 </div>
               )}
@@ -240,35 +229,6 @@ export default function Header() {
           </nav>
         </div>
       </header>
-
-      {showLogoutConfirm && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-          onClick={() => setShowLogoutConfirm(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-lg max-w-xs w-full p-5 border border-red-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="font-bold text-sm mb-4 text-red-600 text-center">本当にログアウトしますか？</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
-              >
-                {loggingOut ? "ログアウト中..." : "ログアウトする"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showGuide && (
         <div
