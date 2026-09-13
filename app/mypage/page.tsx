@@ -134,9 +134,15 @@ export default function MyPage() {
       <Header />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <button onClick={() => router.back()} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
-          <span aria-hidden>←</span> 戻る
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={() => router.back()} className="text-orange-700 font-bold flex items-center gap-1 hover:text-orange-800 transition-colors">
+            <span aria-hidden>←</span> 戻る
+          </button>
+          <div className="flex items-center gap-3 text-xs font-bold text-stone-500">
+            <a href="#selling" className="hover:text-orange-700 transition-colors">出品中の商品へ</a>
+            <a href="#sold" className="hover:text-orange-700 transition-colors">売れた商品へ</a>
+          </div>
+        </div>
         <div className="flex items-center gap-4 mb-8">
           <div className="relative shrink-0">
             {user?.user_metadata?.avatar_url ? (

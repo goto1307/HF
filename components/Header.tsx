@@ -32,6 +32,7 @@ export default function Header() {
   const isAdmin = !!user && !!user.email && ADMIN_EMAILS.includes(user.email);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -117,30 +118,16 @@ export default function Header() {
                 />
               </div>
               {user && (
-                <div className="hidden md:flex items-center gap-1.5 shrink-0">
-                  <Link
-                    href="/mypage#selling"
-                    className="text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors whitespace-nowrap"
-                  >
-                    出品した商品
-                  </Link>
-                  <Link
-                    href="/mypage#sold"
-                    className="text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors whitespace-nowrap"
-                  >
-                    売れた商品
-                  </Link>
-                </div>
+                <Link
+                  href="/mypage#selling"
+                  className="hidden md:inline-block text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors whitespace-nowrap shrink-0"
+                >
+                  出品・売れた商品
+                </Link>
               )}
             </div>
           )}
           <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <button
-              onClick={() => setShowGuide(true)}
-              className="text-xs sm:text-sm font-bold px-2 sm:px-3 py-1.5 sm:py-2 rounded-full hover:bg-white/10 transition-colors whitespace-nowrap"
-            >
-              初めての方に
-            </button>
             {user ? (
               <>
                 <div className="relative">
@@ -206,12 +193,6 @@ export default function Header() {
                   )}
                   <span className="hidden sm:inline">マイページ</span>
                 </Link>
-                <button
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors whitespace-nowrap"
-                >
-                  ログアウト
-                </button>
               </>
             ) : (
               <>
@@ -229,6 +210,33 @@ export default function Header() {
                 </Link>
               </>
             )}
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu((v) => !v)}
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-lg"
+                aria-label="メニュー"
+              >
+                ☰
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
+                  <button
+                    onClick={() => { setShowMenu(false); setShowGuide(true); }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-50 transition-colors border-b border-stone-100"
+                  >
+                    初めての方に
+                  </button>
+                  {user && (
+                    <button
+                      onClick={() => { setShowMenu(false); setShowLogoutConfirm(true); }}
+                      className="w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      ログアウト
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </nav>
         </div>
       </header>
