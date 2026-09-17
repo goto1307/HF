@@ -59,6 +59,7 @@ export default function Login() {
           <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="flex flex-col gap-4">
             <input
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="北大メールアドレス"
@@ -66,6 +67,7 @@ export default function Login() {
             />
             <input
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="パスワード"

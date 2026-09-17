@@ -414,6 +414,7 @@ export default function ItemChat() {
             </div>
             <input
               type="text"
+              maxLength={50}
               value={meetupLocation}
               onChange={(e) => setMeetupLocation(e.target.value)}
               placeholder="場所を入力（例：北部食堂前）"
@@ -513,6 +514,7 @@ export default function ItemChat() {
       <div className="flex border-t border-stone-200">
         <input
           type="text"
+          maxLength={500}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
@@ -628,6 +630,7 @@ export default function ItemChat() {
                       ))}
                     </div>
                     <textarea
+                      maxLength={500}
                       value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}
                       placeholder="コメント（任意）"

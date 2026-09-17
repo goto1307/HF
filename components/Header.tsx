@@ -112,6 +112,7 @@ export default function Header() {
               <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
               <input
                 type="text"
+                maxLength={100}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -203,6 +204,22 @@ export default function Header() {
             )}
           </nav>
         </div>
+        {pathname === "/" && (
+          <div className="sm:hidden px-3 pb-3">
+            <div className="flex items-center bg-white rounded-full px-4 py-2">
+              <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
+              <input
+                type="text"
+                maxLength={100}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="検索"
+                className="flex-1 outline-none text-sm text-stone-800"
+              />
+            </div>
+          </div>
+        )}
         {user && (
           <div className="border-t border-white/20">
             <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">

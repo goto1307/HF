@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { resizeImage } from "@/lib/resizeImage";
+import { resizeImage, validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 
 type Item = {
@@ -118,6 +118,9 @@ export default function MyPage() {
     e.target.value = "";
     if (!file || !user) return;
 
+    const validationError = validateImageFile(file);
+    if (validationError) { alert(validationError); return; }
+
     setUploadingAvatar(true);
     let uploadFile: File = file;
     try {
@@ -217,6 +220,7 @@ export default function MyPage() {
             <div>
               <label className="block text-xs font-bold text-stone-500 mb-1">一言メッセージ</label>
               <textarea
+                maxLength={300}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="よろしくお願いします！など"

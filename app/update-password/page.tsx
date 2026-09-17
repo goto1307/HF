@@ -39,6 +39,7 @@ export default function UpdatePassword() {
             <>
               <input
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="新しいパスワード（6文字以上）"
@@ -46,6 +47,7 @@ export default function UpdatePassword() {
               />
               <input
                 type="password"
+                autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleUpdate()}

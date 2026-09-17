@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { resizeImage } from "@/lib/resizeImage";
+import { resizeImage, validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "貸します", "その他"];
@@ -29,8 +29,9 @@ export default function Sell() {
   const [hashtagInput, setHashtagInput] = useState("");
 
   const addHashtag = () => {
-    const tag = hashtagInput.trim().replace(/^#/, "");
+    const tag = hashtagInput.trim().replace(/^#/, "").slice(0, 30);
     if (!tag) return;
+    if (hashtags.length >= 10) { alert("ハッシュタグは最大10個までです"); return; }
     if (!hashtags.includes(tag)) setHashtags([...hashtags, tag]);
     setHashtagInput("");
   };
@@ -48,7 +49,11 @@ export default function Sell() {
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (images.length + files.length > 5) { alert("写真は最大5枚までです"); return; }
+    if (images.length + files.length > 5) { alert("写真は最大5枚までです"); e.target.value = ""; return; }
+    for (const file of files) {
+      const error = validateImageFile(file);
+      if (error) { alert(error); e.target.value = ""; return; }
+    }
     setImages([...images, ...files]);
     setPreviews([...previews, ...files.map((f) => URL.createObjectURL(f))]);
     e.target.value = "";
@@ -153,7 +158,7 @@ export default function Sell() {
 
           <div>
             <label className="block text-sm font-bold mb-2">タイトル <span className="text-red-500">*</span></label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+            <input type="text" maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
           </div>
 
           <div>
@@ -201,6 +206,7 @@ export default function Sell() {
             </div>
             <input
               type="text"
+              maxLength={50}
               value={area}
               onChange={(e) => setArea(e.target.value)}
               placeholder="その他、大まかな場所を入力（住所は書かないでください）"
@@ -267,6 +273,7 @@ export default function Sell() {
             )}
             <input
               type="text"
+              maxLength={30}
               value={hashtagInput}
               onChange={(e) => setHashtagInput(e.target.value)}
               onKeyDown={(e) => {
@@ -279,7 +286,7 @@ export default function Sell() {
 
           <div>
             <label className="block text-sm font-bold mb-2">商品の説明</label>
-            <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="状態・付属品・受け渡し場所など" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm h-28 resize-none" />
+            <textarea maxLength={2000} value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="状態・付属品・受け渡し場所など" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm h-28 resize-none" />
           </div>
 
           <button onClick={handleSubmit} disabled={loading} className="w-full bg-orange-700 text-white py-4 rounded-full font-bold text-lg disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm">

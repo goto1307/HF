@@ -401,6 +401,7 @@ export default function ItemDetail() {
               ))}
             </div>
             <textarea
+              maxLength={500}
               value={reviewComment}
               onChange={(e) => setReviewComment(e.target.value)}
               placeholder="コメント（任意）"
@@ -430,6 +431,7 @@ export default function ItemDetail() {
               <option value="その他">その他</option>
             </select>
             <textarea
+              maxLength={500}
               value={reportDetail}
               onChange={(e) => setReportDetail(e.target.value)}
               placeholder={reportReason === "その他" ? "詳細を入力してください" : "詳細（任意）"}
@@ -474,6 +476,7 @@ export default function ItemDetail() {
           <div className="flex border-t border-stone-200">
             <input
               type="text"
+              maxLength={500}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}

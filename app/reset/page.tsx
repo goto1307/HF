@@ -37,6 +37,7 @@ export default function Reset() {
               <p className="text-sm text-stone-500 mb-2">登録したメールアドレスに再設定用のリンクを送ります。</p>
               <input
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleReset()}
