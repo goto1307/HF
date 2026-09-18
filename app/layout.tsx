@@ -29,15 +29,9 @@ export default function RootLayout({
         <AuthProvider>{children}</AuthProvider>
         <footer className="text-center text-xs text-stone-400 py-6 px-4 border-t border-stone-200 bg-stone-50">
           <p className="mb-2">北フリは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。</p>
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            <span>公式アカウント：<span className="text-stone-300">準備中</span></span>
-            <a href="mailto:debuchi.sora.b0@elms.hokudai.ac.jp" className="text-stone-500 hover:text-orange-700 underline transition-colors">
-              お問い合わせはこちら
-            </a>
-            <Link href="/privacy" className="text-stone-500 hover:text-orange-700 underline transition-colors">
-              プライバシーポリシー
-            </Link>
-          </div>
+          <Link href="/privacy" className="text-stone-500 hover:text-orange-700 underline transition-colors">
+            プライバシーポリシー
+          </Link>
         </footer>
       </body>
     </html>
