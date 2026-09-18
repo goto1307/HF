@@ -66,14 +66,21 @@ function HomeContent() {
   const { user } = useAuth();
   const router = useRouter();
   const [heroDismissed, setHeroDismissed] = useState(false);
+  const [campaignDismissed, setCampaignDismissed] = useState(false);
 
   useEffect(() => {
     setHeroDismissed(localStorage.getItem("heroDismissed") === "1");
+    setCampaignDismissed(localStorage.getItem("campaignDismissed") === "1");
   }, []);
 
   const dismissHero = () => {
     localStorage.setItem("heroDismissed", "1");
     setHeroDismissed(true);
+  };
+
+  const dismissCampaign = () => {
+    localStorage.setItem("campaignDismissed", "1");
+    setCampaignDismissed(true);
   };
 
   useEffect(() => {
@@ -188,6 +195,29 @@ function HomeContent() {
               </div>
             </div>
             <FoxMascot size={96} className="shrink-0 drop-shadow-2xl hidden sm:block" />
+          </div>
+        </div>
+      )}
+
+      {!campaignDismissed && (
+        <div className="relative bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white">
+          <button
+            onClick={dismissCampaign}
+            className="absolute top-2 right-2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors text-base leading-none"
+            aria-label="閉じる"
+          >
+            ×
+          </button>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-white/25 px-3 py-1 rounded-full whitespace-nowrap">
+              🎁 開催中キャンペーン
+            </span>
+            <p className="text-sm sm:text-base font-bold leading-snug">
+              5回の出品・購入でAmazonギフト券が当たる！抽選で10名様に1,000円分プレゼント🦊
+              <span className="block sm:inline sm:ml-2 text-xs sm:text-sm font-normal opacity-95">
+                今はユーザーがまだ少ないから当選確率かなり高め。お部屋の整理も兼ねて、ぜひ参加してね！
+              </span>
+            </p>
           </div>
         </div>
       )}
