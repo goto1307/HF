@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 
@@ -74,14 +75,7 @@ export default function Register() {
       },
     });
     setLoading(false);
-    if (error) {
-      if (error.code === "over_request_rate_limit" || error.status === 429) {
-        alert("試行回数が多すぎます。しばらく待ってから再度お試しください。");
-      } else {
-        alert("登録に失敗しました。入力内容をご確認のうえ、もう一度お試しください。");
-      }
-      return;
-    }
+    if (error) { alert(`登録に失敗しました: ${error.message}`); return; }
     alert("確認メールを送りました！メール内のリンクを開いて確認を完了してから、ログインしてください。");
     router.push("/login");
   };
@@ -112,6 +106,9 @@ export default function Register() {
             />
             利用規約に同意する
           </label>
+          <Link href="/privacy" className="text-center text-xs text-stone-400 hover:text-orange-700 underline transition-colors -mt-2">
+            プライバシーポリシーはこちら
+          </Link>
 
           <button onClick={handleRegister} disabled={loading || !agreed} className="w-full bg-orange-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm">
             {loading ? "登録中..." : "登録する"}

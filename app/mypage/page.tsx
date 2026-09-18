@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { resizeImage } from "@/lib/resizeImage";
 import Header from "@/components/Header";
+import FoxMascot from "@/components/FoxMascot";
+import StarRating from "@/components/StarRating";
 
 type Item = {
   id: number;
@@ -21,29 +22,18 @@ type Item = {
 type Review = {
   id: number;
   reviewer_nickname: string;
-  rating: "good" | "normal" | "bad";
+  rating: number;
   comment: string | null;
   created_at: string;
-};
-
-const RATING_LABELS: Record<string, string> = { good: "良い", normal: "普通", bad: "悪い" };
-const RATING_COLORS: Record<string, string> = {
-  good: "bg-orange-50 text-orange-700",
-  normal: "bg-stone-100 text-stone-600",
-  bad: "bg-red-50 text-red-600",
 };
 
 export default function MyPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [purchases, setPurchases] = useState<Item[]>([]);
+  const [confirmedPurchaseCount, setConfirmedPurchaseCount] = useState(0);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [bio, setBio] = useState("");
-  const [gender, setGender] = useState("");
-  const [age, setAge] = useState("");
-  const [profileAvailable, setProfileAvailable] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -61,6 +51,13 @@ export default function MyPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (myItems) setItems(myItems);
+
+      const { count: boughtCount } = await supabase
+        .from("item")
+        .select("id", { count: "exact", head: true })
+        .eq("buyer_id", user.id)
+        .eq("sold", true);
+      setConfirmedPurchaseCount(boughtCount || 0);
 
       const { data: myReviews } = await supabase
         .from("review")
@@ -89,28 +86,13 @@ export default function MyPage() {
         }
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profile")
-        .select("bio,gender,age")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (profileError) {
-        setProfileAvailable(false);
-      } else if (profileData) {
-        setBio(profileData.bio || "");
-        setGender(profileData.gender || "");
-        setAge(profileData.age != null ? String(profileData.age) : "");
-      }
-
       setDataLoading(false);
     };
     fetchData();
   }, [authLoading, user, router]);
 
   const loading = authLoading || dataLoading;
-  const goodCount = reviews.filter((r) => r.rating === "good").length;
-  const normalCount = reviews.filter((r) => r.rating === "normal").length;
-  const badCount = reviews.filter((r) => r.rating === "bad").length;
+  const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const nothingYet = !loading && items.length === 0 && reviews.length === 0 && purchases.length === 0;
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,14 +101,8 @@ export default function MyPage() {
     if (!file || !user) return;
 
     setUploadingAvatar(true);
-    let uploadFile: File = file;
-    try {
-      uploadFile = await resizeImage(file, 512);
-    } catch {
-      // リサイズに失敗しても元ファイルでアップロードを続行する
-    }
-    const fileName = `avatars/${user.id}_${Date.now()}_${uploadFile.name}`;
-    const { error: uploadError } = await supabase.storage.from("images").upload(fileName, uploadFile);
+    const fileName = `avatars/${user.id}_${Date.now()}_${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
     if (uploadError) {
       alert("アイコンのアップロードに失敗しました");
       setUploadingAvatar(false);
@@ -140,35 +116,17 @@ export default function MyPage() {
     if (updateError) { alert("アイコンの更新に失敗しました"); return; }
   };
 
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    if (age && (!Number.isFinite(Number(age)) || Number(age) < 0 || Number(age) > 120)) {
-      alert("年齢には0〜120の数値を入力してください");
-      return;
-    }
-    setSavingProfile(true);
-    const { error } = await supabase.from("profile").upsert({
-      user_id: user.id,
-      bio: bio.trim() || null,
-      gender: gender || null,
-      age: age ? Number(age) : null,
-      updated_at: new Date().toISOString(),
-    });
-    setSavingProfile(false);
-    if (error) {
-      setProfileAvailable(false);
-      alert("プロフィールの保存に失敗しました。この機能は準備中の可能性があります。");
-      return;
-    }
-    alert("プロフィールを保存しました");
-  };
+  const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const handleDelete = async (id: number) => {
-    if (!user) return;
-    if (!confirm("この商品を削除しますか？")) return;
-    const { error } = await supabase.from("item").delete().eq("id", id).eq("user_id", user.id);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("item").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
     if (error) { alert("削除に失敗しました"); return; }
-    setItems(items.filter((item) => item.id !== id));
+    setItems(items.filter((item) => item.id !== deleteTarget.id));
+    setDeleteTarget(null);
   };
 
   if (loading) {
@@ -184,6 +142,15 @@ export default function MyPage() {
       <Header />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={() => router.back()} className="text-orange-700 font-bold flex items-center gap-1 hover:text-orange-800 transition-colors">
+            <span aria-hidden>←</span> 戻る
+          </button>
+          <div className="flex items-center gap-3 text-xs font-bold text-stone-500">
+            <a href="#selling" className="hover:text-orange-700 transition-colors">出品中の商品へ</a>
+            <a href="#sold" className="hover:text-orange-700 transition-colors">売れた商品へ</a>
+          </div>
+        </div>
         <div className="flex items-center gap-4 mb-8">
           <div className="relative shrink-0">
             {user?.user_metadata?.avatar_url ? (
@@ -208,56 +175,29 @@ export default function MyPage() {
           </div>
         </div>
 
-        <section className="mb-10 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
-          <h3 className="font-bold mb-3">プロフィール</h3>
-          {!profileAvailable && (
-            <p className="text-xs text-stone-400 mb-3">この機能は現在準備中です。保存できない場合があります。</p>
-          )}
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="block text-xs font-bold text-stone-500 mb-1">一言メッセージ</label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="よろしくお願いします！など"
-                className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none h-20 resize-none focus:border-orange-600 transition-colors"
-              />
-            </div>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-stone-500 mb-1">性別（任意）</label>
-                <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors">
-                  <option value="">未設定</option>
-                  <option value="男性">男性</option>
-                  <option value="女性">女性</option>
-                  <option value="その他">その他</option>
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-stone-500 mb-1">年齢（任意）</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder="未設定"
-                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-600 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </div>
-            </div>
-            <button
-              onClick={handleSaveProfile}
-              disabled={savingProfile}
-              className="self-start bg-orange-700 text-white px-5 py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors"
-            >
-              {savingProfile ? "保存中..." : "プロフィールを保存"}
-            </button>
+        <div className="mb-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 border border-orange-200 rounded-2xl">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-bold text-sm text-orange-800">🎁 出品・購入キャンペーン</p>
+            <p className="text-xs font-bold text-orange-600">{Math.min(items.length + confirmedPurchaseCount, 5)}/5(当選確率 {Math.min(items.length + confirmedPurchaseCount, 5)}倍)</p>
           </div>
-        </section>
+          <div className="flex gap-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className={`flex-1 aspect-square rounded-full flex items-center justify-center text-lg border-2 ${
+                  i < items.length + confirmedPurchaseCount ? "bg-orange-500 border-orange-500 text-white" : "bg-white border-orange-200 text-orange-200"
+                }`}
+              >
+                {i < items.length + confirmedPurchaseCount ? "🦊" : "・"}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-stone-500 mt-2">出品・購入を合計5回で当選確率が最大の5倍に。Amazonギフト券1,000円分が抽選で10名様に当たります！</p>
+        </div>
 
         {nothingYet ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 shadow-sm">
+            <FoxMascot size={88} className="mx-auto mb-3 opacity-90" />
             <p className="text-stone-400 mb-4">評価がありません。出品してみましょう！</p>
             <button onClick={() => router.push("/sell")} className="bg-orange-700 text-white px-6 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm">
               ＋ 出品する
@@ -265,7 +205,7 @@ export default function MyPage() {
           </div>
         ) : (
           <>
-            <section id="purchases" className="mb-10 scroll-mt-28">
+            <section className="mb-10">
               <h3 className="font-bold mb-4">購入した商品（{purchases.length}件）</h3>
               {purchases.length === 0 ? (
                 <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">
@@ -284,14 +224,14 @@ export default function MyPage() {
                       </Link>
                       <div className="p-3">
                         <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
-                        <p className="font-bold mb-1 text-sm truncate">{item.title}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <p className="text-xs text-stone-400 truncate mb-2">出品者：{item.nickname}</p>
                         <button
                           onClick={() => router.push(`/items/${item.id}/chat`)}
                           className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
                         >
-                          取引ページを見る
+                          個別チャットを見る
                         </button>
                       </div>
                     </div>
@@ -308,16 +248,17 @@ export default function MyPage() {
                 </p>
               ) : (
                 <div>
-                  <p className="text-sm text-stone-600 mb-4">
-                    良い {goodCount}・普通 {normalCount}・悪い {badCount}
-                  </p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <StarRating value={Math.round(avgRating)} size={18} />
+                    <p className="text-sm text-stone-600">
+                      {avgRating.toFixed(1)}（{reviews.length}件）
+                    </p>
+                  </div>
                   <div className="flex flex-col gap-3">
                     {reviews.map((review) => (
                       <div key={review.id} className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm">
                         <div className="flex justify-between items-center mb-1.5">
-                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${RATING_COLORS[review.rating]}`}>
-                            {RATING_LABELS[review.rating]}
-                          </span>
+                          <StarRating value={review.rating} size={14} />
                           <span className="text-xs text-stone-400">{new Date(review.created_at).toLocaleDateString()}</span>
                         </div>
                         <p className="text-xs text-stone-500 mb-1">{review.reviewer_nickname}</p>
@@ -329,58 +270,78 @@ export default function MyPage() {
               )}
             </section>
 
-            <section id="items" className="scroll-mt-28">
-              <h3 className="font-bold mb-4">出品した商品（{items.length}件）</h3>
-              {items.length === 0 ? (
+            <section id="selling">
+              <h3 className="font-bold mb-4">出品中の商品（{items.filter((item) => !item.sold).length}件）</h3>
+              {items.filter((item) => !item.sold).length === 0 ? (
                 <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">
-                  まだ出品した商品がありません
+                  現在出品中の商品はありません
                 </p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {items.map((item) => (
+                  {items.filter((item) => !item.sold).map((item) => (
                     <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                       <Link href={`/items/${item.id}`} className="relative block">
                         {(item.image_urls?.[0] ?? item.image_url) ? (
-                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className={`w-full h-32 object-cover ${item.sold ? "opacity-50" : ""}`} />
+                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
                         ) : (
-                          <div className={`bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl ${item.sold ? "opacity-50" : ""}`}>📦</div>
-                        )}
-                        {item.sold && (
-                          <div className="absolute top-2 -right-8 w-32 rotate-45 bg-red-600 text-white text-xs font-extrabold text-center py-0.5 shadow-md tracking-wider">
-                            SOLD OUT
-                          </div>
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
                         )}
                       </Link>
                       <div className="p-3">
                         <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
-                        <p className="font-bold mb-1 text-sm truncate">{item.title}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <div className="flex flex-col gap-1.5">
-                          {item.sold && (
-                            <button
-                              onClick={() => router.push(`/items/${item.id}/chat`)}
-                              className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
-                            >
-                              取引ページを見る
-                            </button>
-                          )}
-                          {!item.sold && (
-                            <>
-                              <button
-                                onClick={() => router.push(`/items/${item.id}/edit`)}
-                                className="w-full border border-orange-300 text-orange-700 py-1.5 rounded-full text-xs font-bold hover:bg-orange-50 transition-colors"
-                              >
-                                編集する
-                              </button>
-                              <button
-                                onClick={() => handleDelete(item.id)}
-                                className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
-                              >
-                                削除する
-                              </button>
-                            </>
-                          )}
+                          <button
+                            onClick={() => router.push(`/items/${item.id}/chat`)}
+                            className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
+                          >
+                            問い合わせを見る
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(item)}
+                            className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
+                          >
+                            削除する
+                          </button>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section id="sold" className="mt-10">
+              <h3 className="font-bold mb-4">売れた商品（{items.filter((item) => item.sold).length}件）</h3>
+              {items.filter((item) => item.sold).length === 0 ? (
+                <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">
+                  まだ売れた商品がありません
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {items.filter((item) => item.sold).map((item) => (
+                    <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                      <Link href={`/items/${item.id}`} className="relative block">
+                        {(item.image_urls?.[0] ?? item.image_url) ? (
+                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover opacity-50" />
+                        ) : (
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl opacity-50">📦</div>
+                        )}
+                        <div className="absolute top-2 -right-8 w-32 rotate-45 bg-red-600 text-white text-xs font-extrabold text-center py-0.5 shadow-md tracking-wider">
+                          SOLD OUT
+                        </div>
+                      </Link>
+                      <div className="p-3">
+                        <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
+                        <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
+                        <button
+                          onClick={() => router.push(`/items/${item.id}/chat`)}
+                          className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
+                        >
+                          個別チャットを見る
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -390,6 +351,38 @@ export default function MyPage() {
           </>
         )}
       </main>
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-bold text-sm mb-1 text-center">この商品を削除しますか？</p>
+            <p className="text-center text-blue-700 font-bold text-sm mb-4 truncate">{deleteTarget.title}</p>
+            <p className="text-xs text-stone-400 text-center mb-4">削除すると元に戻せません。</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {deleting ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

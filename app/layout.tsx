@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
+import { M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const mplusRounded = M_PLUS_Rounded_1c({
+  variable: "--font-mplus-rounded",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -25,11 +22,17 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="ja"
+      className={`${mplusRounded.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>{children}</AuthProvider>
+        <footer className="text-center text-xs text-stone-400 py-6 px-4 border-t border-stone-200 bg-stone-50">
+          <p className="mb-2">北フリは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。</p>
+          <Link href="/privacy" className="text-stone-500 hover:text-orange-700 underline transition-colors">
+            プライバシーポリシー
+          </Link>
+        </footer>
       </body>
     </html>
   );

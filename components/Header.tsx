@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import FoxMascot from "@/components/FoxMascot";
 
 type Notification = {
   id: number;
@@ -24,27 +25,18 @@ function timeAgo(iso: string) {
   return `${day}日前`;
 }
 
+const ADMIN_EMAILS = ["debuchi.sora.b0@elms.hokudai.ac.jp", "goto.kanata.w1@elms.hokudai.ac.jp"];
+
 export default function Header() {
   const { user } = useAuth();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const isAdmin = !!user && !!user.email && ADMIN_EMAILS.includes(user.email);
+  const [showGuide, setShowGuide] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const notificationsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showNotifications) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
-        setShowNotifications(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showNotifications]);
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -89,44 +81,47 @@ export default function Header() {
     router.push(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : "/");
   };
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    const { error } = await supabase.auth.signOut();
-    setLoggingOut(false);
-    setShowLogoutConfirm(false);
-    if (error) {
-      alert("ログアウトに失敗しました。もう一度お試しください。");
-    }
-  };
-
   return (
     <>
       <header className="sticky top-0 z-20 bg-orange-700 text-white shadow-md">
         <div className="max-w-6xl mx-auto flex justify-between items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3.5">
-          <Link href="/" className="flex flex-col hover:opacity-90 transition-opacity shrink-0 leading-tight">
-            <span className="text-lg sm:text-xl font-extrabold tracking-tight">北フリ</span>
-            <span className="text-[10px] sm:text-[13px] font-bold text-white whitespace-nowrap">北大生専用のフリマ</span>
+          <Link href="/" className="flex items-center gap-1.5 hover:opacity-90 transition-opacity shrink-0">
+            <FoxMascot size={34} className="shrink-0 -my-1" />
+            <span className="flex flex-col leading-tight">
+              <span className="text-lg sm:text-xl font-extrabold tracking-tight">北フリ</span>
+              <span className="text-[10px] sm:text-[13px] font-bold text-white whitespace-nowrap">北大生専用のフリマ</span>
+            </span>
           </Link>
           {pathname === "/" && (
-            <div className="flex-1 max-w-md hidden sm:flex items-center bg-white rounded-full px-4 py-2">
-              <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="検索"
-                className="flex-1 outline-none text-sm text-stone-800"
-              />
+            <div className="flex-1 hidden sm:flex items-center gap-2">
+              <div className="flex-1 max-w-md flex items-center bg-white rounded-full px-4 py-2">
+                <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  placeholder="検索"
+                  className="flex-1 outline-none text-sm text-stone-800"
+                />
+              </div>
+              {user && (
+                <Link
+                  href="/mypage#selling"
+                  className="hidden md:inline-block text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors whitespace-nowrap shrink-0"
+                >
+                  出品・売れた商品
+                </Link>
+              )}
             </div>
           )}
           <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
             {user ? (
               <>
-                <div className="relative" ref={notificationsRef}>
+                <div className="relative">
                   <button
                     onClick={handleOpenNotifications}
-                    className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors"
+                    className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
                     aria-label="通知"
                   >
                     <span className="text-base sm:text-lg">🔔</span>
@@ -154,7 +149,7 @@ export default function Header() {
                             <button
                               key={n.id}
                               onClick={() => handleNotificationClick(n)}
-                              className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-orange-100 transition-colors ${!n.read ? "bg-orange-50" : ""}`}
+                              className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-stone-50 transition-colors ${!n.read ? "bg-orange-50" : ""}`}
                             >
                               <p className="text-sm text-stone-700">{n.message}</p>
                               <p className="text-xs text-stone-400 mt-0.5">{timeAgo(n.created_at)}</p>
@@ -165,6 +160,14 @@ export default function Header() {
                     </div>
                   )}
                 </div>
+                {isAdmin && (
+                  <Link
+                    href="/admin/reports"
+                    className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors whitespace-nowrap"
+                  >
+                    通報一覧
+                  </Link>
+                )}
                 <Link
                   href="/mypage"
                   className="flex items-center gap-1.5 sm:gap-2 bg-white text-orange-700 pl-1.5 pr-1.5 sm:pl-2 sm:pr-4 py-1.5 rounded-full font-bold text-sm hover:bg-orange-50 transition-colors"
@@ -178,12 +181,6 @@ export default function Header() {
                   )}
                   <span className="hidden sm:inline">マイページ</span>
                 </Link>
-                <button
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
-                >
-                  ログアウト
-                </button>
               </>
             ) : (
               <>
@@ -195,59 +192,123 @@ export default function Header() {
                 </Link>
                 <Link
                   href="/register"
-                  className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
+                  className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors whitespace-nowrap"
                 >
                   新規登録
                 </Link>
               </>
             )}
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu((v) => !v)}
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-lg"
+                aria-label="メニュー"
+              >
+                ☰
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
+                  <button
+                    onClick={() => { setShowMenu(false); setShowGuide(true); }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-50 transition-colors border-b border-stone-100"
+                  >
+                    初めての方に
+                  </button>
+                  <div className="w-full text-left px-4 py-3 text-sm font-bold text-stone-400 border-b border-stone-100">
+                    公式アカウント：<span className="text-stone-300">準備中</span>
+                  </div>
+                  <a
+                    href="mailto:debuchi.sora.b0@elms.hokudai.ac.jp"
+                    onClick={() => setShowMenu(false)}
+                    className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-50 transition-colors border-b border-stone-100"
+                  >
+                    お問い合わせはこちら
+                  </a>
+                  {user && (
+                    <Link
+                      href="/logout"
+                      onClick={() => setShowMenu(false)}
+                      className="block w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      ログアウト
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
           </nav>
         </div>
-        {user && (
-          <div className="border-t border-white/20">
-            <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
-              {[
-                { href: "/", label: "商品を探す" },
-                { href: "/mypage#items", label: "出品商品" },
-                { href: "/mypage#purchases", label: "購入商品" },
-                { href: "/mypage", label: "マイページ" },
-              ].map((tab) => {
-                const isActive = tab.href === "/" ? pathname === "/" : pathname === "/mypage";
-                return (
-                  <Link
-                    key={tab.label}
-                    href={tab.href}
-                    className={`shrink-0 px-3 py-2 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
-                      isActive ? "border-white text-white" : "border-transparent text-white/70 hover:text-white hover:border-white/50"
-                    }`}
-                  >
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </header>
 
-      {showLogoutConfirm && (
-        <div className="max-w-6xl mx-auto px-4 pt-4">
-          <div className="border border-red-200 rounded-2xl p-4 bg-red-50 shadow-sm">
-            <p className="font-bold text-sm mb-3 text-red-600">本当にログアウトしますか？</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors"
-              >
-                キャンセル
+      {showGuide && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setShowGuide(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-lg max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowGuide(false)}
+              className="text-orange-700 font-bold mb-3 flex items-center gap-1 hover:text-orange-800 transition-colors text-sm"
+            >
+              <span aria-hidden>←</span> 戻る
+            </button>
+            <div className="flex items-start justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <FoxMascot size={32} />
+                <h2 className="text-xl font-extrabold text-stone-700">初めての方に</h2>
+              </div>
+              <button onClick={() => setShowGuide(false)} className="text-2xl leading-none text-stone-400 hover:text-stone-600 transition-colors" aria-label="閉じる">
+                ×
               </button>
-              <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
-              >
-                {loggingOut ? "ログアウト中..." : "ログアウトする"}
-              </button>
+            </div>
+            <p className="text-sm text-stone-600 font-bold mb-2">北大生が開発した、北大生専用のフリマサイトです。</p>
+            <p className="text-sm text-stone-500 mb-6">いらないが、誰かの「ちょうどいい」になる。北フリの使い方はかんたん3ステップです。</p>
+
+            <div className="flex flex-col gap-3">
+              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
+                <span className="text-2xl shrink-0">📷</span>
+                <div>
+                  <p className="text-xs font-bold text-orange-700 mb-0.5">STEP 1</p>
+                  <p className="font-bold text-sm mb-1">出品する</p>
+                  <p className="text-xs text-stone-500 leading-relaxed">
+                    写真を撮って、タイトル・価格・カテゴリを入れるだけ。状態や大まかな場所、ハッシュタグも追加できます。
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
+                <span className="text-2xl shrink-0">💬</span>
+                <div>
+                  <p className="text-xs font-bold text-orange-700 mb-0.5">STEP 2</p>
+                  <p className="font-bold text-sm mb-1">やりとりする</p>
+                  <p className="text-xs text-stone-500 leading-relaxed">
+                    公開の質問チャットで気軽に質問できます。購入後は個別チャットで待ち合わせ場所・日時を相談します。
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
+                <span className="text-2xl shrink-0">🤝</span>
+                <div>
+                  <p className="text-xs font-bold text-orange-700 mb-0.5">STEP 3</p>
+                  <p className="font-bold text-sm mb-1">受け渡し・評価</p>
+                  <p className="text-xs text-stone-500 leading-relaxed">
+                    人通りの多い、明るい場所で直接受け渡し。取引が終わったら「取引を完了する」からお互いを評価できます。
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 bg-orange-50 border border-orange-200 rounded-2xl p-4">
+              <p className="font-bold text-xs mb-2 text-orange-800">⚠ 安全なお取引のために</p>
+              <ul className="text-xs text-stone-600 list-disc pl-4 flex flex-col gap-1">
+                <li>受け渡しは人通りが多く明るい場所で行いましょう</li>
+                <li>個人情報（住所など）はやり取りしないようにしましょう</li>
+                <li>おかしいと感じた出品・ユーザーは商品ページから通報できます</li>
+              </ul>
             </div>
           </div>
         </div>
