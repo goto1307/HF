@@ -458,28 +458,24 @@ export default function ItemChat() {
           </div>
         )
       ) : (
-        <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
-          <p className="font-bold text-sm mb-2">📍 待ち合わせ</p>
-          {!hasMeetup ? (
-            <p className="text-sm text-stone-500">出品者からの提案をお待ちください</p>
-          ) : (
-            <>
-              <p className="text-sm text-stone-700 mb-1">場所：{meetupLocation || "未定"}</p>
-              <p className="text-sm text-stone-700 mb-3">日時：{meetupAt ? new Date(meetupAt).toLocaleString() : "未定"}</p>
-              {meetupBuyerAgreed ? (
-                <p className="text-sm font-bold text-orange-700">✓ 同意済みです</p>
-              ) : (
-                <button
-                  onClick={handleAgreeMeetup}
-                  disabled={agreeingMeetup}
-                  className="w-full bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors"
-                >
-                  {agreeingMeetup ? "送信中..." : "この内容に同意する"}
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        hasMeetup && (
+          <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
+            <p className="font-bold text-sm mb-2">📍 待ち合わせ</p>
+            <p className="text-sm text-stone-700 mb-1">場所：{meetupLocation || "未定"}</p>
+            <p className="text-sm text-stone-700 mb-3">日時：{meetupAt ? new Date(meetupAt).toLocaleString() : "未定"}</p>
+            {meetupBuyerAgreed ? (
+              <p className="text-sm font-bold text-orange-700">✓ 同意済みです</p>
+            ) : (
+              <button
+                onClick={handleAgreeMeetup}
+                disabled={agreeingMeetup}
+                className="w-full bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors"
+              >
+                {agreeingMeetup ? "送信中..." : "この内容に同意する"}
+              </button>
+            )}
+          </div>
+        )
       )}
     </div>
   );
