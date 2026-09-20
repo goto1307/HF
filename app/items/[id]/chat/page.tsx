@@ -68,7 +68,8 @@ export default function ItemChat() {
   const [meetupLocation, setMeetupLocation] = useState("");
   const [meetupAt, setMeetupAt] = useState("");
   const [meetupUpdatedAt, setMeetupUpdatedAt] = useState<string | null>(null);
-  const [meetupBuyerAgreed, setMeetupBuyerAgreed] = useState(false);
+  const [meetupAgreed, setMeetupAgreed] = useState(false);
+  const [meetupProposedBy, setMeetupProposedBy] = useState<string | null>(null);
   const [savingMeetup, setSavingMeetup] = useState(false);
   const [agreeingMeetup, setAgreeingMeetup] = useState(false);
   const [showMeetupForm, setShowMeetupForm] = useState(false);
@@ -242,7 +243,8 @@ export default function ItemChat() {
       setMeetupLocation("");
       setMeetupAt("");
       setMeetupUpdatedAt(null);
-      setMeetupBuyerAgreed(false);
+      setMeetupAgreed(false);
+      setMeetupProposedBy(null);
       return;
     }
 
@@ -257,12 +259,14 @@ export default function ItemChat() {
         setMeetupLocation(data.location || "");
         setMeetupAt(data.meet_at ? toLocalInputValue(data.meet_at) : "");
         setMeetupUpdatedAt(data.updated_at);
-        setMeetupBuyerAgreed(!!data.buyer_agreed);
+        setMeetupAgreed(!!data.agreed);
+        setMeetupProposedBy(data.proposed_by || null);
       } else {
         setMeetupLocation("");
         setMeetupAt("");
         setMeetupUpdatedAt(null);
-        setMeetupBuyerAgreed(false);
+        setMeetupAgreed(false);
+        setMeetupProposedBy(null);
       }
     };
     fetchMeetup();
@@ -275,12 +279,13 @@ export default function ItemChat() {
         table: "meetup",
         filter: `item_id=eq.${item.id}`,
       }, (payload) => {
-        const row = payload.new as { buyer_id: string; location: string | null; meet_at: string | null; updated_at: string; buyer_agreed: boolean } | null;
+        const row = payload.new as { buyer_id: string; location: string | null; meet_at: string | null; updated_at: string; agreed: boolean; proposed_by: string | null } | null;
         if (!row || row.buyer_id !== buyerId) return;
         setMeetupLocation(row.location || "");
         setMeetupAt(row.meet_at ? toLocalInputValue(row.meet_at) : "");
         setMeetupUpdatedAt(row.updated_at);
-        setMeetupBuyerAgreed(!!row.buyer_agreed);
+        setMeetupAgreed(!!row.agreed);
+        setMeetupProposedBy(row.proposed_by || null);
       })
       .subscribe();
 
@@ -288,7 +293,7 @@ export default function ItemChat() {
   }, [item, buyerId]);
 
   const handleSaveMeetup = async () => {
-    if (!item || !buyerId) return;
+    if (!item || !buyerId || !user) return;
     setSavingMeetup(true);
     const nowIso = new Date().toISOString();
     const { error } = await supabase.from("meetup").upsert(
@@ -298,14 +303,17 @@ export default function ItemChat() {
         location: meetupLocation.trim() || null,
         meet_at: meetupAt ? new Date(meetupAt).toISOString() : null,
         updated_at: nowIso,
-        buyer_agreed: false,
+        proposed_by: user.id,
+        agreed: false,
       },
       { onConflict: "item_id,buyer_id" }
     );
     setSavingMeetup(false);
     if (error) { alert("待ち合わせ情報の保存に失敗しました"); return; }
     setMeetupUpdatedAt(nowIso);
-    setMeetupBuyerAgreed(false);
+    setMeetupProposedBy(user.id);
+    setMeetupAgreed(false);
+    setShowMeetupForm(false);
   };
 
   const handleAgreeMeetup = async () => {
@@ -313,12 +321,12 @@ export default function ItemChat() {
     setAgreeingMeetup(true);
     const { error } = await supabase
       .from("meetup")
-      .update({ buyer_agreed: true })
+      .update({ agreed: true })
       .eq("item_id", item.id)
       .eq("buyer_id", buyerId);
     setAgreeingMeetup(false);
     if (error) { alert("同意の送信に失敗しました"); return; }
-    setMeetupBuyerAgreed(true);
+    setMeetupAgreed(true);
   };
 
   const sendMessage = async () => {
@@ -370,100 +378,24 @@ export default function ItemChat() {
   }
 
   const hasMeetup = !!meetupLocation || !!meetupAt;
+  const isMeetupProposer = !!user && !!meetupProposedBy && meetupProposedBy === user.id;
 
   const meetupPanel = buyerId && (
     <div className="mb-4">
-      {isSeller ? (
-        !showMeetupForm ? (
-          <button
-            onClick={() => setShowMeetupForm(true)}
-            className="w-full flex items-center justify-between border border-orange-200 rounded-2xl px-4 py-3 bg-orange-50 hover:bg-orange-100 transition-colors text-left"
-          >
-            <span className="text-sm font-bold text-orange-800">
-              {hasMeetup
-                ? `📍 ${meetupLocation || "場所未定"}・${meetupAt ? new Date(meetupAt).toLocaleString() : "日時未定"}`
-                : "📍 待ち合わせを決める"}
-            </span>
-            <span className="text-xs text-orange-700 font-bold shrink-0 ml-2">
-              {hasMeetup ? (meetupBuyerAgreed ? "相手が同意済み" : "相手の確認待ち") : "決める"}
-            </span>
-          </button>
-        ) : (
+      {!showMeetupForm ? (
+        hasMeetup ? (
           <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-bold text-sm">📍 待ち合わせ（あなたが設定します）</p>
-              <button onClick={() => setShowMeetupForm(false)} className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
-                閉じる
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-bold text-sm">📍 待ち合わせ</p>
+              <button onClick={() => setShowMeetupForm(true)} className="text-xs text-orange-700 font-bold hover:underline">
+                編集する
               </button>
             </div>
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-              ⚠ 待ち合わせは、人通りが多く明るい場所がおすすめです。
-            </p>
-
-            <p className="text-xs text-stone-500 mb-1.5">場所（ボタンを押すか、直接入力）</p>
-            <div className="flex gap-1.5 flex-wrap mb-2">
-              {COMMON_LOCATIONS.map((loc) => (
-                <button
-                  key={loc}
-                  onClick={() => setMeetupLocation(loc)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                    meetupLocation === loc ? "bg-orange-700 text-white border-orange-700" : "bg-white text-orange-700 border-orange-200 hover:border-orange-400"
-                  }`}
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
-              maxLength={50}
-              value={meetupLocation}
-              onChange={(e) => setMeetupLocation(e.target.value)}
-              placeholder="場所を入力（例：北部食堂前）"
-              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors mb-3"
-            />
-
-            <p className="text-xs text-stone-500 mb-1.5">日時（ボタンを押すか、直接指定）</p>
-            <div className="flex gap-1.5 flex-wrap mb-2">
-              {QUICK_TIMES.map((qt) => (
-                <button
-                  key={qt.label}
-                  onClick={() => setMeetupAt(qt.value())}
-                  className="px-3 py-1.5 rounded-full text-xs font-bold border bg-white text-orange-700 border-orange-200 hover:border-orange-400 transition-colors"
-                >
-                  {qt.label}
-                </button>
-              ))}
-            </div>
-            <div className="mb-3">
-              <input
-                type="datetime-local"
-                value={meetupAt}
-                onChange={(e) => setMeetupAt(e.target.value)}
-                className="border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-stone-400">
-                {meetupUpdatedAt ? `最終更新：${new Date(meetupUpdatedAt).toLocaleString()}` : "まだ決まっていません"}
-              </p>
-              <button
-                onClick={handleSaveMeetup}
-                disabled={savingMeetup}
-                className="bg-orange-700 text-white px-5 py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors shrink-0"
-              >
-                {savingMeetup ? "保存中..." : "保存する"}
-              </button>
-            </div>
-          </div>
-        )
-      ) : (
-        hasMeetup && (
-          <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
-            <p className="font-bold text-sm mb-2">📍 待ち合わせ</p>
             <p className="text-sm text-stone-700 mb-1">場所：{meetupLocation || "未定"}</p>
             <p className="text-sm text-stone-700 mb-3">日時：{meetupAt ? new Date(meetupAt).toLocaleString() : "未定"}</p>
-            {meetupBuyerAgreed ? (
+            {isMeetupProposer ? (
+              <p className="text-xs text-stone-500">{meetupAgreed ? "相手が同意済みです" : "相手の確認をお待ちください"}</p>
+            ) : meetupAgreed ? (
               <p className="text-sm font-bold text-orange-700">✓ 同意済みです</p>
             ) : (
               <button
@@ -475,7 +407,83 @@ export default function ItemChat() {
               </button>
             )}
           </div>
+        ) : (
+          <button
+            onClick={() => setShowMeetupForm(true)}
+            className="w-full flex items-center justify-between border border-orange-200 rounded-2xl px-4 py-3 bg-orange-50 hover:bg-orange-100 transition-colors text-left"
+          >
+            <span className="text-sm font-bold text-orange-800">📍 待ち合わせを決める</span>
+            <span className="text-xs text-orange-700 font-bold shrink-0 ml-2">決める</span>
+          </button>
         )
+      ) : (
+        <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-bold text-sm">📍 待ち合わせを提案する</p>
+            <button onClick={() => setShowMeetupForm(false)} className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              閉じる
+            </button>
+          </div>
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+            ⚠ 待ち合わせは、人通りが多く明るい場所がおすすめです。
+          </p>
+
+          <p className="text-xs text-stone-500 mb-1.5">場所（ボタンを押すか、直接入力）</p>
+          <div className="flex gap-1.5 flex-wrap mb-2">
+            {COMMON_LOCATIONS.map((loc) => (
+              <button
+                key={loc}
+                onClick={() => setMeetupLocation(loc)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                  meetupLocation === loc ? "bg-orange-700 text-white border-orange-700" : "bg-white text-orange-700 border-orange-200 hover:border-orange-400"
+                }`}
+              >
+                {loc}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            maxLength={50}
+            value={meetupLocation}
+            onChange={(e) => setMeetupLocation(e.target.value)}
+            placeholder="場所を入力（例：北部食堂前）"
+            className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors mb-3"
+          />
+
+          <p className="text-xs text-stone-500 mb-1.5">日時（ボタンを押すか、直接指定）</p>
+          <div className="flex gap-1.5 flex-wrap mb-2">
+            {QUICK_TIMES.map((qt) => (
+              <button
+                key={qt.label}
+                onClick={() => setMeetupAt(qt.value())}
+                className="px-3 py-1.5 rounded-full text-xs font-bold border bg-white text-orange-700 border-orange-200 hover:border-orange-400 transition-colors"
+              >
+                {qt.label}
+              </button>
+            ))}
+          </div>
+          <div className="mb-3">
+            <input
+              type="datetime-local"
+              value={meetupAt}
+              onChange={(e) => setMeetupAt(e.target.value)}
+              className="border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-stone-400">
+              {meetupUpdatedAt ? `最終更新：${new Date(meetupUpdatedAt).toLocaleString()}` : "まだ決まっていません"}
+            </p>
+            <button
+              onClick={handleSaveMeetup}
+              disabled={savingMeetup}
+              className="bg-orange-700 text-white px-5 py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors shrink-0"
+            >
+              {savingMeetup ? "保存中..." : "保存する"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

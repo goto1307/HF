@@ -145,6 +145,17 @@ using (
 
 
 -- ---------- meetup (待ち合わせ調整) ----------
+-- 注意: 当初は出品者しか提案できない設計だったが、購入者側からも
+--   提案できるよう双方向に変更した(2026-09頃)。実データベースには
+--   もともと buyer_agreed 列が存在しておらず、代わりに
+--   proposed_by(直近の提案者) と agreed(相手側の同意) の2列を
+--   追加している。以下はその追加をSupabase側で直接実行した記録:
+--
+-- alter table public.meetup add column if not exists proposed_by uuid references auth.users(id);
+-- alter table public.meetup add column if not exists agreed boolean not null default false;
+-- update public.meetup m set proposed_by = i.user_id
+--   from public.item i where m.item_id = i.id and m.proposed_by is null;
+
 alter table public.meetup enable row level security;
 
 drop policy if exists "meetup_select_participant" on public.meetup;
@@ -156,11 +167,16 @@ using (
 );
 
 drop policy if exists "meetup_insert_seller_only" on public.meetup;
-create policy "meetup_insert_seller_only"
+drop policy if exists "meetup_insert_participant" on public.meetup;
+create policy "meetup_insert_participant"
 on public.meetup for insert
 to authenticated
 with check (
-  auth.uid() = (select i.user_id from public.item i where i.id = meetup.item_id)
+  proposed_by = auth.uid()
+  and (
+    auth.uid() = buyer_id
+    or auth.uid() = (select i.user_id from public.item i where i.id = meetup.item_id)
+  )
 );
 
 drop policy if exists "meetup_update_participant" on public.meetup;
