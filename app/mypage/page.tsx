@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { resizeImage, validateImageFile } from "@/lib/resizeImage";
+import { validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 import FoxMascot from "@/components/FoxMascot";
 import StarRating from "@/components/StarRating";
+import ImageCropper from "@/components/ImageCropper";
 
 type Item = {
   id: number;
@@ -35,6 +36,7 @@ export default function MyPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
   const [bio, setBio] = useState("");
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
@@ -114,23 +116,22 @@ export default function MyPage() {
   const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const nothingYet = !loading && items.length === 0 && reviews.length === 0 && purchases.length === 0;
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !user) return;
 
     const validationError = validateImageFile(file);
     if (validationError) { alert(validationError); return; }
+    setAvatarCropFile(file);
+  };
 
+  const handleAvatarCropConfirm = async (cropped: File) => {
+    setAvatarCropFile(null);
+    if (!user) return;
     setUploadingAvatar(true);
-    let uploadFile: File = file;
-    try {
-      uploadFile = await resizeImage(file, 512);
-    } catch (e) {
-      console.error("resizeImage failed, uploading original file:", e);
-    }
-    const fileName = `avatars/${user.id}_${Date.now()}_${uploadFile.name}`;
-    const { error: uploadError } = await supabase.storage.from("images").upload(fileName, uploadFile);
+    const fileName = `avatars/${user.id}_${Date.now()}_${cropped.name}`;
+    const { error: uploadError } = await supabase.storage.from("images").upload(fileName, cropped);
     if (uploadError) {
       alert("アイコンのアップロードに失敗しました");
       setUploadingAvatar(false);
@@ -483,6 +484,16 @@ export default function MyPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {avatarCropFile && (
+        <ImageCropper
+          file={avatarCropFile}
+          title="アイコン画像を調整"
+          round
+          onConfirm={handleAvatarCropConfirm}
+          onCancel={() => setAvatarCropFile(null)}
+        />
       )}
     </div>
   );

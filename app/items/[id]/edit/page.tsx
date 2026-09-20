@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { resizeImage, validateImageFile } from "@/lib/resizeImage";
+import { validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
+import ImageCropper from "@/components/ImageCropper";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -25,6 +26,7 @@ export default function EditItem() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  const [cropQueue, setCropQueue] = useState<File[]>([]);
   const [condition, setCondition] = useState("");
   const [area, setArea] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -76,14 +78,23 @@ export default function EditItem() {
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (totalImageCount + files.length > 5) { alert("写真は最大5枚までです"); e.target.value = ""; return; }
+    if (totalImageCount + cropQueue.length + files.length > 5) { alert("写真は最大5枚までです"); e.target.value = ""; return; }
     for (const file of files) {
       const error = validateImageFile(file);
       if (error) { alert(error); e.target.value = ""; return; }
     }
-    setNewImages([...newImages, ...files]);
-    setNewPreviews([...newPreviews, ...files.map((f) => URL.createObjectURL(f))]);
+    setCropQueue([...cropQueue, ...files]);
     e.target.value = "";
+  };
+
+  const handleCropConfirm = (cropped: File) => {
+    setNewImages((prev) => [...prev, cropped]);
+    setNewPreviews((prev) => [...prev, URL.createObjectURL(cropped)]);
+    setCropQueue((prev) => prev.slice(1));
+  };
+
+  const handleCropCancel = () => {
+    setCropQueue((prev) => prev.slice(1));
   };
 
   const removeExistingImage = (index: number) => {
@@ -107,14 +118,8 @@ export default function EditItem() {
 
     const uploadedUrls: string[] = [];
     for (const file of newImages) {
-      let uploadFile: File = file;
-      try {
-        uploadFile = await resizeImage(file);
-      } catch (e) {
-        console.error("resizeImage failed, uploading original file:", e);
-      }
-      const fileName = `${Date.now()}_${uploadFile.name}`;
-      const { error: uploadError } = await supabase.storage.from("images").upload(fileName, uploadFile);
+      const fileName = `${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
       if (uploadError) {
         alert("画像のアップロードに失敗しました");
         setSaving(false);
@@ -325,6 +330,15 @@ export default function EditItem() {
           </button>
         </div>
       </main>
+
+      {cropQueue[0] && (
+        <ImageCropper
+          file={cropQueue[0]}
+          title={`写真を調整（${totalImageCount + 1}枚目）`}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 }
