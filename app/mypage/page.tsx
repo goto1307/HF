@@ -174,9 +174,19 @@ export default function MyPage() {
   const handleDelete = async () => {
     if (!deleteTarget || !user) return;
     setDeleting(true);
-    const { error } = await supabase.from("item").delete().eq("id", deleteTarget.id).eq("user_id", user.id);
+    const { data, error } = await supabase
+      .from("item")
+      .delete()
+      .eq("id", deleteTarget.id)
+      .eq("user_id", user.id)
+      .select("id");
     setDeleting(false);
     if (error) { alert("削除に失敗しました"); return; }
+    if (!data || data.length === 0) {
+      alert("取引が成立した商品や、通報を受けている商品は削除できません。運営にお問い合わせください。");
+      setDeleteTarget(null);
+      return;
+    }
     setItems(items.filter((item) => item.id !== deleteTarget.id));
     setDeleteTarget(null);
   };

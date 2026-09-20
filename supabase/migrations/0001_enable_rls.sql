@@ -757,3 +757,77 @@ drop policy if exists "favorite_select_all" on public.favorite;
 create policy "favorite_select_all"
 on public.favorite for select
 using (true);
+
+
+-- ============================================================
+-- PART K: 評価・通報の証拠隠滅を防ぐ + 入力値の制約をDB側にも入れる
+-- ============================================================
+--
+-- 背景:
+--   report.item_id と review.item_id がどちらも ON DELETE CASCADE で
+--   item を参照していることが判明した。出品者は自分の商品をいつでも
+--   削除できるため、
+--     ・通報された出品者が商品を消す → 自分への通報記録も消える
+--     ・★1を付けられた出品者が商品を消す → 悪い評価が平均から消える
+--   という形で、通報・評価の両方を出品者側から無効化できる状態だった。
+--
+--   FK を張り替えるより、「取引が成立した商品・通報を受けている商品は
+--   出品者自身では削除できない」を DELETE ポリシーに入れる方が確実。
+--   レビューが付くのは必ず受取確認済み(= buyer_id あり)の商品なので、
+--   buyer_id is null の条件だけで評価の消去は防げる。
+--   管理者は item_delete_admin_only で引き続き削除できる。
+--
+--   注意: ポリシー式の中から直接 public.report を参照しても、report は
+--   管理者限定のSELECTポリシーしか無いため一般ユーザーからは常に
+--   0件に見えてしまい、チェックが素通りする。そのため SECURITY DEFINER
+--   関数を経由して判定する。
+
+create or replace function public.item_has_report(p_item_id bigint)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (select 1 from public.report where item_id = p_item_id);
+$$;
+
+drop policy if exists "item_delete_own" on public.item;
+create policy "item_delete_own"
+on public.item for delete
+to authenticated
+using (
+  auth.uid() = user_id
+  and buyer_id is null
+  and not public.item_has_report(id)
+);
+
+-- 画面側の文字数・価格制限はすべてクライアント側だけだったため、
+-- 直接APIを叩けば巨大なテキストや負の価格を投入できる状態だった。
+alter table public.item drop constraint if exists item_price_range;
+alter table public.item add constraint item_price_range
+  check (price >= 0 and price <= 50000);
+
+alter table public.item drop constraint if exists item_title_len;
+alter table public.item add constraint item_title_len
+  check (char_length(title) between 1 and 45);
+
+alter table public.item drop constraint if exists item_detail_len;
+alter table public.item add constraint item_detail_len
+  check (detail is null or char_length(detail) <= 150);
+
+alter table public.message drop constraint if exists message_content_len;
+alter table public.message add constraint message_content_len
+  check (char_length(content) between 1 and 500);
+
+alter table public.review drop constraint if exists review_comment_len;
+alter table public.review add constraint review_comment_len
+  check (comment is null or char_length(comment) <= 500);
+
+alter table public.report drop constraint if exists report_reason_len;
+alter table public.report add constraint report_reason_len
+  check (char_length(reason) <= 600);
+
+alter table public.profile drop constraint if exists profile_bio_len;
+alter table public.profile add constraint profile_bio_len
+  check (bio is null or char_length(bio) <= 300);
