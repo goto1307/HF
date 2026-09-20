@@ -714,3 +714,46 @@ with check (
       and r2.created_at > now() - interval '1 minute'
   )
 );
+
+
+-- ============================================================
+-- PART J: profileテーブルの実行確認 + meetup重複ポリシー整理 +
+--          review/favoriteの閲覧を未ログインにも開放(2026-09-21適用済み)
+-- ============================================================
+--
+-- 背景:
+--   pg_policies / information_schema を実際に確認した結果、以下が判明した。
+--
+--   1) PART E の profile テーブルが一度も実行されておらず、マイページの
+--      自己紹介・性別・年齢欄が常にサイレントに機能していなかった。
+--      → PART E をそのまま実行して解消。
+--
+--   2) meetup テーブルに、双方向提案機能への移行時に消し忘れた
+--      旧ポリシー "meetup_insert_seller" が残っていた。これは
+--      proposed_by 列の整合性を一切チェックせず出品者からのinsertを
+--      許可しており、出品者が自分の商品に対して proposed_by を
+--      偽装できる抜け穴になっていた。また "meetup_select_participants"
+--      "meetup_update_participants" も同内容の重複ポリシーだった。
+--      → 3つとも削除(現行の *_participant 単数形のポリシーに統一)。
+--
+--   3) review_select_authenticated / favorite_select_authenticated が
+--      authenticated ロール限定になっており、商品ページ自体は未ログイン
+--      でも閲覧できる設計にもかかわらず、未ログインの訪問者には
+--      星評価・いいね数が一切表示されていなかった(意図と不一致)。
+--      → 誰でも閲覧できる review_select_all / favorite_select_all に統一。
+
+drop policy if exists "meetup_insert_seller" on public.meetup;
+drop policy if exists "meetup_select_participants" on public.meetup;
+drop policy if exists "meetup_update_participants" on public.meetup;
+
+drop policy if exists "review_select_authenticated" on public.review;
+drop policy if exists "review_select_all" on public.review;
+create policy "review_select_all"
+on public.review for select
+using (true);
+
+drop policy if exists "favorite_select_authenticated" on public.favorite;
+drop policy if exists "favorite_select_all" on public.favorite;
+create policy "favorite_select_all"
+on public.favorite for select
+using (true);
