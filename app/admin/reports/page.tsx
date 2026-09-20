@@ -100,7 +100,7 @@ export default function AdminReports() {
                   <button
                     onClick={() => handleDelete(r)}
                     disabled={deletingId === r.id}
-                    className="text-xs font-bold border border-stone-300 text-stone-500 px-4 py-1.5 rounded-full hover:bg-stone-50 transition-colors disabled:opacity-50"
+                    className="text-xs font-bold border border-stone-300 text-stone-500 px-4 py-1.5 rounded-full hover:bg-stone-100 transition-colors disabled:opacity-50"
                   >
                     通報を削除する
                   </button>

@@ -22,9 +22,6 @@ export default function Sell() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [condition, setCondition] = useState("");
   const [area, setArea] = useState("");
-  const [showDateRange, setShowDateRange] = useState(false);
-  const [availableFrom, setAvailableFrom] = useState("");
-  const [availableUntil, setAvailableUntil] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -86,8 +83,8 @@ export default function Sell() {
       let uploadFile: File = file;
       try {
         uploadFile = await resizeImage(file);
-      } catch {
-        // リサイズに失敗しても元ファイルでアップロードを続行する
+      } catch (e) {
+        console.error("resizeImage failed, uploading original file:", e);
       }
       const fileName = `${Date.now()}_${uploadFile.name}`;
       const { error: uploadError } = await supabase.storage.from("images").upload(fileName, uploadFile);
@@ -111,8 +108,6 @@ export default function Sell() {
       image_urls: imageUrls.length > 0 ? imageUrls : null,
       condition: condition || null,
       area: area.trim() || null,
-      available_from: showDateRange && availableFrom ? availableFrom : null,
-      available_until: showDateRange && availableUntil ? availableUntil : null,
       hashtags: hashtags.length > 0 ? hashtags : null,
     });
 
@@ -154,7 +149,7 @@ export default function Sell() {
                 </div>
               ))}
               {previews.length < 5 && (
-                <label className="w-20 h-20 border-2 border-dashed border-orange-300 rounded-lg flex items-center justify-center cursor-pointer hover:bg-orange-50 transition-colors">
+                <label className="w-20 h-20 border-2 border-dashed border-orange-300 rounded-lg flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors">
                   <span className="text-orange-400 text-2xl">＋</span>
                   <input type="file" accept="image/*" multiple onChange={handleImages} className="hidden" />
                 </label>
@@ -241,36 +236,6 @@ export default function Sell() {
           </div>
 
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <input
-                type="checkbox"
-                checked={showDateRange}
-                onChange={(e) => setShowDateRange(e.target.checked)}
-                id="dateRange"
-                className="accent-orange-700 w-4 h-4"
-              />
-              <label htmlFor="dateRange" className="text-sm font-bold">期間を設定する（貸し出しなど）</label>
-            </div>
-            {showDateRange && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={availableFrom}
-                  onChange={(e) => setAvailableFrom(e.target.value)}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2.5 outline-none focus:border-orange-600 transition-colors text-sm"
-                />
-                <span className="text-stone-400 text-sm">〜</span>
-                <input
-                  type="date"
-                  value={availableUntil}
-                  onChange={(e) => setAvailableUntil(e.target.value)}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2.5 outline-none focus:border-orange-600 transition-colors text-sm"
-                />
-              </div>
-            )}
-          </div>
-
-          <div>
             <label className="block text-sm font-bold mb-2">ハッシュタグ</label>
             <p className="text-xs text-stone-400 mb-2">入力してEnterで追加。検索に使われます</p>
             {hashtags.length > 0 && (
@@ -345,11 +310,6 @@ export default function Sell() {
               <p className="text-lg font-bold text-blue-700 mb-1">{title}</p>
               <p className="text-2xl text-orange-700 font-bold mb-2">{isFree ? "無料" : `¥${Number(price || 0).toLocaleString()}`}</p>
               {area && <p className="text-sm text-stone-500 mb-1">希望場所：{area}</p>}
-              {(availableFrom || availableUntil) && (
-                <p className="text-sm text-stone-500 mb-1">
-                  期間：{availableFrom || "未定"}〜{availableUntil || "未定"}
-                </p>
-              )}
               {hashtags.length > 0 && (
                 <div className="flex gap-1.5 flex-wrap mt-2 mb-2">
                   {hashtags.map((tag) => (
@@ -363,7 +323,7 @@ export default function Sell() {
                 <button
                   onClick={() => setShowConfirm(false)}
                   disabled={loading}
-                  className="flex-1 border border-stone-300 text-stone-600 py-3 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors disabled:opacity-50"
+                  className="flex-1 border border-stone-300 text-stone-600 py-3 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
                 >
                   戻って編集する
                 </button>

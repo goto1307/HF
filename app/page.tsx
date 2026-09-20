@@ -29,8 +29,6 @@ type Item = {
   sold: boolean;
   condition: string | null;
   area: string | null;
-  available_from: string | null;
-  available_until: string | null;
   hashtags: string[] | null;
   created_at: string;
 };
@@ -183,10 +181,10 @@ function HomeContent() {
                 教科書、自転車、部屋のもの。キャンパスの中だけで、ちょうどいい売り買いを。
               </p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <Link href="/register" className="bg-white text-orange-800 px-5 py-2.5 rounded-full font-bold text-sm shadow-md hover:shadow-lg hover:bg-orange-50 transition-all">
+                <Link href="/register" className="bg-white text-orange-800 px-5 py-2.5 rounded-full font-bold text-sm shadow-md hover:shadow-lg hover:bg-orange-100 transition-all">
                   新規登録
                 </Link>
-                <Link href="/login" className="border border-white/70 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/10 transition-colors">
+                <Link href="/login" className="border border-white/70 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/25 transition-colors">
                   ログイン
                 </Link>
                 <button onClick={dismissHero} className="text-sm font-bold underline opacity-80 hover:opacity-100 transition-opacity px-2">
@@ -239,7 +237,7 @@ function HomeContent() {
               className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${
                 selectedCategory === cat
                   ? "bg-gradient-to-br from-orange-600 to-orange-700 text-white border-orange-700 shadow-md"
-                  : "bg-white text-orange-700 border-orange-200 hover:border-orange-400 hover:shadow-sm"
+                  : "bg-white text-orange-700 border-orange-200 hover:bg-orange-100 hover:border-orange-400 hover:shadow-sm"
               }`}
             >
               {cat}
@@ -248,13 +246,13 @@ function HomeContent() {
         </div>
         <button
           onClick={() => setShowFilters((v) => !v)}
-          className="hidden md:flex items-center gap-1.5 text-sm font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1.5 bg-white hover:border-orange-400 transition-colors"
+          className="hidden md:flex items-center gap-1.5 text-sm font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1.5 bg-white hover:bg-stone-100 hover:border-orange-400 transition-colors"
         >
           {showFilters ? "✕ 絞り込みを閉じる" : "☰ 絞り込みを表示"}
         </button>
         <button
           onClick={() => setShowMobileFilters(true)}
-          className="md:hidden flex items-center gap-1.5 text-sm font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1.5 bg-white hover:border-orange-400 transition-colors"
+          className="md:hidden flex items-center gap-1.5 text-sm font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1.5 bg-white hover:bg-stone-100 hover:border-orange-400 transition-colors"
         >
           ☰ 絞り込み
         </button>
@@ -288,7 +286,7 @@ function HomeContent() {
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
                     className={`px-4 py-2 rounded-full border text-sm font-bold transition-colors ${
-                      selectedCategory === cat ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200"
+                      selectedCategory === cat ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-100"
                     }`}
                   >
                     {cat}
@@ -305,7 +303,7 @@ function HomeContent() {
                     key={a}
                     onClick={() => setSelectedArea(a)}
                     className={`px-4 py-2 rounded-full border text-sm font-bold transition-colors ${
-                      selectedArea === a ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200"
+                      selectedArea === a ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-100"
                     }`}
                   >
                     {a}
@@ -320,7 +318,7 @@ function HomeContent() {
                 <button
                   onClick={() => setOnlyAvailable(false)}
                   className={`px-4 py-2 rounded-full border text-sm font-bold transition-colors ${
-                    !onlyAvailable ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200"
+                    !onlyAvailable ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-100"
                   }`}
                 >
                   すべて
@@ -328,7 +326,7 @@ function HomeContent() {
                 <button
                   onClick={() => setOnlyAvailable(true)}
                   className={`px-4 py-2 rounded-full border text-sm font-bold transition-colors ${
-                    onlyAvailable ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200"
+                    onlyAvailable ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-100"
                   }`}
                 >
                   販売中のみ
@@ -344,7 +342,7 @@ function HomeContent() {
                     key={c}
                     onClick={() => toggleCondition(c)}
                     className={`px-4 py-2 rounded-full border text-sm font-bold transition-colors ${
-                      selectedConditions.has(c) ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200"
+                      selectedConditions.has(c) ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-100"
                     }`}
                   >
                     {c}
@@ -384,7 +382,7 @@ function HomeContent() {
                     key={s.key}
                     onClick={() => setSort(s.key)}
                     className={`px-4 py-2 rounded-full border text-sm font-bold transition-colors ${
-                      sort === s.key ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200"
+                      sort === s.key ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-100"
                     }`}
                   >
                     {s.label}
@@ -416,7 +414,7 @@ function HomeContent() {
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    selectedCategory === cat ? "bg-orange-700 text-white font-bold" : "text-stone-600 hover:bg-orange-50"
+                    selectedCategory === cat ? "bg-orange-700 text-white font-bold" : "text-stone-600 hover:bg-orange-100"
                   }`}
                 >
                   {cat}

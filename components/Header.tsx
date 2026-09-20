@@ -38,6 +38,7 @@ export default function Header() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showNotifications) return;
@@ -49,6 +50,17 @@ export default function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifications]);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -96,7 +108,7 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-20 bg-orange-700 text-white shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3.5">
+        <div className="relative max-w-6xl mx-auto flex justify-between items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3.5">
           <Link href="/" className="flex items-center gap-1.5 hover:opacity-90 transition-opacity shrink-0">
             <FoxMascot size={34} className="shrink-0 -my-1" />
             <span className="flex flex-col leading-tight">
@@ -121,7 +133,7 @@ export default function Header() {
               {user && (
                 <Link
                   href="/mypage#selling"
-                  className="hidden md:inline-block text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors whitespace-nowrap shrink-0"
+                  className="hidden md:inline-block text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/30 transition-colors whitespace-nowrap shrink-0"
                 >
                   出品・売れた商品
                 </Link>
@@ -131,7 +143,7 @@ export default function Header() {
           <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
             {user ? (
               <>
-                <div className="relative" ref={notificationsRef}>
+                <div ref={notificationsRef}>
                   <button
                     onClick={handleOpenNotifications}
                     className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors"
@@ -183,7 +195,7 @@ export default function Header() {
                 )}
                 <Link
                   href="/mypage"
-                  className="flex items-center gap-1.5 sm:gap-2 bg-white text-orange-700 pl-1.5 pr-1.5 sm:pl-2 sm:pr-4 py-1.5 rounded-full font-bold text-sm hover:bg-orange-50 transition-colors"
+                  className="flex items-center gap-1.5 sm:gap-2 bg-white text-orange-700 pl-1.5 pr-1.5 sm:pl-2 sm:pr-4 py-1.5 rounded-full font-bold text-sm hover:bg-orange-100 transition-colors"
                 >
                   {user.user_metadata?.avatar_url ? (
                     <img src={user.user_metadata.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
@@ -199,7 +211,7 @@ export default function Header() {
               <>
                 <Link
                   href="/login"
-                  className="bg-white text-orange-700 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs sm:text-sm hover:bg-orange-50 transition-colors whitespace-nowrap"
+                  className="bg-white text-orange-700 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs sm:text-sm hover:bg-orange-100 transition-colors whitespace-nowrap"
                 >
                   ログイン
                 </Link>
@@ -211,7 +223,7 @@ export default function Header() {
                 </Link>
               </>
             )}
-            <div className="relative">
+            <div ref={menuRef}>
               <button
                 onClick={() => setShowMenu((v) => !v)}
                 className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors text-lg"
@@ -223,7 +235,7 @@ export default function Header() {
                 <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
                   <button
                     onClick={() => { setShowMenu(false); setShowGuide(true); }}
-                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-50 transition-colors border-b border-stone-100"
+                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
                     初めての方に
                   </button>
@@ -233,7 +245,7 @@ export default function Header() {
                   <a
                     href="mailto:debuchi.sora.b0@elms.hokudai.ac.jp"
                     onClick={() => setShowMenu(false)}
-                    className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-50 transition-colors border-b border-stone-100"
+                    className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
                     お問い合わせはこちら
                   </a>
@@ -241,7 +253,7 @@ export default function Header() {
                     <Link
                       href="/logout"
                       onClick={() => setShowMenu(false)}
-                      className="block w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                      className="block w-full text-left px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-100 transition-colors"
                     >
                       ログアウト
                     </Link>

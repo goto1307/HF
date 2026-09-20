@@ -42,7 +42,7 @@ export default function About() {
               <Link href="/register" className="bg-orange-700 text-white font-extrabold text-sm px-7 py-3.5 rounded-full shadow-[0_14px_30px_-12px_rgba(217,83,31,0.6)] hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgba(217,83,31,0.75)] transition-all">
                 新規登録してはじめる
               </Link>
-              <Link href="/login" className="border border-white/35 text-[#fbf3e9] font-extrabold text-sm px-6 py-3.5 rounded-full hover:bg-white/10 hover:border-white/60 transition-colors">
+              <Link href="/login" className="border border-white/35 text-[#fbf3e9] font-extrabold text-sm px-6 py-3.5 rounded-full hover:bg-white/25 hover:border-white/60 transition-colors">
                 ログイン
               </Link>
             </div>
@@ -139,7 +139,7 @@ export default function About() {
             <Link href="/register" className="bg-orange-700 text-white font-extrabold text-sm px-7 py-3.5 rounded-full shadow-[0_14px_30px_-12px_rgba(217,83,31,0.6)] hover:-translate-y-0.5 transition-transform">
               新規登録してはじめる
             </Link>
-            <Link href="/" className="border border-white/35 text-[#fbf3e9] font-extrabold text-sm px-6 py-3.5 rounded-full hover:bg-white/10 transition-colors">
+            <Link href="/" className="border border-white/35 text-[#fbf3e9] font-extrabold text-sm px-6 py-3.5 rounded-full hover:bg-white/25 transition-colors">
               サイトを見てみる
             </Link>
           </div>

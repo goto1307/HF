@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -548,7 +549,16 @@ export default function ItemChat() {
         </button>
         <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
         <p className="text-sm text-stone-500 mb-6">
-          {isSeller ? (item.sold && item.buyer_id ? "購入者とのチャット" : "問い合わせ一覧") : `出品者：${item.nickname}`}
+          {isSeller ? (
+            item.sold && item.buyer_id ? "購入者とのチャット" : "問い合わせ一覧"
+          ) : (
+            <>
+              出品者：
+              <Link href={`/users/${item.user_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
+                {item.nickname}
+              </Link>
+            </>
+          )}
         </p>
 
         {isSeller ? (
@@ -560,7 +570,7 @@ export default function ItemChat() {
                 <button
                   onClick={handleCancel}
                   disabled={cancelling}
-                  className="w-full mt-4 border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                  className="w-full mt-4 border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-100 transition-colors disabled:opacity-50"
                 >
                   {cancelling ? "処理中..." : "この取引をキャンセルする"}
                 </button>
@@ -578,7 +588,7 @@ export default function ItemChat() {
                     <button
                       key={c.buyer_id}
                       onClick={() => setSelectedBuyerId(c.buyer_id)}
-                      className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-stone-50 transition-colors ${selectedBuyerId === c.buyer_id ? "bg-orange-50" : ""}`}
+                      className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-stone-100 transition-colors ${selectedBuyerId === c.buyer_id ? "bg-orange-50" : ""}`}
                     >
                       <p className="font-bold text-sm truncate">{c.buyer_nickname}</p>
                       <p className="text-xs text-stone-400 truncate">{c.last_message}</p>
@@ -640,7 +650,7 @@ export default function ItemChat() {
                     <button
                       onClick={handleCancel}
                       disabled={cancelling}
-                      className="w-full mt-2 border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                      className="w-full mt-2 border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-100 transition-colors disabled:opacity-50"
                     >
                       {cancelling ? "処理中..." : "この取引をキャンセルする"}
                     </button>
@@ -654,7 +664,7 @@ export default function ItemChat() {
                     ) : !showReviewForm ? (
                       <button
                         onClick={() => setShowReviewForm(true)}
-                        className="w-full border border-orange-300 text-orange-700 py-2.5 rounded-full font-bold text-sm hover:bg-orange-50 transition-colors"
+                        className="w-full border border-orange-300 text-orange-700 py-2.5 rounded-full font-bold text-sm hover:bg-orange-100 transition-colors"
                       >
                         ★ 出品者を評価する
                       </button>
@@ -672,7 +682,7 @@ export default function ItemChat() {
                           className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white focus:border-orange-600 transition-colors"
                         />
                         <div className="flex gap-2">
-                          <button onClick={() => setShowReviewForm(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors">
+                          <button onClick={() => setShowReviewForm(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors">
                             キャンセル
                           </button>
                           <button onClick={handleSubmitReview} disabled={submittingReview} className="flex-1 bg-orange-700 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors">

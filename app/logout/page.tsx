@@ -37,7 +37,7 @@ export default function Logout() {
           </button>
           <button
             onClick={() => router.back()}
-            className="w-full border border-stone-300 text-stone-600 py-3 rounded-full font-bold text-sm bg-white hover:bg-stone-50 transition-colors"
+            className="w-full border border-stone-300 text-stone-600 py-3 rounded-full font-bold text-sm bg-white hover:bg-stone-100 transition-colors"
           >
             キャンセル
           </button>

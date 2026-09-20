@@ -83,7 +83,7 @@ export default function Login() {
           </form>
           <button
             onClick={() => router.push("/register")}
-            className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-50 transition-colors"
+            className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-100 transition-colors"
           >
             新規登録はこちら
           </button>

@@ -126,8 +126,8 @@ export default function MyPage() {
     let uploadFile: File = file;
     try {
       uploadFile = await resizeImage(file, 512);
-    } catch {
-      // リサイズに失敗しても元ファイルでアップロードを続行する
+    } catch (e) {
+      console.error("resizeImage failed, uploading original file:", e);
     }
     const fileName = `avatars/${user.id}_${Date.now()}_${uploadFile.name}`;
     const { error: uploadError } = await supabase.storage.from("images").upload(fileName, uploadFile);
@@ -216,7 +216,7 @@ export default function MyPage() {
                 {(user?.user_metadata?.nickname || user?.email || "?")[0]}
               </div>
             )}
-            <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-stone-300 shadow-sm flex items-center justify-center text-xs cursor-pointer hover:bg-stone-50 transition-colors">
+            <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-stone-300 shadow-sm flex items-center justify-center text-xs cursor-pointer hover:bg-stone-100 transition-colors">
               {uploadingAvatar ? "…" : "✎"}
               <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={uploadingAvatar} />
             </label>
@@ -395,13 +395,13 @@ export default function MyPage() {
                         <div className="flex flex-col gap-1.5">
                           <button
                             onClick={() => router.push(`/items/${item.id}/edit`)}
-                            className="w-full border border-orange-300 text-orange-700 py-1.5 rounded-full text-xs font-bold hover:bg-orange-50 transition-colors"
+                            className="w-full border border-orange-300 text-orange-700 py-1.5 rounded-full text-xs font-bold hover:bg-orange-100 transition-colors"
                           >
                             編集する
                           </button>
                           <button
                             onClick={() => setDeleteTarget(item)}
-                            className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 transition-colors"
+                            className="w-full border border-red-300 text-red-500 py-1.5 rounded-full text-xs font-bold hover:bg-red-100 transition-colors"
                           >
                             削除する
                           </button>

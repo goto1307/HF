@@ -22,8 +22,6 @@ type Item = {
   received: boolean;
   condition: string | null;
   area: string | null;
-  available_from: string | null;
-  available_until: string | null;
   hashtags: string[] | null;
 };
 
@@ -53,6 +51,7 @@ export default function ItemDetail() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [sellerRating, setSellerRating] = useState<{ avg: number; count: number } | null>(null);
+  const [sellerDealCount, setSellerDealCount] = useState<number | null>(null);
   const [activeImage, setActiveImage] = useState(0);
   const [likeCount, setLikeCount] = useState(0);
   const [likedByMe, setLikedByMe] = useState(false);
@@ -105,6 +104,12 @@ export default function ItemDetail() {
       } else {
         setSellerRating(null);
       }
+      const { count } = await supabase
+        .from("item")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", item.user_id)
+        .eq("sold", true);
+      setSellerDealCount(count ?? 0);
     };
     fetchSellerRating();
   }, [item?.id, item?.user_id]);
@@ -340,21 +345,21 @@ export default function ItemDetail() {
           )}
           <p className="text-stone-600 mb-2 whitespace-pre-wrap">{item.detail}</p>
           {item.area && <p className="text-sm text-stone-500">希望場所：{item.area}</p>}
-          {(item.available_from || item.available_until) && (
-            <p className="text-sm text-stone-500">
-              期間：{item.available_from ? new Date(item.available_from).toLocaleDateString() : "未定"}
-              〜{item.available_until ? new Date(item.available_until).toLocaleDateString() : "未定"}
-            </p>
-          )}
           <div className="flex items-center gap-2 mt-1">
-            <Link href={`/users/${item.user_id}`} className="text-sm text-stone-500 hover:text-orange-700 hover:underline transition-colors">
-              出品者：{item.nickname}
-            </Link>
+            <span className="text-sm text-stone-500">
+              出品者：
+              <Link href={`/users/${item.user_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
+                {item.nickname}
+              </Link>
+            </span>
             {sellerRating && (
-              <span className="flex items-center gap-1 text-xs text-stone-500">
+              <Link href={`/users/${item.user_id}`} className="flex items-center gap-1 text-xs text-orange-700 font-bold hover:underline transition-colors">
                 <StarRating value={Math.round(sellerRating.avg)} size={13} />
                 {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
-              </span>
+              </Link>
+            )}
+            {sellerDealCount != null && sellerDealCount > 0 && (
+              <span className="text-xs text-stone-400">取引実績 {sellerDealCount}件</span>
             )}
           </div>
           {item.hashtags && item.hashtags.length > 0 && (
@@ -400,7 +405,7 @@ export default function ItemDetail() {
               className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white focus:border-orange-600 transition-colors"
             />
             <div className="flex gap-2">
-              <button onClick={() => setShowReviewForm(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors">キャンセル</button>
+              <button onClick={() => setShowReviewForm(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors">キャンセル</button>
               <button onClick={handleSubmitReview} disabled={submittingReview} className="flex-1 bg-orange-700 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors">
                 {submittingReview ? "送信中..." : "評価を送信"}
               </button>
@@ -430,7 +435,7 @@ export default function ItemDetail() {
               className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white"
             />
             <div className="flex gap-2 mt-2">
-              <button onClick={() => setShowReport(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors">キャンセル</button>
+              <button onClick={() => setShowReport(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors">キャンセル</button>
               <button onClick={handleReport} disabled={reporting} className="flex-1 bg-red-500 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors">{reporting ? "送信中..." : "通報する"}</button>
             </div>
           </div>
@@ -508,7 +513,7 @@ export default function ItemDetail() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setShowBuyConfirm(false); setBuyAgreed(false); }}
-                    className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-50 transition-colors"
+                    className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors"
                   >
                     キャンセル
                   </button>
@@ -532,7 +537,7 @@ export default function ItemDetail() {
           ) : (
             <button
               onClick={() => router.push("/login")}
-              className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-50 transition-colors"
+              className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-100 transition-colors"
             >
               ログインして購入する
             </button>
