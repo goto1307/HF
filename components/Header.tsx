@@ -199,6 +199,12 @@ export default function Header() {
                     >
                       ユーザー管理
                     </Link>
+                    <Link
+                      href="/admin/items"
+                      className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
+                    >
+                      商品/チャット
+                    </Link>
                   </>
                 )}
                 <Link

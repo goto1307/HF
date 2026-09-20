@@ -107,7 +107,10 @@ export default function AdminReports() {
       <main className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">通報一覧（{reports.length}件）</h2>
-          <Link href="/admin/users" className="text-sm font-bold text-orange-700 hover:underline">ユーザー管理へ</Link>
+          <div className="flex gap-3">
+            <Link href="/admin/users" className="text-sm font-bold text-orange-700 hover:underline">ユーザー管理へ</Link>
+            <Link href="/admin/items" className="text-sm font-bold text-orange-700 hover:underline">商品/チャットへ</Link>
+          </div>
         </div>
 
         {reports.length === 0 ? (

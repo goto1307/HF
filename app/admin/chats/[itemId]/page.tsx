@@ -88,7 +88,7 @@ export default function AdminItemChats() {
     <div className="min-h-screen bg-stone-50">
       <Header />
       <main className="max-w-2xl mx-auto px-4 py-8">
-        <Link href="/admin/reports" className="text-sm font-bold text-stone-500 hover:underline">← 通報一覧へ戻る</Link>
+        <Link href="/admin/items" className="text-sm font-bold text-stone-500 hover:underline">← 商品一覧へ戻る</Link>
         <h2 className="text-2xl font-bold mt-2 mb-1">{item?.title || `商品ID: ${params.itemId}`}</h2>
         <p className="text-sm text-stone-500 mb-6">
           出品者：<Link href={`/users/${item?.user_id}`} className="text-orange-700 hover:underline">{item?.nickname}</Link>
