@@ -632,9 +632,10 @@ begin
     raise exception '管理者のみ実行できます';
   end if;
   return query
-    select u.id, u.email,
-           u.raw_user_meta_data ->> 'nickname' as nickname,
-           u.raw_user_meta_data ->> 'avatar_url' as avatar_url,
+    select u.id,
+           u.email::text,
+           (u.raw_user_meta_data ->> 'nickname')::text as nickname,
+           (u.raw_user_meta_data ->> 'avatar_url')::text as avatar_url,
            u.created_at,
            u.banned_until
     from auth.users u
