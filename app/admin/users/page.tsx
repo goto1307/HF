@@ -116,7 +116,7 @@ export default function AdminUsers() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link href={`/users/${u.id}`} className="font-bold text-sm text-orange-700 hover:underline">
-                    {u.nickname || "（出品なし）"}
+                    {u.nickname || "（名前未設定）"}
                   </Link>
                   <p className="text-xs text-stone-500 truncate">{u.email}</p>
                   <p className="text-[11px] text-stone-400">登録：{new Date(u.created_at).toLocaleDateString()}</p>
