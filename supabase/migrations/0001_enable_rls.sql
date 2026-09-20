@@ -792,6 +792,10 @@ as $$
   select exists (select 1 from public.report where item_id = p_item_id);
 $$;
 
+-- 旧ポリシー。制限なしで自分の商品を削除できる内容で残っていたため、
+-- これが生きている限り下の item_delete_own の制限はORで打ち消される。
+drop policy if exists "owner_can_delete" on public.item;
+
 drop policy if exists "item_delete_own" on public.item;
 create policy "item_delete_own"
 on public.item for delete
