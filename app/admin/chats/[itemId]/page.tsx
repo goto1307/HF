@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
-
-const ADMIN_EMAILS = ["debuchi.sora.b0@elms.hokudai.ac.jp", "goto.kanata.w1@elms.hokudai.ac.jp"];
 
 type Message = {
   id: number;
@@ -32,7 +31,7 @@ export default function AdminItemChats() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = !!user && !!user.email && ADMIN_EMAILS.includes(user.email);
+  const isAdmin = isAdminEmail(user?.email);
 
   useEffect(() => {
     if (authLoading) return;

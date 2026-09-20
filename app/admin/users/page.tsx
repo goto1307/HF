@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
-
-const ADMIN_EMAILS = ["debuchi.sora.b0@elms.hokudai.ac.jp", "goto.kanata.w1@elms.hokudai.ac.jp"];
 
 type AdminUser = {
   id: string;
@@ -30,7 +29,7 @@ export default function AdminUsers() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const isAdmin = !!user && !!user.email && ADMIN_EMAILS.includes(user.email);
+  const isAdmin = isAdminEmail(user?.email);
 
   const fetchUsers = async () => {
     setErrorMsg("");

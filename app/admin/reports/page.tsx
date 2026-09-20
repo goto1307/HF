@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
-
-const ADMIN_EMAILS = ["debuchi.sora.b0@elms.hokudai.ac.jp", "goto.kanata.w1@elms.hokudai.ac.jp"];
 
 type Report = {
   id: number;
@@ -32,7 +31,7 @@ export default function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const isAdmin = !!user && !!user.email && ADMIN_EMAILS.includes(user.email);
+  const isAdmin = isAdminEmail(user?.email);
 
   useEffect(() => {
     if (authLoading) return;

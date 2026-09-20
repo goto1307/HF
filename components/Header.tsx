@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { isAdminEmail } from "@/lib/adminEmails";
 import FoxMascot from "@/components/FoxMascot";
 
 type Notification = {
@@ -25,11 +26,9 @@ function timeAgo(iso: string) {
   return `${day}日前`;
 }
 
-const ADMIN_EMAILS = ["debuchi.sora.b0@elms.hokudai.ac.jp", "goto.kanata.w1@elms.hokudai.ac.jp"];
-
 export default function Header() {
   const { user } = useAuth();
-  const isAdmin = !!user && !!user.email && ADMIN_EMAILS.includes(user.email);
+  const isAdmin = isAdminEmail(user?.email);
   const [showGuide, setShowGuide] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const pathname = usePathname();
