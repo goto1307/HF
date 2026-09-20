@@ -105,14 +105,43 @@ with check (
 
 
 -- ---------- report (通報) ----------
+-- 注意: app/admin/reports/page.tsx という管理画面が追加されており、
+--   そこでは「管理者かどうか」をフロントエンドのメールアドレス一覧
+--   (ADMIN_EMAILS)だけで判定している。RLSがない今の状態だと、
+--   ログイン済みなら誰でも devtools から直接 report/item を
+--   読み書きできてしまう(見た目のガードだけで実際には無防備)。
+--   下のポリシーで「管理者メールアドレスの場合のみ」閲覧・削除できる
+--   ようDB側でも強制する。ADMIN_EMAILSを変更したら、このSQLの
+--   admin_emails 配列も合わせて更新すること。
 alter table public.report enable row level security;
 
--- selectポリシーは作らない → 一般ユーザーからは閲覧不可(運営のみダッシュボードから確認)
 drop policy if exists "report_insert_authenticated" on public.report;
 create policy "report_insert_authenticated"
 on public.report for insert
 to authenticated
 with check (true); -- ログインユーザーのみ通報可能(未ログインでは不可に)
+
+drop policy if exists "report_select_admin_only" on public.report;
+create policy "report_select_admin_only"
+on public.report for select
+to authenticated
+using (
+  (auth.jwt() ->> 'email') in (
+    'debuchi.sora.b0@elms.hokudai.ac.jp',
+    'goto.kanata.w1@elms.hokudai.ac.jp'
+  )
+);
+
+drop policy if exists "report_delete_admin_only" on public.report;
+create policy "report_delete_admin_only"
+on public.report for delete
+to authenticated
+using (
+  (auth.jwt() ->> 'email') in (
+    'debuchi.sora.b0@elms.hokudai.ac.jp',
+    'goto.kanata.w1@elms.hokudai.ac.jp'
+  )
+);
 
 
 -- ---------- meetup (待ち合わせ調整) ----------
@@ -199,6 +228,12 @@ with check (bucket_id = 'images');
 --
 -- alter function public.mark_item_sold(<argsをここに>) security definer set search_path = public;
 -- alter function public.mark_item_received(<argsをここに>) security definer set search_path = public;
+--
+-- 補足: 現在のフロントは mark_item_sold を { p_item_id } のみで呼んでいる
+--   (buyer_id を渡していない)。つまり関数側で auth.uid() を買い手として
+--   書き込んでいる前提。この関数がSECURITY DEFINERでない場合、
+--   買い手(出品者ではない人)からのUPDATEはowner-onlyポリシーで拒否されるため、
+--   購入ボタンが必ず失敗する。
 
 alter table public.item enable row level security;
 
@@ -227,7 +262,13 @@ drop policy if exists "item_delete_own" on public.item;
 create policy "item_delete_own"
 on public.item for delete
 to authenticated
-using (auth.uid() = user_id); -- 自分の出品しか削除できない
+using (
+  auth.uid() = user_id
+  or (auth.jwt() ->> 'email') in (
+    'debuchi.sora.b0@elms.hokudai.ac.jp',
+    'goto.kanata.w1@elms.hokudai.ac.jp'
+  )
+); -- 自分の出品、または管理者(admin/reports画面用)のみ削除できる
 
 
 -- ============================================================

@@ -73,6 +73,7 @@ export default function ItemChat() {
   const [agreeingMeetup, setAgreeingMeetup] = useState(false);
   const [showMeetupForm, setShowMeetupForm] = useState(false);
   const [receiving, setReceiving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [checkedItems, setCheckedItems] = useState({ received: false, paid: false, condition: false });
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -118,7 +119,11 @@ export default function ItemChat() {
       comment: reviewComment.trim() || null,
     });
     setSubmittingReview(false);
-    if (error) { alert("評価の投稿に失敗しました"); return; }
+    if (error) {
+      console.error("review insert failed:", error);
+      alert(`評価の投稿に失敗しました: ${error.message}`);
+      return;
+    }
     alert("評価を投稿しました！");
     setShowReviewForm(false);
     setAlreadyReviewed(true);
@@ -133,7 +138,23 @@ export default function ItemChat() {
     setReceiving(false);
     if (error) { alert("受け取り確認に失敗しました"); return; }
     setItem({ ...item, received: true });
+    await supabase.from("notification").insert({
+      user_id: user.id,
+      message: `「${item.title}」の取引が完了しました。出品者を評価しましょう。`,
+      item_id: item.id,
+    });
     alert("取引完了を記録しました！");
+  };
+
+  const handleCancel = async () => {
+    if (!item) return;
+    if (!confirm("この取引をキャンセルしますか？出品は「販売中」に戻ります。")) return;
+    setCancelling(true);
+    const { error } = await supabase.rpc("cancel_purchase", { p_item_id: item.id });
+    setCancelling(false);
+    if (error) { alert(`キャンセルに失敗しました: ${error.message}`); return; }
+    alert("取引をキャンセルしました");
+    router.push(`/items/${item.id}`);
   };
 
   const isSeller = !!item && !!user && item.user_id === user.id;
@@ -395,6 +416,7 @@ export default function ItemChat() {
             </div>
             <input
               type="text"
+              maxLength={50}
               value={meetupLocation}
               onChange={(e) => setMeetupLocation(e.target.value)}
               placeholder="場所を入力（例：北部食堂前）"
@@ -494,6 +516,7 @@ export default function ItemChat() {
       <div className="flex border-t border-stone-200">
         <input
           type="text"
+          maxLength={500}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
@@ -512,7 +535,7 @@ export default function ItemChat() {
     <div className="min-h-screen bg-stone-50">
       <Header />
       <main className="max-w-3xl mx-auto px-4 py-8">
-        <button onClick={() => router.push(`/items/${item.id}`)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
+        <button onClick={() => router.replace(`/items/${item.id}`)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 商品ページへ戻る
         </button>
         <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
@@ -525,6 +548,15 @@ export default function ItemChat() {
             <>
               {meetupPanel}
               {chatPanel}
+              {!item.received && (
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  className="w-full mt-4 border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {cancelling ? "処理中..." : "この取引をキャンセルする"}
+                </button>
+              )}
             </>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -597,6 +629,13 @@ export default function ItemChat() {
                     >
                       {receiving ? "処理中..." : "取引を完了する"}
                     </button>
+                    <button
+                      onClick={handleCancel}
+                      disabled={cancelling}
+                      className="w-full mt-2 border border-red-300 text-red-500 py-2.5 rounded-full text-sm font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {cancelling ? "処理中..." : "この取引をキャンセルする"}
+                    </button>
                   </div>
                 ) : (
                   <>
@@ -618,6 +657,7 @@ export default function ItemChat() {
                           <StarRating value={reviewRating} onChange={setReviewRating} size={28} />
                         </div>
                         <textarea
+                          maxLength={500}
                           value={reviewComment}
                           onChange={(e) => setReviewComment(e.target.value)}
                           placeholder="コメント（任意）"

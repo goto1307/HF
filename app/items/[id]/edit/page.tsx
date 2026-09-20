@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { resizeImage } from "@/lib/resizeImage";
+import { resizeImage, validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 
-const categories = ["教科書", "自転車", "家電・家具", "衣類", "貸します", "その他"];
-const AREAS = ["北8条エリア", "北18条エリア", "北24条エリア", "エルムの森周辺", "工学部周辺", "農学部周辺"];
+const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
+const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
 
 export default function EditItem() {
   const params = useParams();
@@ -82,7 +82,11 @@ export default function EditItem() {
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (totalImageCount + files.length > 5) { alert("写真は最大5枚までです"); return; }
+    if (totalImageCount + files.length > 5) { alert("写真は最大5枚までです"); e.target.value = ""; return; }
+    for (const file of files) {
+      const error = validateImageFile(file);
+      if (error) { alert(error); e.target.value = ""; return; }
+    }
     setNewImages([...newImages, ...files]);
     setNewPreviews([...newPreviews, ...files.map((f) => URL.createObjectURL(f))]);
     e.target.value = "";
@@ -223,7 +227,7 @@ export default function EditItem() {
 
           <div>
             <label className="block text-sm font-bold mb-2">タイトル <span className="text-red-500">*</span></label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+            <input type="text" maxLength={45} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例：微分積分学テキスト" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
           </div>
 
           <div>
@@ -349,7 +353,7 @@ export default function EditItem() {
 
           <div>
             <label className="block text-sm font-bold mb-2">商品の説明</label>
-            <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="状態・付属品・受け渡し場所など" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm h-28 resize-none" />
+            <textarea maxLength={150} value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="状態・付属品・受け渡し場所など" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm h-28 resize-none" />
           </div>
 
           <button onClick={handleSubmit} disabled={saving} className="w-full bg-orange-700 text-white py-4 rounded-full font-bold text-lg disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm">

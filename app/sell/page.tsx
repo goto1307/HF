@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { resizeImage, validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
@@ -49,7 +50,11 @@ export default function Sell() {
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (images.length + files.length > 5) { alert("写真は最大5枚までです"); return; }
+    if (images.length + files.length > 5) { alert("写真は最大5枚までです"); e.target.value = ""; return; }
+    for (const file of files) {
+      const error = validateImageFile(file);
+      if (error) { alert(error); e.target.value = ""; return; }
+    }
     setImages([...images, ...files]);
     setPreviews([...previews, ...files.map((f) => URL.createObjectURL(f))]);
     e.target.value = "";
@@ -66,6 +71,7 @@ export default function Sell() {
     if (!title.trim()) { alert("タイトルを入力してください"); return; }
     if (!category) { alert("カテゴリを選択してください"); return; }
     if (!isFree && !price) { alert("価格を入力してください"); return; }
+    if (!isFree && (!Number.isFinite(Number(price)) || Number(price) < 0 || Number(price) > 50000)) { alert("価格は0円〜50,000円の範囲で入力してください"); return; }
     if (!agreed) { alert("出品規約への同意が必要です"); return; }
     setShowConfirm(true);
   };
@@ -77,8 +83,14 @@ export default function Sell() {
     const imageUrls: string[] = [];
 
     for (const file of images) {
-      const fileName = `${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
+      let uploadFile: File = file;
+      try {
+        uploadFile = await resizeImage(file);
+      } catch {
+        // リサイズに失敗しても元ファイルでアップロードを続行する
+      }
+      const fileName = `${Date.now()}_${uploadFile.name}`;
+      const { error: uploadError } = await supabase.storage.from("images").upload(fileName, uploadFile);
       if (uploadError) {
         alert("画像のアップロードに失敗しました");
         setLoading(false);
@@ -223,7 +235,7 @@ export default function Sell() {
             {!isFree && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-stone-500">¥</span>
-                <input type="number" min="0" autoComplete="off" value={price} onChange={(e) => setPrice(e.target.value.replace("-", ""))} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+                <input type="number" min="0" max="50000" autoComplete="off" value={price} onChange={(e) => setPrice(e.target.value.replace("-", ""))} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
               </div>
             )}
           </div>
@@ -332,7 +344,7 @@ export default function Sell() {
               </div>
               <p className="text-lg font-bold text-blue-700 mb-1">{title}</p>
               <p className="text-2xl text-orange-700 font-bold mb-2">{isFree ? "無料" : `¥${Number(price || 0).toLocaleString()}`}</p>
-              {area && <p className="text-sm text-stone-500 mb-1">場所：{area}</p>}
+              {area && <p className="text-sm text-stone-500 mb-1">希望場所：{area}</p>}
               {(availableFrom || availableUntil) && (
                 <p className="text-sm text-stone-500 mb-1">
                   期間：{availableFrom || "未定"}〜{availableUntil || "未定"}

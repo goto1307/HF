@@ -75,7 +75,14 @@ export default function Register() {
       },
     });
     setLoading(false);
-    if (error) { alert(`登録に失敗しました: ${error.message}`); return; }
+    if (error) {
+      if (error.code === "over_request_rate_limit" || error.status === 429) {
+        alert("試行回数が多すぎます。しばらく待ってから再度お試しください。");
+      } else {
+        alert("登録に失敗しました。入力内容をご確認のうえ、もう一度お試しください。");
+      }
+      return;
+    }
     alert("確認メールを送りました！メール内のリンクを開いて確認を完了してから、ログインしてください。");
     router.push("/login");
   };
@@ -86,9 +93,9 @@ export default function Register() {
       <main className="max-w-md mx-auto px-4 py-16">
         <h2 className="text-2xl font-bold mb-8 text-center">新規登録</h2>
         <div className="flex flex-col gap-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="北大メールアドレス" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
-          <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="ニックネーム" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="パスワード（6文字以上）" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+          <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="北大メールアドレス" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+          <input type="text" maxLength={30} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="ニックネーム" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+          <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="パスワード（6文字以上）" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
 
           <div>
             <label className="block text-sm font-bold mb-2">利用規約</label>

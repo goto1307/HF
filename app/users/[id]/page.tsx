@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
+import StarRating from "@/components/StarRating";
 
 type Item = {
   id: number;
@@ -20,8 +21,6 @@ type Profile = {
   gender: string | null;
   age: number | null;
 };
-
-const RATING_SCORE: Record<string, number> = { good: 5, normal: 3, bad: 1 };
 
 export default function SellerProfile() {
   const params = useParams();
@@ -41,7 +40,7 @@ export default function SellerProfile() {
 
       const { data: reviewData } = await supabase.from("review").select("rating").eq("seller_id", params.id);
       if (reviewData && reviewData.length > 0) {
-        const total = reviewData.reduce((sum, r) => sum + (RATING_SCORE[r.rating] ?? 3), 0);
+        const total = reviewData.reduce((sum, r) => sum + r.rating, 0);
         setRatingStats({ avg: total / reviewData.length, count: reviewData.length });
       } else {
         setRatingStats({ avg: 0, count: 0 });
@@ -81,7 +80,10 @@ export default function SellerProfile() {
             <div>
               <h2 className="text-xl font-bold">{nickname}</h2>
               {ratingStats && ratingStats.count > 0 ? (
-                <p className="text-sm text-orange-700 font-bold">★ {ratingStats.avg.toFixed(1)}（{ratingStats.count}件の評価）</p>
+                <div className="flex items-center gap-1.5">
+                  <StarRating value={Math.round(ratingStats.avg)} size={14} />
+                  <p className="text-sm text-orange-700 font-bold">{ratingStats.avg.toFixed(1)}（{ratingStats.count}件）</p>
+                </div>
               ) : (
                 <p className="text-sm text-stone-400">評価はまだありません</p>
               )}

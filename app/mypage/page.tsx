@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { resizeImage, validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 import FoxMascot from "@/components/FoxMascot";
 import StarRating from "@/components/StarRating";
@@ -34,6 +35,11 @@ export default function MyPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [bio, setBio] = useState("");
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
+  const [profileAvailable, setProfileAvailable] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -86,6 +92,19 @@ export default function MyPage() {
         }
       }
 
+      const { data: profileData, error: profileError } = await supabase
+        .from("profile")
+        .select("bio,gender,age")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profileError) {
+        setProfileAvailable(false);
+      } else if (profileData) {
+        setBio(profileData.bio || "");
+        setGender(profileData.gender || "");
+        setAge(profileData.age != null ? String(profileData.age) : "");
+      }
+
       setDataLoading(false);
     };
     fetchData();
@@ -100,9 +119,18 @@ export default function MyPage() {
     e.target.value = "";
     if (!file || !user) return;
 
+    const validationError = validateImageFile(file);
+    if (validationError) { alert(validationError); return; }
+
     setUploadingAvatar(true);
-    const fileName = `avatars/${user.id}_${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
+    let uploadFile: File = file;
+    try {
+      uploadFile = await resizeImage(file, 512);
+    } catch {
+      // リサイズに失敗しても元ファイルでアップロードを続行する
+    }
+    const fileName = `avatars/${user.id}_${Date.now()}_${uploadFile.name}`;
+    const { error: uploadError } = await supabase.storage.from("images").upload(fileName, uploadFile);
     if (uploadError) {
       alert("アイコンのアップロードに失敗しました");
       setUploadingAvatar(false);
@@ -116,13 +144,36 @@ export default function MyPage() {
     if (updateError) { alert("アイコンの更新に失敗しました"); return; }
   };
 
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    if (age && (!Number.isFinite(Number(age)) || Number(age) < 0 || Number(age) > 120)) {
+      alert("年齢には0〜120の数値を入力してください");
+      return;
+    }
+    setSavingProfile(true);
+    const { error } = await supabase.from("profile").upsert({
+      user_id: user.id,
+      bio: bio.trim() || null,
+      gender: gender || null,
+      age: age ? Number(age) : null,
+      updated_at: new Date().toISOString(),
+    });
+    setSavingProfile(false);
+    if (error) {
+      setProfileAvailable(false);
+      alert("プロフィールの保存に失敗しました。この機能は準備中の可能性があります。");
+      return;
+    }
+    alert("プロフィールを保存しました");
+  };
+
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !user) return;
     setDeleting(true);
-    const { error } = await supabase.from("item").delete().eq("id", deleteTarget.id);
+    const { error } = await supabase.from("item").delete().eq("id", deleteTarget.id).eq("user_id", user.id);
     setDeleting(false);
     if (error) { alert("削除に失敗しました"); return; }
     setItems(items.filter((item) => item.id !== deleteTarget.id));
@@ -147,6 +198,7 @@ export default function MyPage() {
             <span aria-hidden>←</span> 戻る
           </button>
           <div className="flex items-center gap-3 text-xs font-bold text-stone-500">
+            <a href="#purchased" className="hover:text-orange-700 transition-colors">購入した商品へ</a>
             <a href="#selling" className="hover:text-orange-700 transition-colors">出品中の商品へ</a>
             <a href="#sold" className="hover:text-orange-700 transition-colors">売れた商品へ</a>
           </div>
@@ -174,6 +226,55 @@ export default function MyPage() {
             <p className="text-sm text-stone-500">{user?.user_metadata?.nickname || user?.email}</p>
           </div>
         </div>
+
+        <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
+          <h3 className="font-bold mb-3">プロフィール</h3>
+          {!profileAvailable && (
+            <p className="text-xs text-stone-400 mb-3">この機能は現在準備中です。保存できない場合があります。</p>
+          )}
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">一言メッセージ</label>
+              <textarea
+                maxLength={300}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="よろしくお願いします！など"
+                className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none h-20 resize-none focus:border-orange-600 transition-colors"
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-stone-500 mb-1">性別（任意）</label>
+                <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors">
+                  <option value="">未設定</option>
+                  <option value="男性">男性</option>
+                  <option value="女性">女性</option>
+                  <option value="その他">その他</option>
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-stone-500 mb-1">年齢（任意）</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value.replace("-", ""))}
+                  placeholder="未設定"
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-600 transition-colors"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              className="self-start bg-orange-700 text-white px-5 py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors"
+            >
+              {savingProfile ? "保存中..." : "プロフィールを保存"}
+            </button>
+          </div>
+        </section>
 
         <div className="mb-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 border border-orange-200 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
@@ -205,7 +306,7 @@ export default function MyPage() {
           </div>
         ) : (
           <>
-            <section className="mb-10">
+            <section id="purchased" className="mb-10 scroll-mt-24">
               <h3 className="font-bold mb-4">購入した商品（{purchases.length}件）</h3>
               {purchases.length === 0 ? (
                 <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">
@@ -270,7 +371,7 @@ export default function MyPage() {
               )}
             </section>
 
-            <section id="selling">
+            <section id="selling" className="scroll-mt-24">
               <h3 className="font-bold mb-4">出品中の商品（{items.filter((item) => !item.sold).length}件）</h3>
               {items.filter((item) => !item.sold).length === 0 ? (
                 <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">
@@ -293,10 +394,10 @@ export default function MyPage() {
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <div className="flex flex-col gap-1.5">
                           <button
-                            onClick={() => router.push(`/items/${item.id}/chat`)}
-                            className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
+                            onClick={() => router.push(`/items/${item.id}/edit`)}
+                            className="w-full border border-orange-300 text-orange-700 py-1.5 rounded-full text-xs font-bold hover:bg-orange-50 transition-colors"
                           >
-                            問い合わせを見る
+                            編集する
                           </button>
                           <button
                             onClick={() => setDeleteTarget(item)}
@@ -312,7 +413,7 @@ export default function MyPage() {
               )}
             </section>
 
-            <section id="sold" className="mt-10">
+            <section id="sold" className="mt-10 scroll-mt-24">
               <h3 className="font-bold mb-4">売れた商品（{items.filter((item) => item.sold).length}件）</h3>
               {items.filter((item) => item.sold).length === 0 ? (
                 <p className="text-center text-stone-400 bg-white rounded-2xl border border-stone-200 shadow-sm py-16">

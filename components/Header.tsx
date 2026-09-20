@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -37,6 +37,18 @@ export default function Header() {
   const [query, setQuery] = useState("");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotifications]);
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -98,6 +110,7 @@ export default function Header() {
                 <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
                 <input
                   type="text"
+                  maxLength={100}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -118,10 +131,10 @@ export default function Header() {
           <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
             {user ? (
               <>
-                <div className="relative">
+                <div className="relative" ref={notificationsRef}>
                   <button
                     onClick={handleOpenNotifications}
-                    className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                    className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors"
                     aria-label="通知"
                   >
                     <span className="text-base sm:text-lg">🔔</span>
@@ -149,7 +162,7 @@ export default function Header() {
                             <button
                               key={n.id}
                               onClick={() => handleNotificationClick(n)}
-                              className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-stone-50 transition-colors ${!n.read ? "bg-orange-50" : ""}`}
+                              className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-orange-100 transition-colors ${!n.read ? "bg-orange-50" : ""}`}
                             >
                               <p className="text-sm text-stone-700">{n.message}</p>
                               <p className="text-xs text-stone-400 mt-0.5">{timeAgo(n.created_at)}</p>
@@ -163,7 +176,7 @@ export default function Header() {
                 {isAdmin && (
                   <Link
                     href="/admin/reports"
-                    className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors whitespace-nowrap"
+                    className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
                   >
                     通報一覧
                   </Link>
@@ -192,7 +205,7 @@ export default function Header() {
                 </Link>
                 <Link
                   href="/register"
-                  className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors whitespace-nowrap"
+                  className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
                 >
                   新規登録
                 </Link>
@@ -201,7 +214,7 @@ export default function Header() {
             <div className="relative">
               <button
                 onClick={() => setShowMenu((v) => !v)}
-                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-lg"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors text-lg"
                 aria-label="メニュー"
               >
                 ☰
@@ -238,6 +251,47 @@ export default function Header() {
             </div>
           </nav>
         </div>
+        {pathname === "/" && (
+          <div className="sm:hidden px-3 pb-3">
+            <div className="flex items-center bg-white rounded-full px-4 py-2">
+              <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
+              <input
+                type="text"
+                maxLength={100}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="検索"
+                className="flex-1 outline-none text-sm text-stone-800"
+              />
+            </div>
+          </div>
+        )}
+        {user && (
+          <div className="border-t border-white/20">
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
+              {[
+                { href: "/", label: "商品を探す" },
+                { href: "/mypage#selling", label: "出品商品" },
+                { href: "/mypage#purchased", label: "購入商品" },
+                { href: "/mypage", label: "マイページ" },
+              ].map((tab) => {
+                const isActive = tab.href === "/" ? pathname === "/" : pathname === "/mypage";
+                return (
+                  <Link
+                    key={tab.label}
+                    href={tab.href}
+                    className={`shrink-0 px-3 py-2 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
+                      isActive ? "border-white text-white" : "border-transparent text-white/70 hover:text-white hover:border-white/50"
+                    }`}
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </header>
 
       {showGuide && (
