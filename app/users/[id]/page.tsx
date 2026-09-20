@@ -77,7 +77,14 @@ export default function SellerProfile() {
       reason: reportDetail.trim() ? `${reportReason}：${reportDetail.trim()}` : reportReason,
     });
     setReporting(false);
-    if (error) { alert("通報に失敗しました"); return; }
+    if (error) {
+      if (error.code === "42501" || error.message?.includes("row-level security")) {
+        alert("通報は1分に1回までです。しばらく待ってから再度お試しください。");
+      } else {
+        alert("通報に失敗しました");
+      }
+      return;
+    }
     alert("通報を受け付けました");
     setShowReport(false);
     setReportReason("");

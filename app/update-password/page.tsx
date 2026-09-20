@@ -12,8 +12,12 @@ export default function UpdatePassword() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const isValidPassword = (password: string) => {
+    return password.length >= 8 && /[0-9]/.test(password) && /[a-z]/.test(password) && /[A-Z]/.test(password);
+  };
+
   const handleUpdate = async () => {
-    if (password.length < 6) { alert("パスワードは6文字以上にしてください"); return; }
+    if (!isValidPassword(password)) { alert("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
     if (password !== confirm) { alert("パスワードが一致しません"); return; }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
@@ -42,7 +46,7 @@ export default function UpdatePassword() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="新しいパスワード（6文字以上）"
+                placeholder="新しいパスワード（8文字以上・大小英字＋数字）"
                 className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
               />
               <input

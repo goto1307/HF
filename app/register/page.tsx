@@ -59,10 +59,14 @@ export default function Register() {
     return email.endsWith("@eis.hokudai.ac.jp") || email.endsWith("@hokudai.ac.jp") || email.endsWith("@elms.hokudai.ac.jp");
   };
 
+  const isValidPassword = (password: string) => {
+    return password.length >= 8 && /[0-9]/.test(password) && /[a-z]/.test(password) && /[A-Z]/.test(password);
+  };
+
   const handleRegister = async () => {
     if (!isValidEmail(email)) { alert("北大のメールアドレスを入力してください"); return; }
     if (!nickname.trim()) { alert("ニックネームを入力してください"); return; }
-    if (password.length < 6) { alert("パスワードは6文字以上にしてください"); return; }
+    if (!isValidPassword(password)) { alert("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
     if (!agreed) { alert("利用規約への同意が必要です"); return; }
     setLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
@@ -95,7 +99,8 @@ export default function Register() {
         <div className="flex flex-col gap-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
           <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="北大メールアドレス" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
           <input type="text" maxLength={30} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="ニックネーム" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
-          <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="パスワード（6文字以上）" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+          <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="パスワード（8文字以上・大小英字＋数字）" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+          <p className="text-xs text-stone-400 -mt-3">8文字以上、数字・アルファベットの大文字・小文字をすべて含めてください</p>
 
           <div>
             <label className="block text-sm font-bold mb-2">利用規約</label>

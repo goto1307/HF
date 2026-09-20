@@ -680,3 +680,37 @@ using (public.is_admin());
 --   各ユーザー行に mailto: リンクを置き、管理者自身のメールソフトから
 --   手動送信する形にしている。アプリから自動送信したい場合は、Resend等の
 --   トランザクションメールサービスの契約とAPIキーが別途必要。
+
+
+-- ============================================================
+-- PART I: 通知insertバグの修正 + 通報の連投制限(1分に1回)
+-- ============================================================
+--
+-- 背景:
+--   1) items/[id]/chat/page.tsx の「受け取り確認」で、レビューを促す
+--      自分宛の通知を直接 insert しているが、notification テーブルには
+--      INSERTポリシーが一つも存在しなかったため、この insert は毎回
+--      RLSに拒否されて静かに失敗していた(エラー処理もしていなかった)。
+--      自分自身への通知だけを許可するポリシーを追加して修正する。
+--
+--   2) 通報を1分間に1回までに制限する。report_insert_authenticated の
+--      with_check に「直近1分以内に自分が送った通報がないこと」を追加する。
+
+drop policy if exists "notification_insert_own" on public.notification;
+create policy "notification_insert_own"
+on public.notification for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "report_insert_authenticated" on public.report;
+create policy "report_insert_authenticated"
+on public.report for insert
+to authenticated
+with check (
+  reporter_id = auth.uid()
+  and not exists (
+    select 1 from public.report r2
+    where r2.reporter_id = auth.uid()
+      and r2.created_at > now() - interval '1 minute'
+  )
+);
