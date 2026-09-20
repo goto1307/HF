@@ -450,6 +450,40 @@ with check (auth.uid() = user_id);
 
 
 -- ============================================================
+-- PART F: review.rating を text(good/normal/bad)から
+--          integer(1〜5の★評価)に変更(適用済み・記録用)
+-- ============================================================
+--
+-- 背景: 当初 rating は 'good'/'normal'/'bad' という文字列だったが、
+--   アプリのUIが★1〜5の数値評価(StarRatingコンポーネント)に変更された。
+--   DB側の制約が更新されていなかったため、評価投稿が
+--   「new row for relation "review" violates check constraint
+--   "review_rating_check"」で必ず失敗していた。
+--
+-- 2026-09-25頃、以下を実行して修正済み:
+--
+-- alter table public.review drop constraint if exists review_rating_check;
+--
+-- alter table public.review
+--   alter column rating type integer
+--   using (
+--     case rating
+--       when 'good' then 5
+--       when 'normal' then 3
+--       when 'bad' then 1
+--       else null
+--     end
+--   );
+--
+-- alter table public.review
+--   add constraint review_rating_check check (rating between 1 and 5);
+--
+-- 注意: このファイルの他の箇所(PART A等)で rating を good/normal/bad
+--   として扱っているコメント・想定は古い情報なので、実装の参考にしないこと。
+--   現在の正しい形式は 1〜5 の整数。
+
+
+-- ============================================================
 -- 参考: 通報されたユーザーのBANについて(SQL不要)
 -- ============================================================
 --
