@@ -309,7 +309,11 @@ export default function ItemChat() {
       { onConflict: "item_id,buyer_id" }
     );
     setSavingMeetup(false);
-    if (error) { alert("待ち合わせ情報の保存に失敗しました"); return; }
+    if (error) {
+      console.error("meetup upsert failed:", error);
+      alert(`待ち合わせ情報の保存に失敗しました: ${error.message}`);
+      return;
+    }
     setMeetupUpdatedAt(nowIso);
     setMeetupProposedBy(user.id);
     setMeetupAgreed(false);
