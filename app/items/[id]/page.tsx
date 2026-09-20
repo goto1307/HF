@@ -197,6 +197,7 @@ export default function ItemDetail() {
     setReporting(true);
     const { error } = await supabase.from("report").insert({
       item_id: item?.id,
+      reporter_id: user.id,
       reason: reportDetail.trim() ? `${reportReason}：${reportDetail.trim()}` : reportReason,
     });
     setReporting(false);

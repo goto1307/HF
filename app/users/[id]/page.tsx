@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 
@@ -24,10 +25,16 @@ type Profile = {
 
 export default function SellerProfile() {
   const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ratingStats, setRatingStats] = useState<{ avg: number; count: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,6 +65,24 @@ export default function SellerProfile() {
   const nickname = items[0]?.nickname || "ユーザー";
   const soldCount = items.filter((i) => i.sold).length;
   const activeItems = items.filter((i) => !i.sold);
+
+  const handleReport = async () => {
+    if (!user) { alert("通報にはログインしてください"); router.push("/login"); return; }
+    if (!reportReason) { alert("通報理由を選択してください"); return; }
+    if (reportReason === "その他" && !reportDetail.trim()) { alert("詳細を入力してください"); return; }
+    setReporting(true);
+    const { error } = await supabase.from("report").insert({
+      reported_user_id: params.id,
+      reporter_id: user.id,
+      reason: reportDetail.trim() ? `${reportReason}：${reportDetail.trim()}` : reportReason,
+    });
+    setReporting(false);
+    if (error) { alert("通報に失敗しました"); return; }
+    alert("通報を受け付けました");
+    setShowReport(false);
+    setReportReason("");
+    setReportDetail("");
+  };
 
   if (loading) {
     return (
@@ -98,6 +123,35 @@ export default function SellerProfile() {
 
           {profile?.bio && (
             <p className="text-sm text-stone-700 bg-stone-50 rounded-xl p-3 whitespace-pre-wrap">{profile.bio}</p>
+          )}
+
+          {!showReport ? (
+            <button onClick={() => setShowReport(true)} className="mt-4 text-xs font-bold text-stone-400 hover:text-red-500 transition-colors">
+              このユーザーを通報する
+            </button>
+          ) : (
+            <div className="border border-red-200 rounded-2xl p-4 mt-4 bg-red-50">
+              <p className="font-bold text-sm mb-2 text-red-600">通報理由</p>
+              <select value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none bg-white">
+                <option value="">選択してください</option>
+                <option value="迷惑行為">迷惑行為</option>
+                <option value="詐欺・偽物">詐欺・偽物</option>
+                <option value="不適切な言動">不適切な言動</option>
+                <option value="なりすまし">なりすまし</option>
+                <option value="その他">その他</option>
+              </select>
+              <textarea
+                value={reportDetail}
+                onChange={(e) => setReportDetail(e.target.value)}
+                placeholder={reportReason === "その他" ? "詳細を入力してください" : "詳細（任意）"}
+                maxLength={500}
+                className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none h-20 resize-none bg-white"
+              />
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => setShowReport(false)} className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors">キャンセル</button>
+                <button onClick={handleReport} disabled={reporting} className="flex-1 bg-red-500 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors">{reporting ? "送信中..." : "通報する"}</button>
+              </div>
+            </div>
           )}
         </div>
 

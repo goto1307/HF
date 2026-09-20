@@ -569,3 +569,113 @@ create policy "report_insert_authenticated"
 on public.report for insert
 to authenticated
 with check (true);
+
+
+-- ============================================================
+-- PART H: 管理者ダッシュボード(ユーザー一覧・BAN・通報者/通報対象の記録・全チャット閲覧)
+-- ============================================================
+--
+-- 背景:
+--   管理者(僕と出淵)専用のページから、全ユーザーの一覧表示・BAN・
+--   通報者/通報対象の特定・商品ごとの個別チャット閲覧をできるようにする。
+--   service_role キーはアプリの安全性を大きく損なうため一切使わず、
+--   既存の mark_item_sold などと同じ SECURITY DEFINER 関数パターンで実現する。
+--
+--   report テーブルには「誰が通報したか」を記録する列がそもそも
+--   存在しなかったため追加。あわせて、商品ページだけでなくユーザー
+--   ページからも通報できるよう reported_user_id を追加し、item_id は
+--   NOT NULL を外した(どちらか一方が入っていればよい)。
+
+alter table public.report add column if not exists reporter_id uuid references auth.users(id);
+alter table public.report add column if not exists reported_user_id uuid references auth.users(id);
+alter table public.report alter column item_id drop not null;
+alter table public.report drop constraint if exists report_target_check;
+alter table public.report add constraint report_target_check check (item_id is not null or reported_user_id is not null);
+
+drop policy if exists "report_insert_authenticated" on public.report;
+create policy "report_insert_authenticated"
+on public.report for insert
+to authenticated
+with check (reporter_id = auth.uid());
+
+-- 管理者判定を1箇所にまとめる関数
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select (auth.jwt() ->> 'email') = any (array[
+    'debuchi.sora.b0@elms.hokudai.ac.jp',
+    'goto.kanata.w1@elms.hokudai.ac.jp'
+  ]);
+$$;
+
+-- 全ユーザー一覧(管理者のみ実行可)。auth.users は anon/authenticated からは
+-- 直接読めないため、SECURITY DEFINER 関数の中からのみアクセスする。
+create or replace function public.admin_list_users()
+returns table (
+  id uuid,
+  email text,
+  nickname text,
+  avatar_url text,
+  created_at timestamptz,
+  banned_until timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  return query
+    select u.id, u.email,
+           u.raw_user_meta_data ->> 'nickname' as nickname,
+           u.raw_user_meta_data ->> 'avatar_url' as avatar_url,
+           u.created_at,
+           u.banned_until
+    from auth.users u
+    order by u.created_at desc;
+end;
+$$;
+grant execute on function public.admin_list_users() to authenticated;
+
+-- BAN / BAN解除(管理者のみ実行可)。banned_until は Supabase Auth(GoTrue)が
+-- ログイン時に直接参照する列なので、これを更新するだけでログイン自体を拒否できる。
+create or replace function public.admin_set_ban(target_id uuid, should_ban boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if target_id = auth.uid() then
+    raise exception '自分自身はBANできません';
+  end if;
+  update auth.users
+  set banned_until = case when should_ban then '2999-12-31'::timestamptz else null end
+  where id = target_id;
+end;
+$$;
+grant execute on function public.admin_set_ban(uuid, boolean) to authenticated;
+
+-- 管理者は全ての個別チャット・公開Q&Aを閲覧できる(既存の当事者限定ポリシーに
+-- 追加する形。Postgres は同一コマンドの permissive policy を OR で結合するため、
+-- 一般ユーザーの閲覧範囲は従来どおり本人分のみに制限されたままになる)。
+drop policy if exists "message_select_admin" on public.message;
+create policy "message_select_admin"
+on public.message for select
+to authenticated
+using (public.is_admin());
+
+-- 「メアドにメッセージを送る」機能について:
+--   このアプリには外部メール配信サービスの導入がないため、管理画面では
+--   各ユーザー行に mailto: リンクを置き、管理者自身のメールソフトから
+--   手動送信する形にしている。アプリから自動送信したい場合は、Resend等の
+--   トランザクションメールサービスの契約とAPIキーが別途必要。
