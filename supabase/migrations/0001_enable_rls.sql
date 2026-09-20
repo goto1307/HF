@@ -514,3 +514,58 @@ with check (auth.uid() = user_id);
 -- そのキーをブラウザ側のコードに置くことは絶対にできない。
 -- 作る場合はサーバー側(Next.jsのAPI Routeなど)で安全にキーを扱う
 -- 設計が別途必要になるため、今回は対象外としている。
+
+
+-- ============================================================
+-- 重要: 2026-10頃、teammateの方が独自にRLSポリシーをSupabase側で
+--   直接設定していたことが判明した。ポリシー名がこのファイルの
+--   PART A/Bと異なる(例: item は anyone_can_insert / anyone_can_read /
+--   item_delete_admin_only / owner_can_delete など)。
+--   つまり、このファイルのPART A/Bに書かれているポリシー名は
+--   実際に本番へ適用されているものと一致していない可能性が高い。
+--   本番の実態を確認するには、必ず以下を先に実行して現状を見ること:
+--
+--   select tablename, policyname, cmd, qual, with_check
+--   from pg_policies where schemaname = 'public' order by tablename, policyname;
+-- ============================================================
+
+
+-- ============================================================
+-- PART G: 未ログインでの出品・通報投稿を防ぐ(2026-10 監査で発見・適用済み)
+-- ============================================================
+--
+-- 背景:
+--   上記の監査で、item テーブルの "anyone_can_insert"(INSERT, with_check = true)
+--   と report テーブルの "anyone_can_report" / "report_insert_anyone"
+--   (どちらも INSERT, with_check = true)が、認証状態を一切チェックしない
+--   完全に無条件のポリシーになっていることが判明した。
+--   つまり、ログインしていない人でも anon key を使って直接Supabaseの
+--   REST APIを叩けば、出品の投稿・通報の送信が無制限にできてしまう状態
+--   だった(フロントエンドの「ログインしてください」はDB側では無力)。
+--   下記を実行し、認証済みかつ本人名義でのみ許可するよう修正済み。
+--
+--   また、item テーブルには UPDATE ポリシーが一つも存在しておらず、
+--   出品編集機能(app/items/[id]/edit)が保存時に失敗する状態だったため、
+--   本人のみ更新できるポリシーもあわせて追加した。
+
+drop policy if exists "anyone_can_insert" on public.item;
+drop policy if exists "item_insert_own" on public.item;
+create policy "item_insert_own"
+on public.item for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "item_update_own" on public.item;
+create policy "item_update_own"
+on public.item for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "anyone_can_report" on public.report;
+drop policy if exists "report_insert_anyone" on public.report;
+drop policy if exists "report_insert_authenticated" on public.report;
+create policy "report_insert_authenticated"
+on public.report for insert
+to authenticated
+with check (true);
