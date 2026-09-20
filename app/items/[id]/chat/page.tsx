@@ -384,7 +384,7 @@ export default function ItemChat() {
   const hasMeetup = !!meetupLocation || !!meetupAt;
   const isMeetupProposer = !!user && !!meetupProposedBy && meetupProposedBy === user.id;
 
-  const meetupPanel = buyerId && (
+  const meetupPanel = buyerId && !item.received && (
     <div className="mb-4">
       {!showMeetupForm ? (
         hasMeetup ? (
