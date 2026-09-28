@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/mypage", "/admin", "/items/*/chat"],
       },
     ],
-    sitemap: "https://kitafuri.vercel.app/sitemap.xml",
+    sitemap: "https://hokufuri.com/sitemap.xml",
   };
 }

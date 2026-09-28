@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://kitafuri.vercel.app";
+  const base = "https://hokufuri.com";
   return [
     { url: `${base}/`, priority: 1 },
     { url: `${base}/about`, priority: 0.9 },
