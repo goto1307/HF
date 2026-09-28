@@ -45,6 +45,9 @@ export default function ItemDetail() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetail, setReportDetail] = useState("");
   const [reporting, setReporting] = useState(false);
+  const [reportingMessage, setReportingMessage] = useState<Message | null>(null);
+  const [messageReportReason, setMessageReportReason] = useState("");
+  const [reportingMessageBusy, setReportingMessageBusy] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -213,6 +216,30 @@ export default function ItemDetail() {
     setShowReport(false);
     setReportReason("");
     setReportDetail("");
+  };
+
+  const handleReportMessage = async () => {
+    if (!user || !reportingMessage) return;
+    if (!messageReportReason.trim()) { alert("通報理由を入力してください"); return; }
+    setReportingMessageBusy(true);
+    const { error } = await supabase.from("report").insert({
+      item_id: item?.id,
+      message_id: reportingMessage.id,
+      reporter_id: user.id,
+      reason: messageReportReason.trim(),
+    });
+    setReportingMessageBusy(false);
+    if (error) {
+      if (error.code === "42501" || error.message?.includes("row-level security")) {
+        alert("通報は1分に1回までです。しばらく待ってから再度お試しください。");
+      } else {
+        alert("通報に失敗しました");
+      }
+      return;
+    }
+    alert("通報しました。ご協力ありがとうございます。");
+    setReportingMessage(null);
+    setMessageReportReason("");
   };
 
   const handleSubmitReview = async () => {
@@ -473,6 +500,14 @@ export default function ItemDetail() {
                   <div className={`px-4 py-2 rounded-2xl text-sm ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
                     {msg.content}
                   </div>
+                  {user && msg.user_id !== user.id && (
+                    <button
+                      onClick={() => { setReportingMessage(msg); setMessageReportReason(""); }}
+                      className="text-[11px] text-stone-400 hover:text-red-500 transition-colors mt-0.5"
+                    >
+                      通報
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -550,6 +585,41 @@ export default function ItemDetail() {
               ログインして購入する
             </button>
           )
+        )}
+
+        {reportingMessage && (
+          <div
+            className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+            onClick={() => !reportingMessageBusy && setReportingMessage(null)}
+          >
+            <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+              <p className="font-bold text-sm mb-1 text-center">このメッセージを通報しますか？</p>
+              <p className="text-center text-stone-500 text-sm mb-4 truncate">「{reportingMessage.content}」</p>
+              <textarea
+                value={messageReportReason}
+                onChange={(e) => setMessageReportReason(e.target.value)}
+                maxLength={500}
+                placeholder="通報理由を入力してください"
+                className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-4 outline-none h-20 resize-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setReportingMessage(null)}
+                  disabled={reportingMessageBusy}
+                  className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleReportMessage}
+                  disabled={reportingMessageBusy}
+                  className="flex-1 bg-red-500 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+                >
+                  {reportingMessageBusy ? "送信中..." : "通報する"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

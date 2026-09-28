@@ -29,6 +29,11 @@ type Review = {
   created_at: string;
 };
 
+type BlockedUser = {
+  blocked_id: string;
+  nickname: string | null;
+};
+
 export default function MyPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [purchases, setPurchases] = useState<Item[]>([]);
@@ -42,6 +47,8 @@ export default function MyPage() {
   const [age, setAge] = useState("");
   const [profileAvailable, setProfileAvailable] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -74,24 +81,26 @@ export default function MyPage() {
         .order("created_at", { ascending: false });
       if (myReviews) setReviews(myReviews);
 
-      const { data: purchaseMsgs } = await supabase
-        .from("message")
-        .select("item_id, created_at")
+      // buyer_id は購入(mark_item_sold)時にセットされ、cancel_purchase等の
+      // キャンセルで null に戻る。以前はメッセージ履歴から算出していたため、
+      // キャンセル済みの取引が「購入した商品」に残り続けるバグがあった。
+      const { data: purchasedItems } = await supabase
+        .from("item")
+        .select("*")
         .eq("buyer_id", user.id)
         .order("created_at", { ascending: false });
-      if (purchaseMsgs) {
-        const orderedIds: number[] = [];
-        const seen = new Set<number>();
-        for (const m of purchaseMsgs) {
-          if (!seen.has(m.item_id)) { seen.add(m.item_id); orderedIds.push(m.item_id); }
-        }
-        if (orderedIds.length > 0) {
-          const { data: purchasedItems } = await supabase.from("item").select("*").in("id", orderedIds);
-          if (purchasedItems) {
-            const byId = new Map(purchasedItems.map((it) => [it.id, it]));
-            setPurchases(orderedIds.map((id) => byId.get(id)).filter((it): it is Item => !!it));
-          }
-        }
+      if (purchasedItems) setPurchases(purchasedItems);
+
+      const { data: blockedRows } = await supabase
+        .from("blocked_user")
+        .select("blocked_id")
+        .eq("blocker_id", user.id)
+        .order("created_at", { ascending: false });
+      if (blockedRows && blockedRows.length > 0) {
+        const ids = blockedRows.map((r) => r.blocked_id);
+        const { data: blockedItems } = await supabase.from("item").select("user_id,nickname").in("user_id", ids);
+        const nicknameById = new Map((blockedItems ?? []).map((i) => [i.user_id, i.nickname]));
+        setBlockedUsers(ids.map((id) => ({ blocked_id: id, nickname: nicknameById.get(id) ?? null })));
       }
 
       const { data: profileData, error: profileError } = await supabase
@@ -172,6 +181,15 @@ export default function MyPage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const handleUnblock = async (blockedId: string) => {
+    if (!user) return;
+    setUnblockingId(blockedId);
+    const { error } = await supabase.from("blocked_user").delete().eq("blocker_id", user.id).eq("blocked_id", blockedId);
+    setUnblockingId(null);
+    if (error) { alert("ブロック解除に失敗しました"); return; }
+    setBlockedUsers((prev) => prev.filter((b) => b.blocked_id !== blockedId));
+  };
 
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
@@ -300,6 +318,28 @@ export default function MyPage() {
             </button>
           </div>
         </section>
+
+        {blockedUsers.length > 0 && (
+          <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
+            <h3 className="font-bold mb-3">ブロック中のユーザー（{blockedUsers.length}人）</h3>
+            <div className="flex flex-col gap-2">
+              {blockedUsers.map((b) => (
+                <div key={b.blocked_id} className="flex items-center justify-between">
+                  <Link href={`/users/${b.blocked_id}`} className="text-sm text-orange-700 hover:underline">
+                    {b.nickname || "ユーザー"}
+                  </Link>
+                  <button
+                    onClick={() => handleUnblock(b.blocked_id)}
+                    disabled={unblockingId === b.blocked_id}
+                    className="text-xs font-bold border border-stone-300 text-stone-500 px-3 py-1 rounded-full hover:bg-stone-100 transition-colors disabled:opacity-50"
+                  >
+                    {unblockingId === b.blocked_id ? "処理中..." : "解除する"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
           <h3 className="font-bold mb-2 text-red-600">退会</h3>

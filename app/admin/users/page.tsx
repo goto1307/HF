@@ -95,6 +95,7 @@ export default function AdminUsers() {
             <Link href="/admin/reports" className="text-sm font-bold text-orange-700 hover:underline">通報一覧へ</Link>
             <Link href="/admin/items" className="text-sm font-bold text-orange-700 hover:underline">商品/チャットへ</Link>
             <Link href="/admin/reviews" className="text-sm font-bold text-orange-700 hover:underline">評価一覧へ</Link>
+            <Link href="/admin/log" className="text-sm font-bold text-orange-700 hover:underline">操作ログへ</Link>
           </div>
         </div>
 

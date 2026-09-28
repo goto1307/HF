@@ -36,6 +36,8 @@ export default function SellerProfile() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetail, setReportDetail] = useState("");
   const [reporting, setReporting] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,6 +46,16 @@ export default function SellerProfile() {
         setDeleted(true);
         setLoading(false);
         return;
+      }
+
+      if (user) {
+        const { data: blockRow } = await supabase
+          .from("blocked_user")
+          .select("blocked_id")
+          .eq("blocker_id", user.id)
+          .eq("blocked_id", params.id)
+          .maybeSingle();
+        setBlocked(!!blockRow);
       }
 
       const { data: itemData } = await supabase
@@ -68,7 +80,7 @@ export default function SellerProfile() {
       setLoading(false);
     };
     fetchData();
-  }, [params.id]);
+  }, [params.id, user]);
 
   const nickname = items[0]?.nickname || "ユーザー";
   const soldCount = items.filter((i) => i.sold).length;
@@ -97,6 +109,23 @@ export default function SellerProfile() {
     setShowReport(false);
     setReportReason("");
     setReportDetail("");
+  };
+
+  const handleToggleBlock = async () => {
+    if (!user) { alert("ブロックにはログインしてください"); router.push("/login"); return; }
+    setBlocking(true);
+    if (blocked) {
+      const { error } = await supabase.from("blocked_user").delete().eq("blocker_id", user.id).eq("blocked_id", params.id);
+      setBlocking(false);
+      if (error) { alert("ブロック解除に失敗しました"); return; }
+      setBlocked(false);
+    } else {
+      if (!confirm(`${nickname}さんをブロックしますか？以後、このユーザーからメッセージを受け取らなくなります。`)) { setBlocking(false); return; }
+      const { error } = await supabase.from("blocked_user").insert({ blocker_id: user.id, blocked_id: params.id });
+      setBlocking(false);
+      if (error) { alert("ブロックに失敗しました"); return; }
+      setBlocked(true);
+    }
   };
 
   if (loading) {
@@ -150,9 +179,16 @@ export default function SellerProfile() {
           )}
 
           {!showReport ? (
-            <button onClick={() => setShowReport(true)} className="mt-4 text-xs font-bold text-stone-400 hover:text-red-500 transition-colors">
-              このユーザーを通報する
-            </button>
+            <div className="flex gap-4 mt-4">
+              <button onClick={() => setShowReport(true)} className="text-xs font-bold text-stone-400 hover:text-red-500 transition-colors">
+                このユーザーを通報する
+              </button>
+              {user && user.id !== params.id && (
+                <button onClick={handleToggleBlock} disabled={blocking} className="text-xs font-bold text-stone-400 hover:text-red-500 transition-colors disabled:opacity-50">
+                  {blocking ? "処理中..." : blocked ? "ブロックを解除する" : "このユーザーをブロックする"}
+                </button>
+              )}
+            </div>
           ) : (
             <div className="border border-red-200 rounded-2xl p-4 mt-4 bg-red-50">
               <p className="font-bold text-sm mb-2 text-red-600">通報理由</p>

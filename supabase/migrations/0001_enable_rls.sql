@@ -1193,3 +1193,277 @@ begin
 end;
 $$;
 grant execute on function public.admin_cancel_purchase(bigint, text) to authenticated;
+
+
+-- ============================================================
+-- PART O: 管理者操作の監査ログ / ユーザーブロック機能 /
+--          メッセージ単体の通報 / (フロント側)購入履歴表示の修正
+-- ============================================================
+--
+-- 背景: 「追加した方がいい機能」を洗い出した結果の4点。
+--   1) 管理者操作(BAN・商品/メッセージ/評価削除・取引強制キャンセル)
+--      が誰にも記録されておらず、2人の管理者間で「どっちがやったか」
+--      を後から追えなかった。
+--   2) 通報とは別に、特定ユーザーからのメッセージだけを遮断する
+--      ミュート機能が無かった。
+--   3) 商品・ユーザー単位でしか通報できず、特定の1メッセージを
+--      名指しで通報できなかった。
+--   4) マイページの「購入した商品」がメッセージ履歴から算出されており、
+--      cancel_purchase 等で取引をキャンセルしてもチャット履歴が
+--      残る限り表示され続けていた(フロント側で別途修正)。
+
+-- ---------- 1) 管理者操作ログ ----------
+create table if not exists public.admin_action_log (
+  id bigserial primary key,
+  admin_id uuid not null references auth.users(id),
+  action text not null,
+  target_id text,
+  detail text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.admin_action_log enable row level security;
+
+drop policy if exists "admin_action_log_select_admin" on public.admin_action_log;
+create policy "admin_action_log_select_admin"
+on public.admin_action_log for select
+to authenticated
+using (public.is_admin());
+-- insertポリシーは作らない。ログはSECURITY DEFINER関数の中からのみ
+-- (テーブルオーナー権限でRLSを迂回して)書き込まれる想定。
+
+create or replace function public.admin_set_ban(target_id uuid, should_ban boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if target_id = auth.uid() then
+    raise exception '自分自身はBANできません';
+  end if;
+  update auth.users
+  set banned_until = case when should_ban then '2999-12-31'::timestamptz else null end
+  where id = target_id;
+
+  if should_ban then
+    insert into public.deleted_users (user_id) values (target_id)
+      on conflict (user_id) do nothing;
+  else
+    delete from public.deleted_users where user_id = target_id;
+  end if;
+
+  insert into public.admin_action_log (admin_id, action, target_id, detail)
+  values (auth.uid(), case when should_ban then 'ban' else 'unban' end, target_id::text, null);
+end;
+$$;
+
+create or replace function public.admin_delete_item(p_item_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_owner uuid;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '削除理由を入力してください';
+  end if;
+
+  select title, user_id into v_title, v_owner from public.item where id = p_item_id;
+  if v_owner is null then
+    raise exception '商品が見つかりません';
+  end if;
+
+  delete from public.item where id = p_item_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values (v_owner, '「' || v_title || '」が運営により削除されました。理由: ' || p_reason, null, false);
+
+  insert into public.admin_action_log (admin_id, action, target_id, detail)
+  values (auth.uid(), 'delete_item', p_item_id::text, p_reason);
+end;
+$$;
+
+create or replace function public.admin_delete_message(p_message_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sender uuid;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '削除理由を入力してください';
+  end if;
+
+  select user_id into v_sender from public.message where id = p_message_id;
+  if v_sender is null then
+    raise exception 'メッセージが見つかりません';
+  end if;
+
+  delete from public.message where id = p_message_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values (v_sender, 'あなたのメッセージが運営により削除されました。理由: ' || p_reason, null, false);
+
+  insert into public.admin_action_log (admin_id, action, target_id, detail)
+  values (auth.uid(), 'delete_message', p_message_id::text, p_reason);
+end;
+$$;
+
+create or replace function public.admin_delete_review(p_review_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_reviewer uuid;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '削除理由を入力してください';
+  end if;
+
+  select reviewer_id into v_reviewer from public.review where id = p_review_id;
+  if v_reviewer is null then
+    raise exception 'レビューが見つかりません';
+  end if;
+
+  delete from public.review where id = p_review_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values (v_reviewer, 'あなたが投稿した評価が運営により削除されました。理由: ' || p_reason, null, false);
+
+  insert into public.admin_action_log (admin_id, action, target_id, detail)
+  values (auth.uid(), 'delete_review', p_review_id::text, p_reason);
+end;
+$$;
+
+create or replace function public.admin_cancel_purchase(p_item_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_seller_id uuid;
+  v_buyer_id uuid;
+  v_title text;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '理由を入力してください';
+  end if;
+
+  select user_id, buyer_id, title into v_seller_id, v_buyer_id, v_title
+  from public.item where id = p_item_id;
+
+  if v_seller_id is null then
+    raise exception '商品が見つかりません';
+  end if;
+  if v_buyer_id is null then
+    raise exception 'この商品は購入されていません';
+  end if;
+
+  update public.item
+  set sold = false, buyer_id = null, received = false
+  where id = p_item_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values
+    (v_seller_id, '「' || v_title || '」の取引が運営によりキャンセルされました。理由: ' || p_reason, null, false),
+    (v_buyer_id, '「' || v_title || '」の取引が運営によりキャンセルされました。理由: ' || p_reason, null, false);
+
+  insert into public.admin_action_log (admin_id, action, target_id, detail)
+  values (auth.uid(), 'cancel_purchase', p_item_id::text, p_reason);
+end;
+$$;
+
+-- ---------- 2) ユーザーブロック ----------
+create table if not exists public.blocked_user (
+  blocker_id uuid not null references auth.users(id) on delete cascade,
+  blocked_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id)
+);
+
+alter table public.blocked_user enable row level security;
+
+drop policy if exists "blocked_user_select_own" on public.blocked_user;
+create policy "blocked_user_select_own"
+on public.blocked_user for select
+to authenticated
+using (auth.uid() = blocker_id);
+
+drop policy if exists "blocked_user_insert_own" on public.blocked_user;
+create policy "blocked_user_insert_own"
+on public.blocked_user for insert
+to authenticated
+with check (auth.uid() = blocker_id and blocker_id <> blocked_id);
+
+drop policy if exists "blocked_user_delete_own" on public.blocked_user;
+create policy "blocked_user_delete_own"
+on public.blocked_user for delete
+to authenticated
+using (auth.uid() = blocker_id);
+
+create or replace function public.is_blocked_by(p_blocker uuid, p_blocked uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (select 1 from public.blocked_user where blocker_id = p_blocker and blocked_id = p_blocked);
+$$;
+
+drop policy if exists "message_insert_own" on public.message;
+drop policy if exists "message_insert_valid" on public.message;
+create policy "message_insert_valid"
+on public.message for insert
+to authenticated
+with check (
+  auth.uid() = user_id
+  and (
+    (buyer_id is null
+      and exists (select 1 from public.item i where i.id = message.item_id)
+      and not public.is_blocked_by(seller_id, auth.uid()))
+    or (
+      buyer_id is not null
+      and (auth.uid() = buyer_id or auth.uid() = seller_id)
+      and exists (
+        select 1 from public.item i
+        where i.id = message.item_id
+          and i.user_id = message.seller_id
+      )
+      and not public.is_blocked_by(
+        case when auth.uid() = buyer_id then seller_id else buyer_id end,
+        auth.uid()
+      )
+    )
+  )
+);
+
+-- ---------- 3) メッセージ単体の通報 ----------
+alter table public.report add column if not exists message_id bigint references public.message(id) on delete set null;
+alter table public.report drop constraint if exists report_target_check;
+alter table public.report add constraint report_target_check
+  check (item_id is not null or reported_user_id is not null or message_id is not null);

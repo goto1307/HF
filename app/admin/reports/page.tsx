@@ -12,9 +12,11 @@ type Report = {
   item_id: number | null;
   reported_user_id: string | null;
   reporter_id: string | null;
+  message_id: number | null;
   reason: string;
   created_at: string;
   item: { title: string; user_id: string } | null;
+  message: { content: string; user_id: string } | null;
 };
 
 type AdminUser = {
@@ -33,6 +35,9 @@ export default function AdminReports() {
   const [deleteItemTarget, setDeleteItemTarget] = useState<Report | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deletingItem, setDeletingItem] = useState(false);
+  const [deleteMessageTarget, setDeleteMessageTarget] = useState<Report | null>(null);
+  const [messageDeleteReason, setMessageDeleteReason] = useState("");
+  const [deletingMessage, setDeletingMessage] = useState(false);
 
   const isAdmin = isAdminEmail(user?.email);
 
@@ -44,7 +49,7 @@ export default function AdminReports() {
     const fetchReports = async () => {
       const { data } = await supabase
         .from("report")
-        .select("id, item_id, reported_user_id, reporter_id, reason, created_at, item:item_id(title,user_id)")
+        .select("id, item_id, reported_user_id, reporter_id, message_id, reason, created_at, item:item_id(title,user_id), message:message_id(content,user_id)")
         .order("created_at", { ascending: false });
       if (data) setReports(data as unknown as Report[]);
 
@@ -90,6 +95,21 @@ export default function AdminReports() {
     setDeleteReason("");
   };
 
+  const handleConfirmDeleteMessage = async () => {
+    if (!deleteMessageTarget?.message_id) return;
+    if (!messageDeleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    setDeletingMessage(true);
+    const { error } = await supabase.rpc("admin_delete_message", {
+      p_message_id: deleteMessageTarget.message_id,
+      p_reason: messageDeleteReason.trim(),
+    });
+    setDeletingMessage(false);
+    if (error) { alert(`削除に失敗しました: ${error.message}`); return; }
+    setReports((prev) => prev.map((r) => (r.id === deleteMessageTarget.id ? { ...r, message: null } : r)));
+    setDeleteMessageTarget(null);
+    setMessageDeleteReason("");
+  };
+
   if (authLoading || (loading && isAdmin)) {
     return (
       <div className="min-h-screen bg-stone-50">
@@ -118,6 +138,7 @@ export default function AdminReports() {
             <Link href="/admin/users" className="text-sm font-bold text-orange-700 hover:underline">ユーザー管理へ</Link>
             <Link href="/admin/items" className="text-sm font-bold text-orange-700 hover:underline">商品/チャットへ</Link>
             <Link href="/admin/reviews" className="text-sm font-bold text-orange-700 hover:underline">評価一覧へ</Link>
+            <Link href="/admin/log" className="text-sm font-bold text-orange-700 hover:underline">操作ログへ</Link>
           </div>
         </div>
 
@@ -128,7 +149,11 @@ export default function AdminReports() {
             {reports.map((r) => (
               <div key={r.id} className="bg-white border border-red-200 rounded-2xl p-4 shadow-sm">
                 <div className="flex justify-between items-start gap-2 mb-1.5">
-                  {r.item_id ? (
+                  {r.message_id ? (
+                    <span className="font-bold text-sm text-orange-700">
+                      メッセージ{r.item_id && <> （<Link href={`/items/${r.item_id}`} className="hover:underline">{r.item?.title || `商品ID ${r.item_id}`}</Link>）</>}
+                    </span>
+                  ) : r.item_id ? (
                     <Link href={`/items/${r.item_id}`} className="font-bold text-sm text-orange-700 hover:underline">
                       商品：{r.item?.title || `ID ${r.item_id}`}
                     </Link>
@@ -140,6 +165,11 @@ export default function AdminReports() {
                   <span className="text-xs text-stone-400 shrink-0">{new Date(r.created_at).toLocaleString()}</span>
                 </div>
                 <p className="text-xs text-stone-500 mb-1.5">通報者：{describeUser(r.reporter_id)}</p>
+                {r.message_id && (
+                  <p className="text-xs text-stone-500 bg-stone-50 rounded-lg px-3 py-2 mb-1.5">
+                    通報されたメッセージ：{r.message ? `「${r.message.content}」（送信者：${describeUser(r.message.user_id)}）` : "（既に削除されています）"}
+                  </p>
+                )}
                 <p className="text-sm text-stone-700 mb-3">{r.reason}</p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -150,20 +180,28 @@ export default function AdminReports() {
                     通報を削除する
                   </button>
                   {r.item_id && (
-                    <>
-                      <Link
-                        href={`/admin/chats/${r.item_id}`}
-                        className="text-xs font-bold border border-stone-300 text-stone-500 px-4 py-1.5 rounded-full hover:bg-stone-100 transition-colors"
-                      >
-                        チャットを見る
-                      </Link>
-                      <button
-                        onClick={() => { setDeleteItemTarget(r); setDeleteReason(""); }}
-                        className="text-xs font-bold bg-red-500 text-white px-4 py-1.5 rounded-full hover:bg-red-600 transition-colors disabled:opacity-50"
-                      >
-                        商品ごと削除する
-                      </button>
-                    </>
+                    <Link
+                      href={`/admin/chats/${r.item_id}`}
+                      className="text-xs font-bold border border-stone-300 text-stone-500 px-4 py-1.5 rounded-full hover:bg-stone-100 transition-colors"
+                    >
+                      チャットを見る
+                    </Link>
+                  )}
+                  {r.message_id && r.message && (
+                    <button
+                      onClick={() => { setDeleteMessageTarget(r); setMessageDeleteReason(""); }}
+                      className="text-xs font-bold bg-red-500 text-white px-4 py-1.5 rounded-full hover:bg-red-600 transition-colors disabled:opacity-50"
+                    >
+                      メッセージを削除する
+                    </button>
+                  )}
+                  {r.item_id && !r.message_id && (
+                    <button
+                      onClick={() => { setDeleteItemTarget(r); setDeleteReason(""); }}
+                      className="text-xs font-bold bg-red-500 text-white px-4 py-1.5 rounded-full hover:bg-red-600 transition-colors disabled:opacity-50"
+                    >
+                      商品ごと削除する
+                    </button>
                   )}
                 </div>
               </div>
@@ -204,6 +242,44 @@ export default function AdminReports() {
                 className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
               >
                 {deletingItem ? "削除中..." : "削除して通知する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteMessageTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !deletingMessage && setDeleteMessageTarget(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="font-bold text-sm mb-1 text-center">このメッセージを削除しますか？</p>
+            <p className="text-center text-stone-500 text-sm mb-4 truncate">
+              「{deleteMessageTarget.message?.content}」
+            </p>
+            <label className="block text-xs font-bold text-stone-500 mb-1">削除理由（送信者に通知されます）</label>
+            <textarea
+              value={messageDeleteReason}
+              onChange={(e) => setMessageDeleteReason(e.target.value)}
+              maxLength={300}
+              placeholder="例：暴言のため削除しました"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-4 outline-none h-20 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteMessageTarget(null)}
+                disabled={deletingMessage}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleConfirmDeleteMessage}
+                disabled={deletingMessage}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {deletingMessage ? "削除中..." : "削除して通知する"}
               </button>
             </div>
           </div>
