@@ -153,7 +153,8 @@ export default function ItemChat() {
 
   const handleCancel = async () => {
     if (!item) return;
-    if (!confirm("この取引をキャンセルしますか？出品は「販売中」に戻ります。")) return;
+    const counterpart = isSeller ? "購入者" : "出品者";
+    if (!confirm(`${counterpart}とキャンセルに合意しましたか？\nキャンセルすると、出品は「販売中」に戻ります。`)) return;
     setCancelling(true);
     const { error } = await supabase.rpc("cancel_purchase", { p_item_id: item.id });
     setCancelling(false);
@@ -582,6 +583,11 @@ export default function ItemChat() {
         <button onClick={() => router.replace(`/items/${item.id}`)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 商品ページへ戻る
         </button>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-xs text-amber-900 leading-relaxed">
+          ⚠ 受け渡し日はなるべく近い日に。当日は1時間前に確認の連絡をしましょう。「30分待って連絡がなければキャンセル」など、事前に決めておくと安心です。受け渡しは人目のある場所で。住所や電話番号など、必要以上の個人情報は送らないでください。連絡なしで来なかった相手は通報でき、運営が確認のうえ利用停止とすることがあります。困ったときは公式Instagram（@hokufuri.6816857）のDMへ。
+        </div>
+
         <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
         <p className="text-sm text-stone-500 mb-6">
           {isSeller ? (
@@ -675,6 +681,7 @@ export default function ItemChat() {
                         商品の状態に問題がなかった
                       </label>
                     </div>
+                    <p className="text-xs text-stone-500 mb-3">取引を完了すると、返品・返金は原則できなくなります。</p>
                     <button
                       onClick={handleReceived}
                       disabled={receiving || !allChecked}

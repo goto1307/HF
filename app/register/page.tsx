@@ -163,7 +163,7 @@ export default function Register() {
           <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="パスワード（8文字以上・大小英字＋数字）" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
           <p className="text-xs text-stone-400 -mt-3">8文字以上、数字・アルファベットの大文字・小文字をすべて含めてください</p>
 
-          <div>
+          <div id="terms">
             <label className="block text-sm font-bold mb-2">利用規約</label>
             <div className="h-40 overflow-y-auto border border-stone-200 rounded-xl p-3 text-xs text-stone-600 whitespace-pre-wrap bg-stone-50">
               {TERMS_TEXT}
@@ -177,11 +177,13 @@ export default function Register() {
               onChange={(e) => setAgreed(e.target.checked)}
               className="accent-orange-700 w-4 h-4"
             />
-            利用規約に同意する
+            <span>
+              <Link href="/register#terms" onClick={(e) => e.stopPropagation()} className="text-orange-700 underline">利用規約</Link>
+              と
+              <Link href="/privacy" target="_blank" onClick={(e) => e.stopPropagation()} className="text-orange-700 underline">プライバシーポリシー</Link>
+              に同意する
+            </span>
           </label>
-          <Link href="/privacy" className="text-center text-xs text-stone-400 hover:text-orange-700 underline transition-colors -mt-2">
-            プライバシーポリシーはこちら
-          </Link>
 
           <button onClick={handleRegister} disabled={loading || !agreed} className="w-full bg-orange-700 text-white py-3 rounded-full font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm">
             {loading ? "登録中..." : "登録する"}

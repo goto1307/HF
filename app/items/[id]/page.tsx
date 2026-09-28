@@ -541,8 +541,10 @@ export default function ItemDetail() {
                 <p className="font-bold text-sm mb-3">購入前の確認</p>
                 <ul className="text-sm text-stone-600 flex flex-col gap-1.5 mb-3 list-disc pl-5">
                   <li>商品説明・価格・状態を確認しました</li>
-                  <li>受け渡し場所・日時はこのあとの個別チャットで相談します</li>
-                  <li>自己都合によるドタキャン（無断キャンセル・連絡なしの不参加）はしません</li>
+                  <li>受け渡し場所・日時・支払い方法は、このあとの個別チャットで出品者と相談します</li>
+                  <li>受け渡しのときに商品を確認してから代金を支払います</li>
+                  <li>キャンセルは出品者と合意できた場合のみ行い、無断キャンセル・連絡なしの不参加はしません</li>
+                  <li>受け取った後の返品・返金は原則できないことを理解しました</li>
                 </ul>
                 <label className="flex items-center gap-2 text-sm mb-3">
                   <input

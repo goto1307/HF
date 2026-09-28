@@ -253,11 +253,17 @@ export default function Header() {
                   >
                     初めての方に
                   </button>
-                  <div className="w-full text-left px-4 py-3 text-sm font-bold text-stone-400 border-b border-stone-100">
-                    公式アカウント：<span className="text-stone-300">準備中</span>
-                  </div>
                   <a
-                    href="mailto:debuchi.sora.b0@elms.hokudai.ac.jp"
+                    href="https://www.instagram.com/hokufuri.6816857/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setShowMenu(false)}
+                    className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
+                  >
+                    公式Instagram：@hokufuri.6816857
+                  </a>
+                  <a
+                    href="mailto:hokufuri.official@gmail.com"
                     onClick={() => setShowMenu(false)}
                     className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >

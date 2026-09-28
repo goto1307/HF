@@ -276,9 +276,10 @@ export default function Sell() {
           <div className="border border-stone-200 rounded-xl p-4 bg-stone-50">
             <p className="font-bold text-sm mb-2">出品する前に</p>
             <ul className="text-xs text-stone-600 flex flex-col gap-1 mb-3 list-disc pl-5">
-              <li>商品の写真・説明・価格に誤りがないことを確認しました</li>
-              <li>利用規約で禁止されている物品ではないことを確認しました</li>
-              <li>商品の状態について、事実と異なる記載をしません</li>
+              <li>商品の写真・説明・価格に誤りがなく、傷・汚れ・欠品なども正確に書きました</li>
+              <li>禁止されている物（チケット、食品、生き物、講義ノート・過去問、酒・たばこ・医薬品など）ではありません</li>
+              <li>自分が持ち主で、売る権利があります</li>
+              <li>取引は購入者と直接行い、運営は支払いや受け渡しに関与しないことを理解しました</li>
             </ul>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -287,7 +288,7 @@ export default function Sell() {
                 onChange={(e) => setAgreed(e.target.checked)}
                 className="accent-orange-700 w-4 h-4"
               />
-              上記に同意して出品する
+              上記と利用規約に同意して出品する
             </label>
           </div>
 
