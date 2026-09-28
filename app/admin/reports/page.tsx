@@ -30,6 +30,9 @@ export default function AdminReports() {
   const [userMap, setUserMap] = useState<Record<string, AdminUser>>({});
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteItemTarget, setDeleteItemTarget] = useState<Report | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deletingItem, setDeletingItem] = useState(false);
 
   const isAdmin = isAdminEmail(user?.email);
 
@@ -72,14 +75,19 @@ export default function AdminReports() {
     setReports((prev) => prev.filter((r) => r.id !== report.id));
   };
 
-  const handleDeleteItem = async (report: Report) => {
-    if (!report.item_id) return;
-    if (!confirm("通報された商品自体を削除しますか？この操作は取り消せません。")) return;
-    setDeletingId(report.id);
-    const { error } = await supabase.from("item").delete().eq("id", report.item_id);
-    setDeletingId(null);
-    if (error) { alert("商品の削除に失敗しました"); return; }
-    setReports((prev) => prev.filter((r) => r.item_id !== report.item_id));
+  const handleConfirmDeleteItem = async () => {
+    if (!deleteItemTarget?.item_id) return;
+    if (!deleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    setDeletingItem(true);
+    const { error } = await supabase.rpc("admin_delete_item", {
+      p_item_id: deleteItemTarget.item_id,
+      p_reason: deleteReason.trim(),
+    });
+    setDeletingItem(false);
+    if (error) { alert(`商品の削除に失敗しました: ${error.message}`); return; }
+    setReports((prev) => prev.filter((r) => r.item_id !== deleteItemTarget.item_id));
+    setDeleteItemTarget(null);
+    setDeleteReason("");
   };
 
   if (authLoading || (loading && isAdmin)) {
@@ -149,11 +157,10 @@ export default function AdminReports() {
                         チャットを見る
                       </Link>
                       <button
-                        onClick={() => handleDeleteItem(r)}
-                        disabled={deletingId === r.id}
+                        onClick={() => { setDeleteItemTarget(r); setDeleteReason(""); }}
                         className="text-xs font-bold bg-red-500 text-white px-4 py-1.5 rounded-full hover:bg-red-600 transition-colors disabled:opacity-50"
                       >
-                        {deletingId === r.id ? "処理中..." : "商品ごと削除する"}
+                        商品ごと削除する
                       </button>
                     </>
                   )}
@@ -163,6 +170,44 @@ export default function AdminReports() {
           </div>
         )}
       </main>
+
+      {deleteItemTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !deletingItem && setDeleteItemTarget(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="font-bold text-sm mb-1 text-center">商品を削除しますか？</p>
+            <p className="text-center text-orange-700 font-bold text-sm mb-4 truncate">
+              {deleteItemTarget.item?.title || `商品ID ${deleteItemTarget.item_id}`}
+            </p>
+            <label className="block text-xs font-bold text-stone-500 mb-1">削除理由（出品者に通知されます）</label>
+            <textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              maxLength={300}
+              placeholder="例：禁止出品物のため削除しました"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-4 outline-none h-20 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteItemTarget(null)}
+                disabled={deletingItem}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleConfirmDeleteItem}
+                disabled={deletingItem}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {deletingItem ? "削除中..." : "削除して通知する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

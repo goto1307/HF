@@ -995,3 +995,52 @@ with check (
     )
   )
 );
+
+
+-- ============================================================
+-- PART M: 管理者による商品削除(理由付き・出品者へ通知)
+-- ============================================================
+--
+-- 背景:
+--   管理者は item_delete_admin_only ポリシーで既にどの商品でも
+--   削除できるが、削除しても出品者には何も伝わらなかった
+--   (/admin/reports の「商品ごと削除する」は理由なしの無言削除)。
+--   理由を添えて通知するには、出品者本人以外への notification
+--   insert が必要になる(notification_insert_own は本人分しか
+--   許可しない)ため、SECURITY DEFINER 関数にまとめる。
+
+create or replace function public.admin_delete_item(p_item_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_owner uuid;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '削除理由を入力してください';
+  end if;
+
+  select title, user_id into v_title, v_owner from public.item where id = p_item_id;
+  if v_owner is null then
+    raise exception '商品が見つかりません';
+  end if;
+
+  delete from public.item where id = p_item_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values (
+    v_owner,
+    '「' || v_title || '」が運営により削除されました。理由: ' || p_reason,
+    null,
+    false
+  );
+end;
+$$;
+
+grant execute on function public.admin_delete_item(bigint, text) to authenticated;

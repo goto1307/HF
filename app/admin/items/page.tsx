@@ -22,6 +22,9 @@ export default function AdminItems() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const isAdmin = isAdminEmail(user?.email);
 
@@ -46,6 +49,21 @@ export default function AdminItems() {
     if (!q) return true;
     return i.title.toLowerCase().includes(q) || i.nickname.toLowerCase().includes(q);
   });
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (!deleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    setDeleting(true);
+    const { error } = await supabase.rpc("admin_delete_item", {
+      p_item_id: deleteTarget.id,
+      p_reason: deleteReason.trim(),
+    });
+    setDeleting(false);
+    if (error) { alert(`商品の削除に失敗しました: ${error.message}`); return; }
+    setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+    setDeleteTarget(null);
+    setDeleteReason("");
+  };
 
   if (authLoading || (loading && isAdmin)) {
     return (
@@ -97,16 +115,60 @@ export default function AdminItems() {
                 </p>
                 <p className="text-[11px] text-stone-400">{new Date(i.created_at).toLocaleString()}</p>
               </div>
-              <Link
-                href={`/admin/chats/${i.id}`}
-                className="text-xs font-bold border border-stone-300 text-stone-500 px-3 py-1.5 rounded-full hover:bg-stone-100 transition-colors shrink-0"
-              >
-                チャットを見る
-              </Link>
+              <div className="flex flex-col gap-1.5 items-end shrink-0">
+                <Link
+                  href={`/admin/chats/${i.id}`}
+                  className="text-xs font-bold border border-stone-300 text-stone-500 px-3 py-1.5 rounded-full hover:bg-stone-100 transition-colors"
+                >
+                  チャットを見る
+                </Link>
+                <button
+                  onClick={() => { setDeleteTarget(i); setDeleteReason(""); }}
+                  className="text-xs font-bold bg-red-500 text-white px-3 py-1.5 rounded-full hover:bg-red-600 transition-colors"
+                >
+                  削除する
+                </button>
+              </div>
             </div>
           ))}
         </div>
       </main>
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="font-bold text-sm mb-1 text-center">商品を削除しますか？</p>
+            <p className="text-center text-orange-700 font-bold text-sm mb-4 truncate">{deleteTarget.title}</p>
+            <label className="block text-xs font-bold text-stone-500 mb-1">削除理由（出品者に通知されます）</label>
+            <textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              maxLength={300}
+              placeholder="例：禁止出品物のため削除しました"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-4 outline-none h-20 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {deleting ? "削除中..." : "削除して通知する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
