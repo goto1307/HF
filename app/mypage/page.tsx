@@ -347,7 +347,7 @@ export default function MyPage() {
         </section>
 
         <div className="mb-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 border border-orange-200 rounded-2xl">
-          <p className="font-bold text-sm text-orange-800 mb-1">🎁 出品・購入キャンペーン：応募完了🦊</p>
+          <p className="font-bold text-sm text-orange-800 mb-1">🎁 会員登録キャンペーン：応募完了🦊</p>
           <p className="text-xs text-stone-500">会員登録済みのため、抽選で10名様に当たるAmazonギフト券1,000円分に応募済みです。当選発表をお楽しみに！</p>
         </div>
 

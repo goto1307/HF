@@ -644,12 +644,14 @@ function HomeContent() {
         </main>
       </div>
 
-      <Link
-        href="/sell"
-        className="fixed bottom-6 left-6 bg-gradient-to-br from-orange-600 to-orange-700 text-white px-6 py-4 rounded-full font-bold shadow-xl ring-1 ring-white/20 text-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
-      >
-        ＋ 出品する
-      </Link>
+      {user && (
+        <Link
+          href="/sell"
+          className="fixed bottom-6 left-6 bg-gradient-to-br from-orange-600 to-orange-700 text-white px-6 py-4 rounded-full font-bold shadow-xl ring-1 ring-white/20 text-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+        >
+          ＋ 出品する
+        </Link>
+      )}
     </div>
   );
 }
