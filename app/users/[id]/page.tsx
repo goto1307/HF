@@ -31,6 +31,7 @@ export default function SellerProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ratingStats, setRatingStats] = useState<{ avg: number; count: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleted, setDeleted] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetail, setReportDetail] = useState("");
@@ -38,6 +39,13 @@ export default function SellerProfile() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const { data: isDeleted } = await supabase.rpc("is_deleted", { p_user_id: params.id });
+      if (isDeleted) {
+        setDeleted(true);
+        setLoading(false);
+        return;
+      }
+
       const { data: itemData } = await supabase
         .from("item")
         .select("id,title,price,image_url,image_urls,sold,nickname")
@@ -96,6 +104,15 @@ export default function SellerProfile() {
       <div className="min-h-screen bg-stone-50">
         <Header />
         <div className="p-8 text-center text-stone-400">読み込み中...</div>
+      </div>
+    );
+  }
+
+  if (deleted) {
+    return (
+      <div className="min-h-screen bg-stone-50">
+        <Header />
+        <div className="p-8 text-center text-stone-400">このユーザーは退会済みです</div>
       </div>
     );
   }

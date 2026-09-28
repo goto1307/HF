@@ -170,6 +170,20 @@ export default function MyPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    const { error } = await supabase.rpc("delete_own_account");
+    if (error) {
+      setDeletingAccount(false);
+      alert(`退会処理に失敗しました: ${error.message}`);
+      return;
+    }
+    await supabase.auth.signOut();
+    router.push("/");
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget || !user) return;
@@ -285,6 +299,19 @@ export default function MyPage() {
               {savingProfile ? "保存中..." : "プロフィールを保存"}
             </button>
           </div>
+        </section>
+
+        <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
+          <h3 className="font-bold mb-2 text-red-600">退会</h3>
+          <p className="text-xs text-stone-500 mb-3">
+            退会すると、あなたの個人ページ・出品中の商品・購入した商品は他のユーザーから見られなくなり、ログインもできなくなります。この操作は元に戻せません。
+          </p>
+          <button
+            onClick={() => setShowDeleteAccount(true)}
+            className="text-xs font-bold border border-red-300 text-red-500 px-4 py-1.5 rounded-full hover:bg-red-50 transition-colors"
+          >
+            アカウントを削除する
+          </button>
         </section>
 
         <div className="mb-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 border border-orange-200 rounded-2xl">
@@ -490,6 +517,39 @@ export default function MyPage() {
                 className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
               >
                 {deleting ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteAccount && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !deletingAccount && setShowDeleteAccount(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-bold text-sm mb-1 text-center">本当に退会しますか？</p>
+            <p className="text-xs text-stone-400 text-center mb-4">
+              個人ページ・出品商品・購入履歴が他のユーザーから見られなくなります。元に戻せません。
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteAccount(false)}
+                disabled={deletingAccount}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {deletingAccount ? "処理中..." : "退会する"}
               </button>
             </div>
           </div>

@@ -242,7 +242,7 @@ export default function ItemDetail() {
     setBuying(true);
     const { error } = await supabase.rpc("mark_item_sold", { p_item_id: item.id });
     setBuying(false);
-    if (error) { alert("購入処理に失敗しました。もう一度お試しください。"); return; }
+    if (error) { alert(`購入処理に失敗しました: ${error.message}`); return; }
     setItem({ ...item, sold: true, buyer_id: user.id });
     router.push(`/items/${item.id}/chat`);
   };

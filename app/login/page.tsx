@@ -37,6 +37,8 @@ export default function Login() {
           alert("試行回数が多すぎます。しばらく待ってから再度お試しください。");
         } else if (error.code === "invalid_credentials") {
           alert("メールアドレスかパスワードが違います");
+        } else if (error.code === "user_banned") {
+          alert("このアカウントではログインできません");
         } else {
           alert(`ログインに失敗しました: ${error.message}`);
         }

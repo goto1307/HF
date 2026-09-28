@@ -835,3 +835,145 @@ alter table public.report add constraint report_reason_len
 alter table public.profile drop constraint if exists profile_bio_len;
 alter table public.profile add constraint profile_bio_len
   check (bio is null or char_length(bio) <= 300);
+
+
+-- ============================================================
+-- PART L: 自己退会(アカウント削除)機能
+-- ============================================================
+--
+-- 背景:
+--   ユーザーが自分でアカウントを削除できるようにする。実データを
+--   物理削除すると外部キー先(item/message/review等)が壊れるため、
+--   ソフトデリート方式にする: deleted_users テーブルに記録し、
+--   banned_until を遠い未来にしてログイン自体もBANと同じ仕組みで
+--   拒否する(即時性がない点はBAN機能と同じ既知の制約)。
+--
+--   退会後は「管理者以外」から、その人の個人ページ(profile)・
+--   出品商品・評価(自分が評価された分)が見えなくなるようにする。
+--   ただし、進行中の取引を突然失わせないよう、その商品の
+--   出品者本人・購入者本人からは引き続き見える(is_deletedの
+--   条件に auth.uid() = user_id / buyer_id の除外を入れている)。
+--
+--   注意点(今までと同じ罠): RLSポリシーの式の中から直接
+--   deleted_users や item を素で参照すると、参照先のRLSが
+--   適用されて意図通りに動かない。is_deleted() を SECURITY DEFINER
+--   関数にして経由させることで回避する。
+
+create table if not exists public.deleted_users (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  deleted_at timestamptz not null default now()
+);
+
+alter table public.deleted_users enable row level security;
+-- 一般ユーザー向けのポリシーは意図的に作らない。is_deleted() 関数
+-- (テーブルオーナー権限で実行される)経由でのみ参照される想定。
+
+create or replace function public.is_deleted(p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (select 1 from public.deleted_users where user_id = p_user_id);
+$$;
+
+create or replace function public.delete_own_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  insert into public.deleted_users (user_id) values (auth.uid())
+    on conflict (user_id) do nothing;
+  update auth.users set banned_until = '2999-12-31'::timestamptz where id = auth.uid();
+end;
+$$;
+
+-- item: 退会した出品者/購入者が絡む商品を、当事者以外・管理者以外から隠す
+drop policy if exists "anyone_can_read" on public.item;
+drop policy if exists "item_select_all" on public.item;
+create policy "item_select_all"
+on public.item for select
+using (
+  public.is_admin()
+  or auth.uid() = user_id
+  or auth.uid() = buyer_id
+  or (not public.is_deleted(user_id) and (buyer_id is null or not public.is_deleted(buyer_id)))
+);
+
+-- profile: 退会した人のプロフィールを隠す
+drop policy if exists "profile_select_all" on public.profile;
+create policy "profile_select_all"
+on public.profile for select
+using (public.is_admin() or not public.is_deleted(user_id));
+
+-- review: 退会した出品者への評価(平均点の元データ)を隠す
+-- (退会した人が"書いた"レビュー = 現役セラーへの評価はそのまま残す)
+drop policy if exists "review_select_all" on public.review;
+create policy "review_select_all"
+on public.review for select
+using (public.is_admin() or not public.is_deleted(seller_id));
+
+-- mark_item_sold: 退会済み出品者の商品を直接RPCで購入されるのを防ぐ
+-- (ついでに、既に売却済みの場合に無言で何も起きない既存の不具合も
+--  例外を投げる形に直す)
+create or replace function public.mark_item_sold(p_item_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_title text;
+  v_seller uuid;
+begin
+  select user_id into v_seller from public.item where id = p_item_id;
+  if v_seller is null then
+    raise exception '商品が見つかりません';
+  end if;
+  if public.is_deleted(v_seller) then
+    raise exception 'この商品は購入できません';
+  end if;
+
+  update public.item
+  set sold = true, buyer_id = auth.uid()
+  where id = p_item_id and sold = false
+  returning title, user_id into v_title, v_seller;
+
+  if v_seller is null then
+    raise exception 'この商品はすでに売却済みです';
+  end if;
+
+  insert into public.notification (user_id, message, item_id)
+  values (v_seller, '「' || v_title || '」が売れました！', p_item_id);
+end;
+$function$;
+
+-- message: 公開Q&A(buyer_id is null)の投稿に、商品の存在確認が
+-- 一つもかかっていなかった(個別チャット側にはあった)。item のSELECT
+-- ポリシーが上で退会ユーザーを隠す形になったのに合わせて、こちらも
+-- 存在確認を入れて一貫させる。
+drop policy if exists "message_insert_valid" on public.message;
+create policy "message_insert_valid"
+on public.message for insert
+to authenticated
+with check (
+  auth.uid() = user_id
+  and (
+    (buyer_id is null and exists (select 1 from public.item i where i.id = message.item_id))
+    or (
+      buyer_id is not null
+      and (auth.uid() = buyer_id or auth.uid() = seller_id)
+      and exists (
+        select 1 from public.item i
+        where i.id = message.item_id
+          and i.user_id = message.seller_id
+      )
+    )
+  )
+);
