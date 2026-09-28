@@ -37,7 +37,6 @@ type BlockedUser = {
 export default function MyPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [purchases, setPurchases] = useState<Item[]>([]);
-  const [confirmedPurchaseCount, setConfirmedPurchaseCount] = useState(0);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -66,13 +65,6 @@ export default function MyPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (myItems) setItems(myItems);
-
-      const { count: boughtCount } = await supabase
-        .from("item")
-        .select("id", { count: "exact", head: true })
-        .eq("buyer_id", user.id)
-        .eq("sold", true);
-      setConfirmedPurchaseCount(boughtCount || 0);
 
       const { data: myReviews } = await supabase
         .from("review")
@@ -355,23 +347,8 @@ export default function MyPage() {
         </section>
 
         <div className="mb-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 border border-orange-200 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-bold text-sm text-orange-800">🎁 出品・購入キャンペーン</p>
-            <p className="text-xs font-bold text-orange-600">{Math.min(items.length + confirmedPurchaseCount, 5)}/5(当選確率 {Math.min(items.length + confirmedPurchaseCount, 5)}倍)</p>
-          </div>
-          <div className="flex gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className={`flex-1 aspect-square rounded-full flex items-center justify-center text-lg border-2 ${
-                  i < items.length + confirmedPurchaseCount ? "bg-orange-500 border-orange-500 text-white" : "bg-white border-orange-200 text-orange-200"
-                }`}
-              >
-                {i < items.length + confirmedPurchaseCount ? "🦊" : "・"}
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-stone-500 mt-2">出品・購入を合計5回で当選確率が最大の5倍に。Amazonギフト券1,000円分が抽選で10名様に当たります！</p>
+          <p className="font-bold text-sm text-orange-800 mb-1">🎁 出品・購入キャンペーン：応募完了🦊</p>
+          <p className="text-xs text-stone-500">会員登録済みのため、抽選で10名様に当たるAmazonギフト券1,000円分に応募済みです。当選発表をお楽しみに！</p>
         </div>
 
         {nothingYet ? (

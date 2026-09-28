@@ -210,12 +210,18 @@ function HomeContent() {
             <span className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-white/25 px-3 py-1 rounded-full whitespace-nowrap">
               🎁 開催中キャンペーン
             </span>
-            <p className="text-sm sm:text-base font-bold leading-snug">
-              5回の出品・購入でAmazonギフト券が当たる！抽選で10名様に1,000円分プレゼント🦊
-              <span className="block sm:inline sm:ml-2 text-xs sm:text-sm font-normal opacity-95">
-                今はユーザーがまだ少ないから当選確率かなり高め。お部屋の整理も兼ねて、ぜひ参加してね！
-              </span>
-            </p>
+            {user ? (
+              <p className="text-sm sm:text-base font-bold leading-snug">
+                ご応募ありがとうございます！抽選で10名様にAmazonギフト券1,000円分をプレゼント🦊
+              </p>
+            ) : (
+              <p className="text-sm sm:text-base font-bold leading-snug">
+                無料会員登録するだけで応募完了！抽選で10名様にAmazonギフト券1,000円分プレゼント🦊
+                <Link href="/register" className="block sm:inline sm:ml-2 text-xs sm:text-sm font-bold underline underline-offset-2">
+                  今すぐ会員登録する
+                </Link>
+              </p>
+            )}
           </div>
         </div>
       )}
