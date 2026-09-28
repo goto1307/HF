@@ -18,7 +18,14 @@ export default function Reset() {
       redirectTo: typeof window !== "undefined" ? `${window.location.origin}/update-password` : undefined,
     });
     setLoading(false);
-    if (error) { alert(`送信に失敗しました: ${error.message}`); return; }
+    if (error) {
+      if (error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit" || error.status === 429) {
+        alert("再設定メールの送信は一定時間おきにしか行えません。しばらく待ってから再度お試しください。");
+      } else {
+        alert(`送信に失敗しました: ${error.message}`);
+      }
+      return;
+    }
     setSent(true);
   };
 
