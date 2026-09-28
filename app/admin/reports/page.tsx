@@ -117,6 +117,7 @@ export default function AdminReports() {
           <div className="flex gap-3">
             <Link href="/admin/users" className="text-sm font-bold text-orange-700 hover:underline">ユーザー管理へ</Link>
             <Link href="/admin/items" className="text-sm font-bold text-orange-700 hover:underline">商品/チャットへ</Link>
+            <Link href="/admin/reviews" className="text-sm font-bold text-orange-700 hover:underline">評価一覧へ</Link>
           </div>
         </div>
 

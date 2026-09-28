@@ -20,6 +20,10 @@ function isBanned(u: AdminUser) {
   return !!u.banned_until && new Date(u.banned_until).getTime() > Date.now();
 }
 
+function isSelfDeleted(u: AdminUser) {
+  return u.email.endsWith("@deleted.invalid");
+}
+
 export default function AdminUsers() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -90,6 +94,7 @@ export default function AdminUsers() {
           <div className="flex gap-3">
             <Link href="/admin/reports" className="text-sm font-bold text-orange-700 hover:underline">通報一覧へ</Link>
             <Link href="/admin/items" className="text-sm font-bold text-orange-700 hover:underline">商品/チャットへ</Link>
+            <Link href="/admin/reviews" className="text-sm font-bold text-orange-700 hover:underline">評価一覧へ</Link>
           </div>
         </div>
 
@@ -109,6 +114,7 @@ export default function AdminUsers() {
         <div className="flex flex-col gap-3">
           {filtered.map((u) => {
             const banned = isBanned(u);
+            const selfDeleted = isSelfDeleted(u);
             return (
               <div key={u.id} className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-orange-700 text-white flex items-center justify-center font-bold shrink-0 overflow-hidden">
@@ -120,24 +126,32 @@ export default function AdminUsers() {
                   </Link>
                   <p className="text-xs text-stone-500 truncate">{u.email}</p>
                   <p className="text-[11px] text-stone-400">登録：{new Date(u.created_at).toLocaleDateString()}</p>
-                  {banned && <p className="text-[11px] font-bold text-red-500">BAN中</p>}
+                  {selfDeleted ? (
+                    <p className="text-[11px] font-bold text-stone-400">退会済み</p>
+                  ) : (
+                    banned && <p className="text-[11px] font-bold text-red-500">BAN中</p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1.5 items-end shrink-0">
-                  <a
-                    href={`mailto:${u.email}`}
-                    className="text-xs font-bold border border-stone-300 text-stone-500 px-3 py-1 rounded-full hover:bg-stone-100 transition-colors"
-                  >
-                    メールを送る
-                  </a>
-                  <button
-                    onClick={() => handleToggleBan(u)}
-                    disabled={processingId === u.id}
-                    className={`text-xs font-bold px-3 py-1 rounded-full transition-colors disabled:opacity-50 ${
-                      banned ? "border border-stone-300 text-stone-500 hover:bg-stone-100" : "bg-red-500 text-white hover:bg-red-600"
-                    }`}
-                  >
-                    {processingId === u.id ? "処理中..." : banned ? "BAN解除" : "BANする"}
-                  </button>
+                  {!selfDeleted && (
+                    <a
+                      href={`mailto:${u.email}`}
+                      className="text-xs font-bold border border-stone-300 text-stone-500 px-3 py-1 rounded-full hover:bg-stone-100 transition-colors"
+                    >
+                      メールを送る
+                    </a>
+                  )}
+                  {!selfDeleted && (
+                    <button
+                      onClick={() => handleToggleBan(u)}
+                      disabled={processingId === u.id}
+                      className={`text-xs font-bold px-3 py-1 rounded-full transition-colors disabled:opacity-50 ${
+                        banned ? "border border-stone-300 text-stone-500 hover:bg-stone-100" : "bg-red-500 text-white hover:bg-red-600"
+                      }`}
+                    >
+                      {processingId === u.id ? "処理中..." : banned ? "BAN解除" : "BANする"}
+                    </button>
+                  )}
                 </div>
               </div>
             );

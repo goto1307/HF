@@ -1044,3 +1044,152 @@ end;
 $$;
 
 grant execute on function public.admin_delete_item(bigint, text) to authenticated;
+
+
+-- ============================================================
+-- PART N: 管理者権限の強化(BAN時に出品も隠す/個別メッセージ・
+--          レビューの削除/取引の強制キャンセル)
+-- ============================================================
+--
+-- 背景: 「管理者権限で他に足りないところ」を洗い出した結果、
+--   admin_set_ban が banned_until を変えるだけで deleted_users に
+--   触れておらず、悪質ユーザーをBANしてもその出品・プロフィールは
+--   誰からでも見え続けてしまうことが判明した(BANの目的が半分しか
+--   達成されない)。あわせて、個別メッセージ・レビュー単体を
+--   削除する手段が管理者にも一切なく、揉めた取引を強制的に
+--   リセットする手段もなかったため、まとめて追加する。
+
+-- BAN時にis_deleted()の対象にもする。自主退会(delete_own_account)は
+-- メールアドレスを書き換えて再登録できるようにするが、管理者BANは
+-- 悪用対策のためメールアドレスはそのまま(書き換えない = 再登録の
+-- 抜け道を作らない)。/admin/users側では email が
+-- deleted_%@deleted.invalid かどうかで「退会済み」と「BAN中」を
+-- 見分ける。
+create or replace function public.admin_set_ban(target_id uuid, should_ban boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if target_id = auth.uid() then
+    raise exception '自分自身はBANできません';
+  end if;
+  update auth.users
+  set banned_until = case when should_ban then '2999-12-31'::timestamptz else null end
+  where id = target_id;
+
+  if should_ban then
+    insert into public.deleted_users (user_id) values (target_id)
+      on conflict (user_id) do nothing;
+  else
+    delete from public.deleted_users where user_id = target_id;
+  end if;
+end;
+$$;
+
+-- 個別メッセージの削除(通報された暴言・個人情報等の単体削除用)
+create or replace function public.admin_delete_message(p_message_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sender uuid;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '削除理由を入力してください';
+  end if;
+
+  select user_id into v_sender from public.message where id = p_message_id;
+  if v_sender is null then
+    raise exception 'メッセージが見つかりません';
+  end if;
+
+  delete from public.message where id = p_message_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values (v_sender, 'あなたのメッセージが運営により削除されました。理由: ' || p_reason, null, false);
+end;
+$$;
+grant execute on function public.admin_delete_message(bigint, text) to authenticated;
+
+-- 個別レビューの削除(誹謗中傷・個人情報を含むコメント等の単体削除用)
+create or replace function public.admin_delete_review(p_review_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_reviewer uuid;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '削除理由を入力してください';
+  end if;
+
+  select reviewer_id into v_reviewer from public.review where id = p_review_id;
+  if v_reviewer is null then
+    raise exception 'レビューが見つかりません';
+  end if;
+
+  delete from public.review where id = p_review_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values (v_reviewer, 'あなたが投稿した評価が運営により削除されました。理由: ' || p_reason, null, false);
+end;
+$$;
+grant execute on function public.admin_delete_review(bigint, text) to authenticated;
+
+-- もめた取引の強制キャンセル(当事者双方が音信不通/紛争時に管理者が
+-- 使う。cancel_purchase と同じ処理だが当事者チェックの代わりに
+-- is_admin()で許可し、両者に理由付きで通知する)
+create or replace function public.admin_cancel_purchase(p_item_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_seller_id uuid;
+  v_buyer_id uuid;
+  v_title text;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '理由を入力してください';
+  end if;
+
+  select user_id, buyer_id, title into v_seller_id, v_buyer_id, v_title
+  from public.item where id = p_item_id;
+
+  if v_seller_id is null then
+    raise exception '商品が見つかりません';
+  end if;
+  if v_buyer_id is null then
+    raise exception 'この商品は購入されていません';
+  end if;
+
+  update public.item
+  set sold = false, buyer_id = null, received = false
+  where id = p_item_id;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values
+    (v_seller_id, '「' || v_title || '」の取引が運営によりキャンセルされました。理由: ' || p_reason, null, false),
+    (v_buyer_id, '「' || v_title || '」の取引が運営によりキャンセルされました。理由: ' || p_reason, null, false);
+end;
+$$;
+grant execute on function public.admin_cancel_purchase(bigint, text) to authenticated;
