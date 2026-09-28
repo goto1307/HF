@@ -198,7 +198,7 @@ function HomeContent() {
       )}
 
       {!campaignDismissed && (
-        <div className="relative bg-gradient-to-r from-amber-400 via-orange-400 to-pink-400 text-white">
+        <div className="relative bg-gradient-to-r from-fuchsia-600 via-pink-600 to-rose-500 text-white">
           <button
             onClick={dismissCampaign}
             className="absolute top-2 right-2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors text-base leading-none"
