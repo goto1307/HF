@@ -184,34 +184,6 @@ export default function Header() {
                     </div>
                   )}
                 </div>
-                {isAdmin && (
-                  <>
-                    <Link
-                      href="/admin/reports"
-                      className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
-                    >
-                      通報一覧
-                    </Link>
-                    <Link
-                      href="/admin/users"
-                      className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
-                    >
-                      ユーザー管理
-                    </Link>
-                    <Link
-                      href="/admin/items"
-                      className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
-                    >
-                      商品/チャット
-                    </Link>
-                    <Link
-                      href="/admin/reviews"
-                      className="border border-white/70 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold hover:bg-white/25 transition-colors whitespace-nowrap"
-                    >
-                      評価一覧
-                    </Link>
-                  </>
-                )}
                 <Link
                   href="/mypage"
                   className="flex items-center gap-1.5 sm:gap-2 bg-white text-orange-700 pl-1.5 pr-1.5 sm:pl-2 sm:pr-4 py-1.5 rounded-full font-bold text-sm hover:bg-orange-100 transition-colors"
@@ -252,6 +224,23 @@ export default function Header() {
               </button>
               {showMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
+                  {isAdmin && (
+                    <>
+                      <p className="px-4 pt-3 pb-1 text-[11px] font-bold text-stone-400">管理者メニュー</p>
+                      <Link href="/admin/reports" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
+                        通報一覧
+                      </Link>
+                      <Link href="/admin/users" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
+                        ユーザー管理
+                      </Link>
+                      <Link href="/admin/items" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
+                        商品/チャット
+                      </Link>
+                      <Link href="/admin/reviews" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100">
+                        評価一覧
+                      </Link>
+                    </>
+                  )}
                   <button
                     onClick={() => { setShowMenu(false); setShowGuide(true); }}
                     className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
