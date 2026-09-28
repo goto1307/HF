@@ -93,6 +93,7 @@ export default function AdminLog() {
           <div className="flex gap-3">
             <Link href="/admin/reports" className="text-sm font-bold text-orange-700 hover:underline">通報一覧へ</Link>
             <Link href="/admin/users" className="text-sm font-bold text-orange-700 hover:underline">ユーザー管理へ</Link>
+            <Link href="/admin/backup" className="text-sm font-bold text-orange-700 hover:underline">バックアップへ</Link>
           </div>
         </div>
 

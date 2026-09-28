@@ -94,6 +94,7 @@ export default function AdminItems() {
             <Link href="/admin/users" className="text-sm font-bold text-orange-700 hover:underline">ユーザー管理へ</Link>
             <Link href="/admin/reviews" className="text-sm font-bold text-orange-700 hover:underline">評価一覧へ</Link>
             <Link href="/admin/log" className="text-sm font-bold text-orange-700 hover:underline">操作ログへ</Link>
+            <Link href="/admin/backup" className="text-sm font-bold text-orange-700 hover:underline">バックアップへ</Link>
           </div>
         </div>
 

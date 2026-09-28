@@ -1467,3 +1467,56 @@ alter table public.report add column if not exists message_id bigint references 
 alter table public.report drop constraint if exists report_target_check;
 alter table public.report add constraint report_target_check
   check (item_id is not null or reported_user_id is not null or message_id is not null);
+
+
+-- ============================================================
+-- PART P: 管理者向けデータバックアップ(全テーブルJSONエクスポート)
+-- ============================================================
+--
+-- 背景: 無料プランのSupabaseにはダッシュボードから使える自動バックアップが
+--   無いため、誤操作によるデータ消失やアカウント喪失に備えて、管理者が
+--   いつでも全データをJSONとしてダウンロードできるようにする。
+--   各テーブルはRLSの制限がバラバラ(通知・待ち合わせ・ブロック等は
+--   本人限定で管理者バイパスが無い)ため、個別に緩めるのではなく
+--   1つのSECURITY DEFINER関数にまとめてテーブルオーナー権限で
+--   全件読み出す。画像ファイル自体(Storageのバイナリ)はここには
+--   含まれない。
+
+create or replace function public.admin_export_all()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  select jsonb_build_object(
+    'exported_at', now(),
+    'users', (select coalesce(jsonb_agg(jsonb_build_object(
+        'id', u.id, 'email', u.email,
+        'nickname', u.raw_user_meta_data ->> 'nickname',
+        'created_at', u.created_at, 'banned_until', u.banned_until
+      )), '[]'::jsonb) from auth.users u),
+    'item', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.item t),
+    'message', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.message t),
+    'review', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.review t),
+    'report', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.report t),
+    'meetup', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.meetup t),
+    'notification', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.notification t),
+    'favorite', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.favorite t),
+    'profile', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.profile t),
+    'blocked_user', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.blocked_user t),
+    'deleted_users', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.deleted_users t),
+    'admin_action_log', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.admin_action_log t)
+  ) into result;
+
+  return result;
+end;
+$$;
+
+grant execute on function public.admin_export_all() to authenticated;

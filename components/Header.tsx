@@ -239,8 +239,11 @@ export default function Header() {
                       <Link href="/admin/reviews" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         評価一覧
                       </Link>
-                      <Link href="/admin/log" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100">
+                      <Link href="/admin/log" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         操作ログ
+                      </Link>
+                      <Link href="/admin/backup" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100">
+                        データバックアップ
                       </Link>
                     </>
                   )}
