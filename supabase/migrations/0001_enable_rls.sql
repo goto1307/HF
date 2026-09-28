@@ -884,13 +884,31 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_new_email text;
 begin
   if auth.uid() is null then
     raise exception 'ログインが必要です';
   end if;
+
+  -- 元のメールアドレスをこのユーザーの行に残したままだと、Supabaseは
+  -- アカウント存在確認を防ぐため同じメールでの再登録を無言でブロックする
+  -- (エラーも出ず確認メールも届かない)。別物に書き換えて元のアドレスを
+  -- 解放する。enforce_hokudai_email_trigger は before insert のみなので
+  -- この update には影響しない。
+  v_new_email := 'deleted_' || auth.uid()::text || '@deleted.invalid';
+
   insert into public.deleted_users (user_id) values (auth.uid())
     on conflict (user_id) do nothing;
-  update auth.users set banned_until = '2999-12-31'::timestamptz where id = auth.uid();
+
+  update auth.users
+  set banned_until = '2999-12-31'::timestamptz,
+      email = v_new_email
+  where id = auth.uid();
+
+  update auth.identities
+  set identity_data = jsonb_set(identity_data, '{email}', to_jsonb(v_new_email))
+  where user_id = auth.uid();
 end;
 $$;
 
