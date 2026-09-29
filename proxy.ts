@@ -14,6 +14,7 @@ const SERVICE_ENDED_HTML = `<!doctype html>
 <h1 style="font-size:1.5rem;margin:0 0 16px;color:#c2410c;">サービス終了のお知らせ</h1>
 <p style="line-height:1.8;margin:0 0 8px;">北フリは、2026年9月29日をもちましてサービスを終了いたしました。</p>
 <p style="line-height:1.8;margin:0 0 8px;">ご登録いただいた皆さまには、ご登録のメールアドレス宛てに個別にご連絡いたします。</p>
+<p style="line-height:1.8;margin:0 0 8px;">会員登録キャンペーン（Amazonギフト券の抽選）にご応募いただいた方には、キャンペーンの賞品について、あわせて個別にご案内いたします。</p>
 <p style="line-height:1.8;margin:0 0 16px;">ご期待いただいていたなか、このような結果となり、誠に申し訳ございません。これまでご利用いただき、ありがとうございました。</p>
 <p style="line-height:1.8;margin:0;font-size:0.875rem;color:#78716c;">お問い合わせ：hokufuri.official@gmail.com</p>
 </main>
