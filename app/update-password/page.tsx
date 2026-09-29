@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function UpdatePassword() {
   const { user, loading: authLoading } = useAuth();
@@ -41,19 +42,17 @@ export default function UpdatePassword() {
             </p>
           ) : (
             <>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 placeholder="新しいパスワード（8文字以上・大小英字＋数字）"
                 className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
               />
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="new-password"
                 value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
+                onChange={setConfirm}
                 onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
                 placeholder="新しいパスワード（確認）"
                 className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"

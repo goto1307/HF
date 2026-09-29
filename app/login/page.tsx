@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -67,11 +68,10 @@ export default function Login() {
               placeholder="北大メールアドレス"
               className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
             />
-            <input
-              type="password"
+            <PasswordInput
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               placeholder="パスワード"
               className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm"
             />

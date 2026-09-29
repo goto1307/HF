@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
+import PasswordInput from "@/components/PasswordInput";
 
 const TERMS_TEXT = `北フリ 利用規約
 
@@ -160,7 +161,7 @@ export default function Register() {
         <div className="flex flex-col gap-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
           <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="北大メールアドレス" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
           <input type="text" maxLength={30} value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="ニックネーム" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
-          <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="パスワード（8文字以上・大小英字＋数字）" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
+          <PasswordInput autoComplete="new-password" value={password} onChange={setPassword} placeholder="パスワード（8文字以上・大小英字＋数字）" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm" />
           <p className="text-xs text-stone-400 -mt-3">8文字以上、数字・アルファベットの大文字・小文字をすべて含めてください</p>
 
           <div id="terms">
