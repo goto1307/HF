@@ -1520,3 +1520,68 @@ end;
 $$;
 
 grant execute on function public.admin_export_all() to authenticated;
+
+
+-- ============================================================
+-- PART Q: 電気通信事業法対応モード(個別の自由記述チャットを停止)
+-- ============================================================
+--
+-- 背景: 個別チャット(買い手・売り手間の自由記述メッセージ)を運営が
+--   閲覧できる仕組みは、電気通信事業法の「電気通信事業」の届出が
+--   必要になる可能性があることが分かったため、届出の要否を精査する
+--   間、個別の自由記述メッセージ機能を停止する。
+--
+--   フロントエンド側(lib/featureFlags.ts の TELECOM_SAFE_MODE)で
+--   個別チャットのUIを非表示にしているが、UIを隠すだけでは
+--   直接APIを叩けば自由文の私信を送れてしまうため、DB側でも
+--   同じ制限をかける。フロント側のフラグと合わせて、切り替える
+--   ときは必ずこのSQLとセットで実行すること。
+--
+--   ※ 公開の質問チャット(buyer_id is null、誰でも見られる)は
+--     このモードでも従来通り利用できる(第三者間の私信の媒介では
+--     ないため、電気通信事業法上の懸念は小さいと考えられる)。
+
+-- ---------- 有効化(電気通信事業法対応モードに入る) ----------
+drop policy if exists "message_insert_valid" on public.message;
+create policy "message_insert_valid"
+on public.message for insert
+to authenticated
+with check (
+  auth.uid() = user_id
+  and buyer_id is null
+  and exists (select 1 from public.item i where i.id = message.item_id)
+  and not public.is_blocked_by(seller_id, auth.uid())
+);
+
+alter table public.meetup drop constraint if exists meetup_location_template_only;
+alter table public.meetup add constraint meetup_location_template_only
+  check (location is null or location = any (array['北部食堂前','正門前','生協前','図書館前']));
+
+-- ---------- 解除(通常モードに戻す。使うときは下のブロックだけ実行) ----------
+-- drop policy if exists "message_insert_valid" on public.message;
+-- create policy "message_insert_valid"
+-- on public.message for insert
+-- to authenticated
+-- with check (
+--   auth.uid() = user_id
+--   and (
+--     (buyer_id is null
+--       and exists (select 1 from public.item i where i.id = message.item_id)
+--       and not public.is_blocked_by(seller_id, auth.uid()))
+--     or (
+--       buyer_id is not null
+--       and (auth.uid() = buyer_id or auth.uid() = seller_id)
+--       and exists (
+--         select 1 from public.item i
+--         where i.id = message.item_id
+--           and i.user_id = message.seller_id
+--       )
+--       and not public.is_blocked_by(
+--         case when auth.uid() = buyer_id then seller_id else buyer_id end,
+--         auth.uid()
+--       )
+--     )
+--   )
+-- );
+--
+-- alter table public.meetup drop constraint if exists meetup_location_template_only;

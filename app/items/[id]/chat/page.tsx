@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
+import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 
 type Item = {
   id: number;
@@ -461,7 +462,7 @@ export default function ItemChat() {
             ⚠ 待ち合わせは、人通りが多く明るい場所がおすすめです。
           </p>
 
-          <p className="text-xs text-stone-500 mb-1.5">場所（ボタンを押すか、直接入力）</p>
+          <p className="text-xs text-stone-500 mb-1.5">{TELECOM_SAFE_MODE ? "場所（下から選択してください）" : "場所（ボタンを押すか、直接入力）"}</p>
           <div className="flex gap-1.5 flex-wrap mb-2">
             {COMMON_LOCATIONS.map((loc) => (
               <button
@@ -475,14 +476,16 @@ export default function ItemChat() {
               </button>
             ))}
           </div>
-          <input
-            type="text"
-            maxLength={50}
-            value={meetupLocation}
-            onChange={(e) => setMeetupLocation(e.target.value)}
-            placeholder="場所を入力（例：北部食堂前）"
-            className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors mb-3"
-          />
+          {!TELECOM_SAFE_MODE && (
+            <input
+              type="text"
+              maxLength={50}
+              value={meetupLocation}
+              onChange={(e) => setMeetupLocation(e.target.value)}
+              placeholder="場所を入力（例：北部食堂前）"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors mb-3"
+            />
+          )}
 
           <p className="text-xs text-stone-500 mb-1.5">日時（ボタンを押すか、直接指定）</p>
           <div className="flex gap-1.5 flex-wrap mb-2">
@@ -521,7 +524,11 @@ export default function ItemChat() {
     </div>
   );
 
-  const chatPanel = (
+  const chatPanel = TELECOM_SAFE_MODE ? (
+    <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm p-4 text-center text-sm text-stone-500">
+      現在、個別の自由記述チャットは停止しています。上の「待ち合わせ」欄から、場所・日時を提案してください。
+    </div>
+  ) : (
     <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm flex flex-col h-[28rem]">
       <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-3 bg-stone-50">
         {!buyerId ? (

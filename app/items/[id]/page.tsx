@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
+import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 
 type Item = {
   id: number;
@@ -167,7 +168,7 @@ export default function ItemDetail() {
   const sendMessage = async () => {
     if (!input.trim()) return;
     if (!user) { alert("メッセージを送るにはログインしてください"); router.push("/login"); return; }
-    if (item?.sold) { alert("この商品は売却済みのため、質問チャットは終了しています"); return; }
+    if (!TELECOM_SAFE_MODE && item?.sold) { alert("この商品は売却済みのため、質問チャットは終了しています"); return; }
 
     const content = input;
     setInput("");
@@ -479,7 +480,7 @@ export default function ItemDetail() {
         <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm mb-4">
           <div className="bg-orange-700 text-white px-4 py-3 font-bold flex items-center justify-between">
             <span>みんなの質問チャット</span>
-            {item.sold && <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full">終了しました</span>}
+            {!TELECOM_SAFE_MODE && item.sold && <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full">終了しました</span>}
           </div>
           <div className="p-4 h-64 overflow-y-auto flex flex-col gap-3 bg-stone-50">
             {messages.length === 0 && (
@@ -520,11 +521,11 @@ export default function ItemDetail() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力..." : "ログインするとメッセージを送れます"}
+              placeholder={!TELECOM_SAFE_MODE && item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力..." : "ログインするとメッセージを送れます"}
               className="flex-1 px-4 py-3 outline-none text-sm disabled:bg-stone-100"
-              disabled={!user || item.sold}
+              disabled={!user || (!TELECOM_SAFE_MODE && item.sold)}
             />
-            <button onClick={sendMessage} disabled={!user || item.sold} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">
+            <button onClick={sendMessage} disabled={!user || (!TELECOM_SAFE_MODE && item.sold)} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">
               送信
             </button>
           </div>
