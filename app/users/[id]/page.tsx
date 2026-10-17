@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -225,7 +226,9 @@ export default function SellerProfile() {
             {activeItems.map((item) => (
               <Link href={`/items/${item.id}`} key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow block">
                 {(item.image_urls?.[0] ?? item.image_url) ? (
-                  <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
+                  <div className="relative h-32">
+                            <Image src={(item.image_urls?.[0] ?? item.image_url)!} alt={item.title} fill sizes="(min-width: 640px) 33vw, 50vw" className="object-cover" />
+                          </div>
                 ) : (
                   <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
                 )}

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -303,10 +304,17 @@ export default function ItemDetail() {
               <button
                 type="button"
                 onClick={() => setShowLightbox(true)}
-                className="block w-full cursor-zoom-in"
+                className="relative block w-full h-80 sm:h-96 cursor-zoom-in"
                 aria-label="画像を拡大表示"
               >
-                <img src={gallery[activeImage]} alt={item.title} className={`w-full h-80 sm:h-96 object-cover ${item.sold ? "opacity-50" : ""}`} />
+                <Image
+                  src={gallery[activeImage]}
+                  alt={item.title}
+                  fill
+                  sizes="(min-width: 704px) 672px, 100vw"
+                  preload
+                  className={`object-cover ${item.sold ? "opacity-50" : ""}`}
+                />
               </button>
             ) : (
               <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 text-4xl ${item.sold ? "opacity-50" : ""}`}>📦</div>
@@ -323,9 +331,9 @@ export default function ItemDetail() {
                 <button
                   key={url + i}
                   onClick={() => setActiveImage(i)}
-                  className={`w-14 h-14 shrink-0 rounded-lg overflow-hidden border-2 ${activeImage === i ? "border-orange-600" : "border-transparent"}`}
+                  className={`relative w-14 h-14 shrink-0 rounded-lg overflow-hidden border-2 ${activeImage === i ? "border-orange-600" : "border-transparent"}`}
                 >
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <Image src={url} alt="" fill sizes="56px" className="object-cover" />
                 </button>
               ))}
             </div>
