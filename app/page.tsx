@@ -64,28 +64,14 @@ function HomeContent() {
   const { user } = useAuth();
   const router = useRouter();
   const [heroDismissed, setHeroDismissed] = useState(false);
-  const [campaignDismissed, setCampaignDismissed] = useState(false);
-  const [campaignModalDismissed, setCampaignModalDismissed] = useState(true);
 
   useEffect(() => {
     setHeroDismissed(localStorage.getItem("heroDismissed") === "1");
-    setCampaignDismissed(localStorage.getItem("campaignDismissed") === "1");
-    setCampaignModalDismissed(localStorage.getItem("campaignModalDismissed") === "1");
   }, []);
-
-  const dismissCampaignModal = () => {
-    localStorage.setItem("campaignModalDismissed", "1");
-    setCampaignModalDismissed(true);
-  };
 
   const dismissHero = () => {
     localStorage.setItem("heroDismissed", "1");
     setHeroDismissed(true);
-  };
-
-  const dismissCampaign = () => {
-    localStorage.setItem("campaignDismissed", "1");
-    setCampaignDismissed(true);
   };
 
   useEffect(() => {
@@ -163,46 +149,6 @@ function HomeContent() {
     <div className="min-h-screen bg-stone-50">
       <Header />
 
-      {!user && !campaignModalDismissed && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-          onClick={dismissCampaignModal}
-        >
-          <div
-            className="relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-fuchsia-600 via-pink-600 to-rose-500 text-white text-center p-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={dismissCampaignModal}
-              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-lg leading-none"
-              aria-label="閉じる"
-            >
-              ×
-            </button>
-            <p className="text-5xl mb-3">🎁</p>
-            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-white/25 px-3 py-1 rounded-full mb-3">
-              開催中キャンペーン
-            </span>
-            <h2 className="text-xl font-extrabold leading-snug mb-2">
-              無料会員登録するだけで応募完了！
-            </h2>
-            <p className="text-sm text-white/90 mb-6">
-              抽選で10名様にAmazonギフト券1,000円分をプレゼント🦊
-            </p>
-            <Link
-              href="/register"
-              onClick={dismissCampaignModal}
-              className="block w-full bg-white text-pink-700 py-3 rounded-full font-extrabold shadow-md hover:bg-pink-50 transition-colors mb-3"
-            >
-              今すぐ会員登録する
-            </Link>
-            <button onClick={dismissCampaignModal} className="text-xs font-bold underline opacity-80 hover:opacity-100 transition-opacity">
-              あとで
-            </button>
-          </div>
-        </div>
-      )}
-
       {!user && !heroDismissed && (
         <div className="relative overflow-hidden bg-gradient-to-br from-[#7a1f1f] via-[#a8351f] to-orange-600 text-white shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)]" aria-hidden />
@@ -240,35 +186,6 @@ function HomeContent() {
               </div>
             </div>
             <FoxMascot size={96} className="shrink-0 drop-shadow-2xl hidden sm:block" />
-          </div>
-        </div>
-      )}
-
-      {!campaignDismissed && (
-        <div className="relative bg-gradient-to-r from-fuchsia-600 via-pink-600 to-rose-500 text-white">
-          <button
-            onClick={dismissCampaign}
-            className="absolute top-2 right-2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors text-base leading-none"
-            aria-label="閉じる"
-          >
-            ×
-          </button>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-white/25 px-3 py-1 rounded-full whitespace-nowrap">
-              🎁 開催中キャンペーン
-            </span>
-            {user ? (
-              <p className="text-sm sm:text-base font-bold leading-snug">
-                ご応募ありがとうございます！抽選で10名様にAmazonギフト券1,000円分をプレゼント🦊
-              </p>
-            ) : (
-              <p className="text-sm sm:text-base font-bold leading-snug">
-                無料会員登録するだけで応募完了！抽選で10名様にAmazonギフト券1,000円分プレゼント🦊
-                <Link href="/register" className="block sm:inline sm:ml-2 text-xs sm:text-sm font-bold underline underline-offset-2">
-                  今すぐ会員登録する
-                </Link>
-              </p>
-            )}
           </div>
         </div>
       )}
