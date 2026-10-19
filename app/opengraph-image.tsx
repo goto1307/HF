@@ -38,7 +38,7 @@ export default async function Image() {
             <circle cx="100" cy="156" r="3.4" fill="#fdf3e4" />
           </svg>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 104, fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>北フリ</div>
+            <div style={{ fontSize: 104, fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>HOKUMA</div>
             <div style={{ fontSize: 34, fontWeight: 700, color: "#ffe4cc", marginTop: 18 }}>北大生専用のフリマ</div>
           </div>
         </div>

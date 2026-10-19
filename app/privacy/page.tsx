@@ -7,7 +7,7 @@ export default function Privacy() {
       <main className="max-w-2xl mx-auto px-4 py-12">
         <h2 className="text-2xl font-bold mb-2">プライバシーポリシー</h2>
         <p className="text-sm text-stone-500 mb-8">
-          北フリ（以下、「本サービス」といいます。）は、北海道大学の学生が個人で運営する非公式サービスです。大学が公式に運営するものではありません。本サービスが取得する情報の取り扱いについて、以下の通り定めます。
+          HOKUMA（以下、「本サービス」といいます。）は、北海道大学の学生が個人で運営する非公式サービスです。大学が公式に運営するものではありません。本サービスが取得する情報の取り扱いについて、以下の通り定めます。
         </p>
 
         <div className="flex flex-col gap-6 bg-white rounded-2xl shadow-sm border border-stone-200 p-6 text-sm text-stone-700 leading-relaxed">

@@ -111,7 +111,7 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-1.5 hover:opacity-90 transition-opacity shrink-0">
             <FoxMascot size={34} className="shrink-0 -my-1" />
             <span className="flex flex-col leading-tight">
-              <span className="text-lg sm:text-xl font-extrabold tracking-tight">北フリ</span>
+              <span className="text-lg sm:text-xl font-extrabold tracking-tight">HOKUMA</span>
               <span className="text-[10px] sm:text-[13px] font-bold text-white whitespace-nowrap">北大生専用のフリマ</span>
             </span>
           </Link>
@@ -351,7 +351,7 @@ export default function Header() {
               </button>
             </div>
             <p className="text-sm text-stone-600 font-bold mb-2">北大生が開発した、北大生専用のフリマサイトです。</p>
-            <p className="text-sm text-stone-500 mb-6">いらないが、誰かの「ちょうどいい」になる。北フリの使い方はかんたん3ステップです。</p>
+            <p className="text-sm text-stone-500 mb-6">いらないが、誰かの「ちょうどいい」になる。HOKUMAの使い方はかんたん3ステップです。</p>
 
             <div className="flex flex-col gap-3">
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
