@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/mypage", "/admin", "/items/*/chat"],
       },
     ],
-    sitemap: "https://hokufuri.com/sitemap.xml",
+    sitemap: "https://hokuma-market.com/sitemap.xml",
   };
 }
