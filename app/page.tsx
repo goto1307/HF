@@ -524,7 +524,9 @@ function HomeContent() {
                     {!item.sold && (
                       <button
                         onClick={(e) => toggleLike(e, item.id)}
-                        className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-md hover:scale-110 transition-transform"
+                        disabled={!user}
+                        title={user ? undefined : "ログインするといいねできます"}
+                        className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-md hover:scale-110 transition-transform disabled:opacity-60 disabled:hover:scale-100 disabled:cursor-not-allowed"
                       >
                         {likedByMe.has(item.id) ? "❤️" : "🤍"}
                       </button>
