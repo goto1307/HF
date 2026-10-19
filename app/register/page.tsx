@@ -104,8 +104,8 @@ const TERMS_TEXT = `HOKUMA 利用規約
 
 第14条（お問い合わせ）
 HOKUMA運営
-公式Instagram：@hokufuri.6816857（DM）
-メール：hokufuri.official@gmail.com
+公式Instagram：@hokuma.official（DM）
+メール：hokuma.official639@gmail.com
 
 制定日：2026年9月28日`;
 

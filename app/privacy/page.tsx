@@ -102,8 +102,8 @@ export default function Privacy() {
             <p className="mb-2">
               本サービスは、北海道大学に所属する学生個人が運営しています。大学が公式に運営・関与するサービスではありません。ご意見・ご質問、情報の開示等のご請求は、以下の連絡先までお願いします。
             </p>
-            <p className="font-bold text-orange-700">連絡先：hokufuri.official@gmail.com</p>
-            <p className="font-bold text-orange-700">公式Instagram：@hokufuri.6816857（DM）</p>
+            <p className="font-bold text-orange-700">連絡先：hokuma.official639@gmail.com</p>
+            <p className="font-bold text-orange-700">公式Instagram：@hokuma.official（DM）</p>
           </section>
 
           <p className="text-xs text-stone-400">制定日：2026年9月28日</p>

@@ -28,7 +28,7 @@ export default function AdminBackup() {
     const stamp = now.toISOString().slice(0, 19).replace(/[:T]/g, "-");
     const a = document.createElement("a");
     a.href = url;
-    a.download = `hokufuri-backup-${stamp}.json`;
+    a.download = `hokuma-backup-${stamp}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();

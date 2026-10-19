@@ -254,16 +254,16 @@ export default function Header() {
                     初めての方に
                   </button>
                   <a
-                    href="https://www.instagram.com/hokufuri.6816857/"
+                    href="https://www.instagram.com/hokuma.official/"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setShowMenu(false)}
                     className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
-                    公式Instagram：@hokufuri.6816857
+                    公式Instagram：@hokuma.official
                   </a>
                   <a
-                    href="mailto:hokufuri.official@gmail.com"
+                    href="mailto:hokuma.official639@gmail.com"
                     onClick={() => setShowMenu(false)}
                     className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
