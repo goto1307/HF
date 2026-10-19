@@ -154,8 +154,7 @@ export default function ItemChat() {
 
   const handleCancel = async () => {
     if (!item) return;
-    const counterpart = isSeller ? "購入者" : "出品者";
-    if (!confirm(`${counterpart}とキャンセルに合意しましたか？\nキャンセルすると、出品は「販売中」に戻ります。`)) return;
+    if (!confirm("この取引をキャンセルしますか？\n相手にはチャットで一言伝えましょう。キャンセルすると、出品は「販売中」に戻ります。")) return;
     setCancelling(true);
     const { error } = await supabase.rpc("cancel_purchase", { p_item_id: item.id });
     setCancelling(false);
@@ -592,7 +591,7 @@ export default function ItemChat() {
         </button>
 
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-xs text-amber-900 leading-relaxed">
-          ⚠ 受け渡し日はなるべく近い日に。当日は1時間前に確認の連絡をしましょう。「30分待って連絡がなければキャンセル」など、事前に決めておくと安心です。受け渡しは人目のある場所で。住所や電話番号など、必要以上の個人情報は送らないでください。連絡なしで来なかった相手は通報でき、運営が確認のうえ利用停止とすることがあります。困ったときは公式Instagram（@hokuma.official）のDMへ。
+          ⚠ チャットでは取引に必要なことだけをやりとりしてください。住所・電話番号・SNSアカウントなど、取引に不要な個人情報は送らないでください。受け渡し日はなるべく近い日に。当日は1時間前に確認の連絡をしましょう。「30分待って連絡がなければキャンセル」など、事前に決めておくと安心です。受け渡しは人目のある場所で。連絡なしで来なかった相手は通報でき、運営が確認のうえ利用停止とすることがあります。困ったときは公式Instagram（@hokuma.official）のDMへ。
         </div>
 
         <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
