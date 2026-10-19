@@ -110,24 +110,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* ================= MASCOT ================= */}
-      <section className="bg-white border-y border-stone-200 py-20">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-10 items-center text-center sm:text-left">
-          <FoxMascot size={220} className="w-full max-w-[220px] mx-auto" />
-          <div>
-            <h2 className="text-xl font-extrabold mb-3">
-              はじめまして、<span className="text-orange-700">フリ太郎</span>です。
-            </h2>
-            <p className="text-sm leading-relaxed text-stone-500 max-w-lg mx-auto sm:mx-0 mb-2">
-              キタキツネがモチーフのHOKUMAの案内役。掘り出し物を見つけるのが得意で、いいものを見つけるとすぐ教えたくなる性格です。
-            </p>
-            <p className="text-sm leading-relaxed text-stone-500 max-w-lg mx-auto sm:mx-0">
-              商品が見つからないときや、初めての方向けの説明のところにも顔を出すので、見かけたらよろしくお願いします。
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* ================= FINAL CTA ================= */}
       <section className="bg-[#211a14] text-[#fbf3e9] py-24 text-center">
         <div className="max-w-3xl mx-auto px-6">
