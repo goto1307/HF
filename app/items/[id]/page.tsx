@@ -333,7 +333,8 @@ export default function ItemDetail() {
           <div className="flex items-center gap-2 px-4 py-3 border-t border-stone-100">
             <button
               onClick={toggleLike}
-              disabled={togglingLike || item.sold}
+              disabled={!user || togglingLike || item.sold}
+              title={user ? undefined : "ログインするといいねできます"}
               className="flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:hover:bg-orange-50 rounded-full pl-2 pr-3.5 py-1.5 transition-colors"
             >
               <span className="text-lg">{likedByMe ? "❤️" : "🤍"}</span>
@@ -449,7 +450,12 @@ export default function ItemDetail() {
           </div>
         )}
 
-        <button onClick={() => setShowReport(!showReport)} className="text-red-400 text-xs mb-4 block hover:text-red-500 transition-colors">
+        <button
+          onClick={() => setShowReport(!showReport)}
+          disabled={!user}
+          title={user ? undefined : "ログインすると通報できます"}
+          className="text-red-400 text-xs mb-4 block hover:text-red-500 transition-colors disabled:opacity-50 disabled:hover:text-red-400 disabled:cursor-not-allowed"
+        >
           ⚠ この商品を通報する
         </button>
 
@@ -581,12 +587,17 @@ export default function ItemDetail() {
               </button>
             )
           ) : (
-            <button
-              onClick={() => router.push("/login")}
-              className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-100 transition-colors"
-            >
-              ログインして購入する
-            </button>
+            <div>
+              <button disabled className="w-full bg-stone-200 text-stone-400 py-3 rounded-full font-bold cursor-not-allowed">
+                ログインすると購入できます
+              </button>
+              <p className="text-center text-xs text-stone-500 mt-2">
+                <Link href="/login" className="text-orange-700 font-bold underline">ログイン</Link>
+                ・
+                <Link href="/register" className="text-orange-700 font-bold underline">新規登録</Link>
+                すると、購入・質問・いいね・通報ができます
+              </p>
+            </div>
           )
         )}
 
