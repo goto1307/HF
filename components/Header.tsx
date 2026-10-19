@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
-import FoxMascot from "@/components/FoxMascot";
 import { CONTACT_EMAIL, INSTAGRAM_ID, INSTAGRAM_URL } from "@/lib/contact";
 
 type Notification = {
@@ -110,7 +109,6 @@ export default function Header() {
       <header className="sticky top-0 z-20 bg-orange-700 text-white shadow-md">
         <div className="relative max-w-6xl mx-auto flex justify-between items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3.5">
           <Link href="/" className="flex items-center gap-1.5 hover:opacity-90 transition-opacity shrink-0">
-            <FoxMascot size={34} className="shrink-0 -my-1" />
             <span className="flex flex-col leading-tight">
               <span className="text-lg sm:text-xl font-extrabold tracking-tight">HOKUMA</span>
               <span className="text-[10px] sm:text-[13px] font-bold text-white whitespace-nowrap">北大生専用のフリマ</span>
@@ -344,7 +342,6 @@ export default function Header() {
             </button>
             <div className="flex items-start justify-between mb-1">
               <div className="flex items-center gap-2">
-                <FoxMascot size={32} />
                 <h2 className="text-xl font-extrabold text-stone-700">初めての方に</h2>
               </div>
               <button onClick={() => setShowGuide(false)} className="text-2xl leading-none text-stone-400 hover:text-stone-600 transition-colors" aria-label="閉じる">

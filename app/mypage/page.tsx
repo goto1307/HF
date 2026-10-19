@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
-import FoxMascot from "@/components/FoxMascot";
 import StarRating from "@/components/StarRating";
 import ImageCropper from "@/components/ImageCropper";
 
@@ -348,7 +347,6 @@ export default function MyPage() {
 
         {nothingYet ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 shadow-sm">
-            <FoxMascot size={88} className="mx-auto mb-3 opacity-90" />
             <p className="text-stone-400 mb-4">評価がありません。出品してみましょう！</p>
             <button onClick={() => router.push("/sell")} className="bg-orange-700 text-white px-6 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm">
               ＋ 出品する
