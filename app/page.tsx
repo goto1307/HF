@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import FoxMascot from "@/components/FoxMascot";
 
 const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["すべて", "北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -164,7 +165,7 @@ function HomeContent() {
           <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
             <div className="max-w-md">
               <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-extrabold bg-white/15 backdrop-blur-sm border border-white/25 px-3 py-1 rounded-full mb-3 tracking-wide">
-                北大生限定のフリマ
+                🦊 北大生限定のフリマ
               </span>
               <h1 className="text-xl sm:text-3xl font-extrabold leading-snug mb-2 text-balance tracking-tight">
                 いらないが、誰かの「ちょうどいい」になる。
@@ -184,6 +185,7 @@ function HomeContent() {
                 </button>
               </div>
             </div>
+            <FoxMascot size={96} className="shrink-0 drop-shadow-2xl hidden sm:block" />
           </div>
         </div>
       )}
@@ -494,6 +496,7 @@ function HomeContent() {
             </div>
           ) : sorted.length === 0 ? (
             <div className="flex flex-col items-center py-20">
+              <FoxMascot size={88} className="mb-3 opacity-90" />
               <p className="text-stone-400">条件に合う商品がありません</p>
             </div>
           ) : (

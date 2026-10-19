@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import FoxMascot from "@/components/FoxMascot";
 
 export const metadata: Metadata = {
   title: "HOKUMA | 北海道大学の学生専用フリマアプリ",
@@ -26,10 +27,10 @@ export default function About() {
         <div className="absolute w-[420px] h-[420px] rounded-full blur-[2px] opacity-50 bg-[radial-gradient(circle,rgba(217,83,31,0.35),transparent_70%)] -top-40 -right-20" aria-hidden />
         <div className="absolute w-[280px] h-[280px] rounded-full blur-[2px] opacity-50 bg-[radial-gradient(circle,rgba(255,138,82,0.18),transparent_70%)] -bottom-32 left-[6%]" aria-hidden />
 
-        <div className="relative max-w-3xl mx-auto px-6 text-center md:text-left">
+        <div className="relative max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-10 items-center text-center md:text-left">
           <div>
             <span className="rise inline-flex items-center gap-2 text-xs font-extrabold tracking-wide bg-white/10 border border-white/15 px-3.5 py-1.5 rounded-full mb-5" style={{ animationDelay: "0.05s" }}>
-              北海道大学の学生限定
+              🦊 北海道大学の学生限定
             </span>
             <h1 className="rise text-4xl sm:text-5xl font-extrabold leading-tight mb-5 text-balance" style={{ animationDelay: "0.18s" }}>
               いらないが、<br />誰かの<span className="text-[#ff8a52]">「ちょうどいい」</span>になる。
@@ -44,6 +45,15 @@ export default function About() {
               <Link href="/login" className="border border-white/35 text-[#fbf3e9] font-extrabold text-sm px-6 py-3.5 rounded-full hover:bg-white/25 hover:border-white/60 transition-colors">
                 ログイン
               </Link>
+            </div>
+          </div>
+
+          <div className="rise" style={{ animationDelay: "0.36s" }}>
+            <div className="relative mx-auto w-[min(340px,78vw)] drop-shadow-[0_28px_30px_rgba(0,0,0,0.45)]">
+              <FoxMascot size={340} className="w-full h-auto" />
+              <span className="bob absolute top-10 left-4 text-2xl" style={{ animationDelay: "-1.5s" }}>📘</span>
+              <span className="bob absolute top-16 right-2 text-2xl" style={{ animationDelay: "-3s" }}>🚲</span>
+              <span className="bob absolute bottom-16 left-0 text-2xl">✅</span>
             </div>
           </div>
         </div>
