@@ -3,9 +3,9 @@ import Link from "next/link";
 import FoxMascot from "@/components/FoxMascot";
 
 export const metadata: Metadata = {
-  title: "北フリ | 北海道大学の学生専用フリマアプリ",
+  title: "HOKUMA | 北海道大学の学生専用フリマアプリ",
   description:
-    "北フリは北海道大学の学生だけが使えるフリマアプリです。教科書・自転車・部屋のものを、北大生同士で安心して売り買いできます。北大メールで登録、1分で出品開始。",
+    "HOKUMAは北海道大学の学生だけが使えるフリマアプリです。教科書・自転車・部屋のものを、北大生同士で安心して売り買いできます。北大メールで登録、1分で出品開始。",
 };
 
 export default function About() {
@@ -36,7 +36,7 @@ export default function About() {
               いらないが、<br />誰かの<span className="text-[#ff8a52]">「ちょうどいい」</span>になる。
             </h1>
             <p className="rise text-base leading-relaxed text-[#d9c9b8] max-w-md mx-auto md:mx-0 mb-8" style={{ animationDelay: "0.3s" }}>
-              教科書、自転車、部屋のもの。北フリは、北大生同士だけでちょうどいい売り買いができる、キャンパスの中だけのフリマです。
+              教科書、自転車、部屋のもの。HOKUMAは、北大生同士だけでちょうどいい売り買いができる、キャンパスの中だけのフリマです。
             </p>
             <div className="rise flex flex-wrap gap-3 justify-center md:justify-start" style={{ animationDelay: "0.42s" }}>
               <Link href="/register" className="bg-orange-700 text-white font-extrabold text-sm px-7 py-3.5 rounded-full shadow-[0_14px_30px_-12px_rgba(217,83,31,0.6)] hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgba(217,83,31,0.75)] transition-all">
@@ -62,7 +62,7 @@ export default function About() {
       {/* ================= WHY ================= */}
       <section className="py-24">
         <div className="max-w-5xl mx-auto px-6">
-          <p className="font-mono text-xs tracking-widest uppercase text-orange-700 font-bold mb-3">Why 北フリ</p>
+          <p className="font-mono text-xs tracking-widest uppercase text-orange-700 font-bold mb-3">Why HOKUMA</p>
           <h2 className="text-2xl sm:text-3xl font-extrabold leading-snug mb-10 max-w-md text-balance">
             使わなくなったものが、キャンパスのどこかで待たれている。
           </h2>
@@ -110,24 +110,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* ================= MASCOT ================= */}
-      <section className="bg-white border-y border-stone-200 py-20">
-        <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-10 items-center text-center sm:text-left">
-          <FoxMascot size={220} className="w-full max-w-[220px] mx-auto" />
-          <div>
-            <h2 className="text-xl font-extrabold mb-3">
-              はじめまして、<span className="text-orange-700">フリ太郎</span>です。
-            </h2>
-            <p className="text-sm leading-relaxed text-stone-500 max-w-lg mx-auto sm:mx-0 mb-2">
-              キタキツネがモチーフの北フリの案内役。掘り出し物を見つけるのが得意で、いいものを見つけるとすぐ教えたくなる性格です。
-            </p>
-            <p className="text-sm leading-relaxed text-stone-500 max-w-lg mx-auto sm:mx-0">
-              商品が見つからないときや、初めての方向けの説明のところにも顔を出すので、見かけたらよろしくお願いします。
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* ================= FINAL CTA ================= */}
       <section className="bg-[#211a14] text-[#fbf3e9] py-24 text-center">
         <div className="max-w-3xl mx-auto px-6">
@@ -144,7 +126,7 @@ export default function About() {
             </Link>
           </div>
           <p className="mt-14 pt-6 border-t border-white/10 text-xs text-[#a5947f] leading-relaxed">
-            北フリは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。
+            HOKUMAは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。
             <br />
             <Link href="/privacy" className="underline">プライバシーポリシー</Link>
           </p>

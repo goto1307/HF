@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import FoxMascot from "@/components/FoxMascot";
+import { CONTACT_EMAIL, INSTAGRAM_ID, INSTAGRAM_URL } from "@/lib/contact";
 
 type Notification = {
   id: number;
@@ -111,7 +112,7 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-1.5 hover:opacity-90 transition-opacity shrink-0">
             <FoxMascot size={34} className="shrink-0 -my-1" />
             <span className="flex flex-col leading-tight">
-              <span className="text-lg sm:text-xl font-extrabold tracking-tight">北フリ</span>
+              <span className="text-lg sm:text-xl font-extrabold tracking-tight">HOKUMA</span>
               <span className="text-[10px] sm:text-[13px] font-bold text-white whitespace-nowrap">北大生専用のフリマ</span>
             </span>
           </Link>
@@ -254,16 +255,16 @@ export default function Header() {
                     初めての方に
                   </button>
                   <a
-                    href="https://www.instagram.com/hokufuri.6816857/"
+                    href={INSTAGRAM_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setShowMenu(false)}
                     className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
-                    公式Instagram：@hokufuri.6816857
+                    公式Instagram：@{INSTAGRAM_ID}
                   </a>
                   <a
-                    href="mailto:hokufuri.official@gmail.com"
+                    href={`mailto:${CONTACT_EMAIL}`}
                     onClick={() => setShowMenu(false)}
                     className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
@@ -351,7 +352,7 @@ export default function Header() {
               </button>
             </div>
             <p className="text-sm text-stone-600 font-bold mb-2">北大生が開発した、北大生専用のフリマサイトです。</p>
-            <p className="text-sm text-stone-500 mb-6">いらないが、誰かの「ちょうどいい」になる。北フリの使い方はかんたん3ステップです。</p>
+            <p className="text-sm text-stone-500 mb-6">いらないが、誰かの「ちょうどいい」になる。HOKUMAの使い方はかんたん3ステップです。</p>
 
             <div className="flex flex-col gap-3">
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">

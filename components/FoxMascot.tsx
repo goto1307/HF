@@ -1,6 +1,6 @@
 export default function FoxMascot({ className = "", size = 96 }: { className?: string; size?: number }) {
   return (
-    <svg viewBox="0 0 200 200" width={size} height={size} className={className} role="img" aria-label="フリ太郎">
+    <svg viewBox="0 0 200 200" width={size} height={size} className={className} role="img" aria-label="HOKUMA">
       <ellipse cx="100" cy="150" rx="52" ry="34" fill="#e98a4a" />
       <ellipse cx="100" cy="158" rx="30" ry="20" fill="#fdf3e4" />
       <path d="M60 96 C40 96 30 130 55 148 C60 130 70 118 84 112 Z" fill="#e98a4a" />
