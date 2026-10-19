@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
-import FoxMascot from "@/components/FoxMascot";
 
 export default function Logout() {
   const [loggingOut, setLoggingOut] = useState(false);
@@ -24,7 +23,6 @@ export default function Logout() {
     <div className="min-h-screen bg-stone-50">
       <Header />
       <main className="max-w-sm mx-auto px-4 py-16 flex flex-col items-center text-center">
-        <FoxMascot size={72} className="mb-4 opacity-90" />
         <h1 className="text-lg font-extrabold mb-2 text-stone-700">ログアウトしますか？</h1>
         <p className="text-sm text-stone-500 mb-8">もう一度ログインするには、メールアドレスとパスワードが必要です。</p>
         <div className="flex flex-col gap-2 w-full">
