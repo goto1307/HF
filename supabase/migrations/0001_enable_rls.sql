@@ -1590,3 +1590,24 @@ alter table public.meetup drop constraint if exists meetup_location_template_onl
 -- alter table public.meetup drop constraint if exists meetup_location_template_only;
 -- alter table public.meetup add constraint meetup_location_template_only
 --   check (location is null or location = any (array['北部食堂前','正門前','生協前','図書館前']));
+
+
+-- ============================================================
+-- PART R: 未ログインでは商品ページの公開Q&Aを見られないようにする
+-- ============================================================
+--
+-- 背景: message_select_public_or_own ポリシーが to public(anonロール
+--   含む)になっており、buyer_id is null の公開Q&Aは未ログインでも
+--   読めてしまっていた。to authenticated に絞る(このテーブルの
+--   もう一方のポリシー message_select_admin も to authenticated の
+--   ため、これで未ログインは message テーブルを一切読めなくなる)。
+
+drop policy if exists "message_select_public_or_own" on public.message;
+create policy "message_select_public_or_own"
+on public.message for select
+to authenticated
+using (
+  buyer_id is null
+  or auth.uid() = buyer_id
+  or auth.uid() = seller_id
+);

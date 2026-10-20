@@ -70,7 +70,14 @@ export default function ItemDetail() {
     const fetchData = async () => {
       const { data: itemData } = await supabase.from("item").select("*").eq("id", params.id).single();
       if (itemData) setItem(itemData);
+    };
+    fetchData();
+  }, [params.id]);
 
+  useEffect(() => {
+    if (!user) { setMessages([]); return; }
+
+    const fetchMessages = async () => {
       const { data: msgData } = await supabase
         .from("message")
         .select("*")
@@ -79,7 +86,7 @@ export default function ItemDetail() {
         .order("created_at");
       if (msgData) setMessages(msgData);
     };
-    fetchData();
+    fetchMessages();
 
     const channel = supabase
       .channel(`item-public-chat-${params.id}`)
@@ -96,7 +103,7 @@ export default function ItemDetail() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [params.id]);
+  }, [params.id, user]);
 
   useEffect(() => {
     if (!item) return;
@@ -483,10 +490,12 @@ export default function ItemDetail() {
             {!TELECOM_SAFE_MODE && item.sold && <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full">終了しました</span>}
           </div>
           <div className="p-4 h-64 overflow-y-auto flex flex-col gap-3 bg-stone-50">
-            {messages.length === 0 && (
+            {!user ? (
+              <p className="text-center text-stone-400 text-sm m-auto">ログインすると質問チャットが見られます</p>
+            ) : messages.length === 0 ? (
               <p className="text-center text-stone-400 text-sm">まだメッセージがありません</p>
-            )}
-            {messages.map((msg) => (
+            ) : null}
+            {user && messages.map((msg) => (
               <div key={msg.id} className={`flex gap-2 ${msg.user_id === user?.id ? "flex-row-reverse" : "flex-row"}`}>
                 <div className="w-8 h-8 bg-orange-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                   {msg.nickname?.[0] || "?"}
