@@ -1,6 +1,7 @@
 "use client";
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -509,11 +510,15 @@ function HomeContent() {
                 >
                   <div className="relative overflow-hidden">
                     {(item.image_urls?.[0] ?? item.image_url) ? (
-                      <img
-                        src={item.image_urls?.[0] ?? item.image_url ?? undefined}
-                        alt={item.title}
-                        className={`w-full h-32 object-cover transition-transform duration-500 group-hover:scale-110 ${item.sold ? "opacity-50" : ""}`}
-                      />
+                      <div className="relative h-32">
+                        <Image
+                          src={(item.image_urls?.[0] ?? item.image_url)!}
+                          alt={item.title}
+                          fill
+                          sizes="(min-width: 1024px) 288px, (min-width: 640px) 33vw, 50vw"
+                          className={`object-cover transition-transform duration-500 group-hover:scale-110 ${item.sold ? "opacity-50" : ""}`}
+                        />
+                      </div>
                     ) : (
                       <div className={`bg-gradient-to-br from-orange-50 to-amber-50 h-32 flex items-center justify-center text-orange-200 text-3xl ${item.sold ? "opacity-50" : ""}`}>
                         📦
