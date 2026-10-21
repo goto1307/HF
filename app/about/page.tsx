@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import FoxMascot from "@/components/FoxMascot";
+import HokkumaMascot from "@/components/HokkumaMascot";
 
 export const metadata: Metadata = {
   title: "HOKUMA | 北海道大学の学生専用フリマアプリ",
@@ -30,7 +30,7 @@ export default function About() {
         <div className="relative max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-10 items-center text-center md:text-left">
           <div>
             <span className="rise inline-flex items-center gap-2 text-xs font-extrabold tracking-wide bg-white/10 border border-white/15 px-3.5 py-1.5 rounded-full mb-5" style={{ animationDelay: "0.05s" }}>
-              🦊 北海道大学の学生限定
+              🐻‍❄️ 北海道大学の学生限定
             </span>
             <h1 className="rise text-4xl sm:text-5xl font-extrabold leading-tight mb-5 text-balance" style={{ animationDelay: "0.18s" }}>
               いらないが、<br />誰かの<span className="text-[#ff8a52]">「ちょうどいい」</span>になる。
@@ -50,7 +50,7 @@ export default function About() {
 
           <div className="rise" style={{ animationDelay: "0.36s" }}>
             <div className="relative mx-auto w-[min(340px,78vw)] drop-shadow-[0_28px_30px_rgba(0,0,0,0.45)]">
-              <FoxMascot size={340} className="w-full h-auto" />
+              <HokkumaMascot size={340} className="w-full h-auto" />
               <span className="bob absolute top-10 left-4 text-2xl" style={{ animationDelay: "-1.5s" }}>📘</span>
               <span className="bob absolute top-16 right-2 text-2xl" style={{ animationDelay: "-3s" }}>🚲</span>
               <span className="bob absolute bottom-16 left-0 text-2xl">✅</span>
@@ -113,13 +113,13 @@ export default function About() {
       {/* ================= MASCOT ================= */}
       <section className="bg-white border-y border-stone-200 py-20">
         <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-10 items-center text-center sm:text-left">
-          <FoxMascot size={220} className="w-full max-w-[220px] mx-auto" />
+          <HokkumaMascot size={220} className="w-full max-w-[220px] mx-auto" />
           <div>
             <h2 className="text-xl font-extrabold mb-3">
-              はじめまして、<span className="text-orange-700">フリ太郎</span>です。
+              はじめまして、<span className="text-orange-700">ホックマ</span>です。
             </h2>
             <p className="text-sm leading-relaxed text-stone-500 max-w-lg mx-auto sm:mx-0 mb-2">
-              キタキツネがモチーフのHOKUMAの案内役。掘り出し物を見つけるのが得意で、いいものを見つけるとすぐ教えたくなる性格です。
+              シロクマがモチーフのHOKUMAの案内役。掘り出し物を見つけるのが得意で、いいものを見つけるとすぐ教えたくなる性格です。
             </p>
             <p className="text-sm leading-relaxed text-stone-500 max-w-lg mx-auto sm:mx-0">
               商品が見つからないときや、初めての方向けの説明のところにも顔を出すので、見かけたらよろしくお願いします。
