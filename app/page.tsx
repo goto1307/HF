@@ -174,7 +174,7 @@ function HomeContent() {
                 教科書、自転車、部屋のもの。キャンパスの中だけで、ちょうどいい売り買いを。
               </p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <Link href="/register" className="bg-white text-orange-800 px-5 py-2.5 rounded-full font-bold text-sm shadow-md hover:shadow-lg hover:bg-orange-100 transition-all">
+                <Link href="/join" className="bg-white text-orange-800 px-5 py-2.5 rounded-full font-bold text-sm shadow-md hover:shadow-lg hover:bg-orange-100 transition-all">
                   新規登録
                 </Link>
                 <Link href="/login" className="border border-white/70 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/25 transition-colors">
