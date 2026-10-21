@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { ITEM_COLUMNS } from "@/lib/itemColumns";
+import { isReservedNickname } from "@/lib/nickname";
 import { validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
@@ -46,6 +48,9 @@ export default function MyPage() {
   const [age, setAge] = useState("");
   const [profileAvailable, setProfileAvailable] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
+  // null の間はアカウントに保存されているニックネームをそのまま表示する
+  const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
+  const [savingNickname, setSavingNickname] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
@@ -61,7 +66,7 @@ export default function MyPage() {
     const fetchData = async () => {
       const { data: myItems } = await supabase
         .from("item")
-        .select("*")
+        .select(ITEM_COLUMNS)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (myItems) setItems(myItems);
@@ -76,11 +81,8 @@ export default function MyPage() {
       // buyer_id は購入(mark_item_sold)時にセットされ、cancel_purchase等の
       // キャンセルで null に戻る。以前はメッセージ履歴から算出していたため、
       // キャンセル済みの取引が「購入した商品」に残り続けるバグがあった。
-      const { data: purchasedItems } = await supabase
-        .from("item")
-        .select("*")
-        .eq("buyer_id", user.id)
-        .order("created_at", { ascending: false });
+      // buyer_id は一般ユーザーが直接読めないため、自分の購入分だけ返す関数を使う
+      const { data: purchasedItems } = await supabase.rpc("my_purchased_items");
       if (purchasedItems) setPurchases(purchasedItems);
 
       const { data: blockedRows } = await supabase
@@ -144,6 +146,33 @@ export default function MyPage() {
     });
     setUploadingAvatar(false);
     if (updateError) { alert("アイコンの更新に失敗しました"); return; }
+  };
+
+  const currentNickname: string = user?.user_metadata?.nickname || "";
+  const nicknameInput = nicknameDraft ?? currentNickname;
+
+  const handleSaveNickname = async () => {
+    if (!user) return;
+    const next = nicknameInput.trim();
+    if (!next) { alert("ニックネームを入力してください"); return; }
+    if (next === currentNickname) return;
+    if (isReservedNickname(next)) { alert("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
+    if (!confirm(`ニックネームを「${next}」に変更しますか？\n次に変更できるのは1週間後です。`)) return;
+    setSavingNickname(true);
+    // 出品・メッセージ・評価に保存されている名前もまとめて書き換える
+    const { error } = await supabase.rpc("update_own_nickname", { p_nickname: next });
+    if (error) {
+      setSavingNickname(false);
+      // 1週間の制限などは DB 側の文言(次に変更できる日時を含む)をそのまま出す
+      alert(error.message || "ニックネームの変更に失敗しました");
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ data: { nickname: next } });
+    setSavingNickname(false);
+    if (updateError) { alert("ニックネームの変更に失敗しました"); return; }
+    setNicknameDraft(null);
+    setItems((prev) => prev.map((i) => ({ ...i, nickname: next })));
+    alert("ニックネームを変更しました");
   };
 
   const handleSaveProfile = async () => {
@@ -268,6 +297,29 @@ export default function MyPage() {
             <p className="text-xs text-stone-400 mb-3">この機能は現在準備中です。保存できない場合があります。</p>
           )}
           <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">ニックネーム</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={30}
+                  value={nicknameInput}
+                  onChange={(e) => setNicknameDraft(e.target.value)}
+                  placeholder="ニックネーム"
+                  className="flex-1 min-w-0 border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-orange-600 transition-colors"
+                />
+                <button
+                  onClick={handleSaveNickname}
+                  disabled={savingNickname || !nicknameInput.trim() || nicknameInput.trim() === currentNickname}
+                  className="shrink-0 bg-orange-700 text-white px-4 py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors"
+                >
+                  {savingNickname ? "変更中..." : "変更"}
+                </button>
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1">
+                ニックネームの変更は1週間に1回までです。変更すると、これまでの出品・メッセージ・評価の表示名も新しい名前になります。
+              </p>
+            </div>
             <div>
               <label className="block text-xs font-bold text-stone-500 mb-1">一言メッセージ</label>
               <textarea

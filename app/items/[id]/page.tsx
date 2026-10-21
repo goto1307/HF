@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
@@ -68,11 +69,18 @@ export default function ItemDetail() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: itemData } = await supabase.from("item").select("*").eq("id", params.id).single();
-      if (itemData) setItem(itemData);
+      const { data: itemData } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).single();
+      if (!itemData) return;
+      // 購入者は本人・出品者にだけ返る(それ以外は null)
+      let buyerId: string | null = null;
+      if (user) {
+        const { data } = await supabase.rpc("get_item_buyer", { p_item_id: itemData.id });
+        buyerId = data ?? null;
+      }
+      setItem({ ...itemData, buyer_id: buyerId });
     };
     fetchData();
-  }, [params.id]);
+  }, [params.id, user]);
 
   useEffect(() => {
     if (!user) { setMessages([]); return; }
@@ -192,7 +200,7 @@ export default function ItemDetail() {
       .single();
 
     if (error) {
-      alert("メッセージの送信に失敗しました");
+      alert(error.message?.includes("多すぎます") ? error.message : "メッセージの送信に失敗しました");
       setInput(content);
       return;
     }
@@ -391,15 +399,27 @@ export default function ItemDetail() {
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm text-stone-500">
               出品者：
-              <Link href={`/users/${item.user_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
-                {item.nickname}
-              </Link>
+              {/* プロフィールはログインした人だけが見られる */}
+              {user ? (
+                <Link href={`/users/${item.user_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
+                  {item.nickname}
+                </Link>
+              ) : (
+                <span className="text-stone-700 font-bold">{item.nickname}</span>
+              )}
             </span>
             {sellerRating && (
-              <Link href={`/users/${item.user_id}`} className="flex items-center gap-1 text-xs text-orange-700 font-bold hover:underline transition-colors">
-                <StarRating value={Math.round(sellerRating.avg)} size={13} />
-                {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
-              </Link>
+              user ? (
+                <Link href={`/users/${item.user_id}`} className="flex items-center gap-1 text-xs text-orange-700 font-bold hover:underline transition-colors">
+                  <StarRating value={Math.round(sellerRating.avg)} size={13} />
+                  {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
+                </Link>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-orange-700 font-bold">
+                  <StarRating value={Math.round(sellerRating.avg)} size={13} />
+                  {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
+                </span>
+              )
             )}
             {sellerDealCount != null && sellerDealCount > 0 && (
               <span className="text-xs text-stone-400">取引実績 {sellerDealCount}件</span>

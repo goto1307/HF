@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import { validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
@@ -37,7 +38,7 @@ export default function EditItem() {
     if (!user) { router.push("/login"); return; }
 
     const fetchItem = async () => {
-      const { data, error } = await supabase.from("item").select("*").eq("id", params.id).single();
+      const { data, error } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).single();
       if (error || !data) { setNotFound(true); setLoadingItem(false); return; }
       if (data.user_id !== user.id) { setNotFound(true); setLoadingItem(false); return; }
       if (data.sold) { alert("売却済みの商品は編集できません"); router.push("/mypage"); return; }

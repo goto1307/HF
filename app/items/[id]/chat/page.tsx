@@ -83,8 +83,11 @@ export default function ItemChat() {
     if (!user) { router.push("/login"); return; }
 
     const fetchItem = async () => {
-      const { data } = await supabase.from("item").select("id,title,nickname,user_id,sold,buyer_id,received").eq("id", params.id).single();
-      if (data) setItem(data);
+      const { data } = await supabase.from("item").select("id,title,nickname,user_id,sold,received").eq("id", params.id).single();
+      if (!data) return;
+      // 購入者は本人・出品者にだけ返る(それ以外は null)
+      const { data: buyerId } = await supabase.rpc("get_item_buyer", { p_item_id: data.id });
+      setItem({ ...data, buyer_id: buyerId ?? null });
     };
     fetchItem();
   }, [authLoading, user, params.id, router]);
@@ -380,7 +383,7 @@ export default function ItemChat() {
       .single();
 
     if (error) {
-      alert("メッセージの送信に失敗しました");
+      alert(error.message?.includes("多すぎます") ? error.message : "メッセージの送信に失敗しました");
       setInput(content);
       return;
     }

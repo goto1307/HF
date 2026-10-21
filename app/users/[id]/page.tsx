@@ -26,7 +26,7 @@ type Profile = {
 export default function SellerProfile() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ratingStats, setRatingStats] = useState<{ avg: number; count: number } | null>(null);
@@ -40,6 +40,9 @@ export default function SellerProfile() {
   const [blocking, setBlocking] = useState(false);
 
   useEffect(() => {
+    // プロフィールはログインした人だけが見られる(未ログインの表示は下の分岐で行う)
+    if (authLoading || !user) return;
+
     const fetchData = async () => {
       const { data: isDeleted } = await supabase.rpc("is_deleted", { p_user_id: params.id });
       if (isDeleted) {
@@ -80,7 +83,7 @@ export default function SellerProfile() {
       setLoading(false);
     };
     fetchData();
-  }, [params.id, user]);
+  }, [params.id, user, authLoading]);
 
   const nickname = items[0]?.nickname || "ユーザー";
   const soldCount = items.filter((i) => i.sold).length;
@@ -127,6 +130,20 @@ export default function SellerProfile() {
       setBlocked(true);
     }
   };
+
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen bg-stone-50">
+        <Header />
+        <div className="max-w-md mx-auto px-4 py-16 text-center">
+          <p className="text-stone-600 mb-6">ユーザーのプロフィールは、ログインすると見られます。</p>
+          <Link href="/login" className="inline-block bg-orange-700 text-white px-8 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors">
+            ログイン
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
