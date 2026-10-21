@@ -1935,3 +1935,267 @@ end;
 $$;
 revoke execute on function public.update_own_nickname(text) from public, anon;
 grant execute on function public.update_own_nickname(text) to authenticated;
+
+
+-- ============================================================
+-- PART V: 購入者の非公開・ニックネームのなりすまし防止・
+--          メッセージ連投の制限・画像アップロードの制限
+-- ============================================================
+--
+-- 背景(2026-10-22 の点検で確認):
+--   1) item_select_all は誰でも全列を読めるため、未ログインでも
+--      item.buyer_id から「誰が何を買ったか」が分かった。
+--      → buyer_id だけ列単位で SELECT 権限を外す。購入者が必要な画面は
+--        get_item_buyer() / my_purchased_items() 経由で、本人・出品者・
+--        管理者にだけ返す。
+--      注意: 列単位の権限にしたため、今後 item に列を追加したときは
+--        「grant select (新しい列) on public.item to anon, authenticated;」
+--        が別途必要。
+--      注意: 他テーブルのRLSポリシーのサブクエリで item.buyer_id を参照すると
+--        permission denied になる(PGliteで確認済み)。review の INSERT
+--        ポリシーは SECURITY DEFINER 関数経由に書き換える。
+--   2) item.nickname / message.nickname / review.reviewer_nickname は
+--      ブラウザから送った値がそのまま保存され、「HOKUMA運営」などを名乗れた。
+--      → 正式なニックネームを user_nickname(本人も直接は書き換え不可)に
+--        持ち、INSERT 時にトリガーで上書きする。運営を連想させる名前は禁止。
+--   3) message の送信回数に制限が無かった。→ 1分10件・1時間100件まで。
+--   4) images バケットに種類・サイズの制限が無かった。
+--      → 画像(JPEG/PNG/WebP/GIF)のみ・5MBまで。
+
+-- ---------- 1) 購入者(buyer_id)を本人・出品者・管理者以外に見せない ----------
+revoke select on public.item from anon, authenticated;
+do $$
+declare
+  c text;
+begin
+  for c in
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'item' and column_name <> 'buyer_id'
+  loop
+    execute format('grant select (%I) on public.item to anon, authenticated', c);
+  end loop;
+end;
+$$;
+
+-- 商品の購入者。本人(出品者・購入者)と管理者にだけ返し、それ以外は null。
+create or replace function public.get_item_buyer(p_item_id bigint)
+returns uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select buyer_id from public.item
+  where id = p_item_id
+    and (auth.uid() = user_id or auth.uid() = buyer_id or public.is_admin());
+$$;
+revoke execute on function public.get_item_buyer(bigint) from public, anon;
+grant execute on function public.get_item_buyer(bigint) to authenticated;
+
+-- 自分が購入した商品(マイページ用)
+create or replace function public.my_purchased_items()
+returns setof public.item
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select * from public.item where buyer_id = auth.uid() order by created_at desc;
+$$;
+revoke execute on function public.my_purchased_items() from public, anon;
+grant execute on function public.my_purchased_items() to authenticated;
+
+-- 評価できるか(その商品の受け取り済みの購入者か)
+create or replace function public.can_review_item(p_item_id bigint, p_seller_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.item
+    where id = p_item_id and user_id = p_seller_id
+      and buyer_id = auth.uid() and received = true
+  );
+$$;
+revoke execute on function public.can_review_item(bigint, uuid) from public, anon;
+grant execute on function public.can_review_item(bigint, uuid) to authenticated;
+
+drop policy if exists "review_insert_confirmed_buyer" on public.review;
+drop policy if exists "review_insert_valid_purchase" on public.review;
+create policy "review_insert_confirmed_buyer"
+on public.review for insert
+to authenticated
+with check (
+  auth.uid() = reviewer_id
+  and reviewer_id <> seller_id
+  and public.can_review_item(review.item_id, review.seller_id)
+);
+
+-- ---------- 2) ニックネームのなりすまし防止 ----------
+create table if not exists public.user_nickname (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  nickname text not null
+);
+alter table public.user_nickname enable row level security;
+-- 一般ユーザー向けのポリシーは作らない(SECURITY DEFINER 関数からのみ読み書き)
+
+create or replace function public.is_reserved_nickname(p_nickname text)
+returns boolean
+language sql
+immutable
+as $$
+  select lower(coalesce(p_nickname, '')) ~ '(運営|公式|管理者|hokuma|ホクマ|ほくま|admin|official)';
+$$;
+
+-- 既存ユーザーの正式なニックネームを作る(今の表示名をそのまま引き継ぐ)
+insert into public.user_nickname (user_id, nickname)
+select id, left(coalesce(nullif(trim(raw_user_meta_data ->> 'nickname'), ''), '匿名ユーザー'), 30)
+from auth.users
+on conflict (user_id) do nothing;
+
+-- 新規登録時に正式なニックネームを作る。運営を連想させる名前は登録させない。
+create or replace function public.create_user_nickname()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nickname text := left(coalesce(nullif(trim(new.raw_user_meta_data ->> 'nickname'), ''), '匿名ユーザー'), 30);
+begin
+  if public.is_reserved_nickname(v_nickname) then
+    raise exception 'このニックネームは使用できません';
+  end if;
+  insert into public.user_nickname (user_id, nickname) values (new.id, v_nickname)
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists create_user_nickname_trigger on auth.users;
+create trigger create_user_nickname_trigger
+after insert on auth.users
+for each row
+execute function public.create_user_nickname();
+
+-- 書き込み時に、ブラウザから送られた名前ではなく正式なニックネームを使う
+create or replace function public.apply_official_nickname()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nickname text;
+begin
+  if auth.uid() is null then
+    return new;
+  end if;
+  select nickname into v_nickname from public.user_nickname where user_id = auth.uid();
+  if v_nickname is null then
+    v_nickname := '匿名ユーザー';
+  end if;
+  if tg_table_name = 'review' then
+    new.reviewer_nickname := v_nickname;
+  else
+    new.nickname := v_nickname;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists apply_official_nickname_trigger on public.item;
+create trigger apply_official_nickname_trigger
+before insert on public.item
+for each row execute function public.apply_official_nickname();
+
+drop trigger if exists apply_official_nickname_trigger on public.message;
+create trigger apply_official_nickname_trigger
+before insert on public.message
+for each row execute function public.apply_official_nickname();
+
+drop trigger if exists apply_official_nickname_trigger on public.review;
+create trigger apply_official_nickname_trigger
+before insert on public.review
+for each row execute function public.apply_official_nickname();
+
+-- PART U の変更関数を、正式なニックネームも更新し、運営を連想させる名前を
+-- 禁止する形に置き換える
+create or replace function public.update_own_nickname(p_nickname text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nickname text := trim(p_nickname);
+  v_last timestamptz;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if v_nickname is null or char_length(v_nickname) = 0 then
+    raise exception 'ニックネームを入力してください';
+  end if;
+  if char_length(v_nickname) > 30 then
+    raise exception 'ニックネームは30文字以内にしてください';
+  end if;
+  if public.is_reserved_nickname(v_nickname) then
+    raise exception 'このニックネームは使用できません';
+  end if;
+
+  select changed_at into v_last from public.nickname_change where user_id = auth.uid();
+  if v_last is not null and v_last > now() - interval '7 days' then
+    raise exception 'ニックネームの変更は1週間に1回までです。次に変更できるのは%以降です',
+      to_char((v_last + interval '7 days') at time zone 'Asia/Tokyo', 'FMMM月FMDD日 HH24:MI');
+  end if;
+
+  insert into public.user_nickname (user_id, nickname) values (auth.uid(), v_nickname)
+  on conflict (user_id) do update set nickname = excluded.nickname;
+
+  update public.item set nickname = v_nickname where user_id = auth.uid();
+  update public.message set nickname = v_nickname where user_id = auth.uid();
+  update public.review set reviewer_nickname = v_nickname where reviewer_id = auth.uid();
+
+  insert into public.nickname_change (user_id, changed_at) values (auth.uid(), now())
+  on conflict (user_id) do update set changed_at = excluded.changed_at;
+end;
+$$;
+revoke execute on function public.update_own_nickname(text) from public, anon;
+grant execute on function public.update_own_nickname(text) to authenticated;
+
+-- ---------- 3) メッセージの連投制限(1分10件・1時間100件まで) ----------
+create index if not exists message_user_id_created_at_idx on public.message (user_id, created_at);
+
+create or replace function public.limit_message_rate()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    return new;
+  end if;
+  if (select count(*) from public.message
+      where user_id = auth.uid() and created_at > now() - interval '1 minute') >= 10
+     or (select count(*) from public.message
+      where user_id = auth.uid() and created_at > now() - interval '1 hour') >= 100 then
+    raise exception 'メッセージの送信が多すぎます。少し時間をおいてから送ってください';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists limit_message_rate_trigger on public.message;
+create trigger limit_message_rate_trigger
+before insert on public.message
+for each row execute function public.limit_message_rate();
+
+-- ---------- 4) 画像アップロードの制限(画像のみ・5MBまで) ----------
+update storage.buckets
+set file_size_limit = 5 * 1024 * 1024,
+    allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+where id = 'images';

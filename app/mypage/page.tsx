@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { ITEM_COLUMNS } from "@/lib/itemColumns";
+import { isReservedNickname } from "@/lib/nickname";
 import { validateImageFile } from "@/lib/resizeImage";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
@@ -64,7 +66,7 @@ export default function MyPage() {
     const fetchData = async () => {
       const { data: myItems } = await supabase
         .from("item")
-        .select("*")
+        .select(ITEM_COLUMNS)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (myItems) setItems(myItems);
@@ -79,11 +81,8 @@ export default function MyPage() {
       // buyer_id は購入(mark_item_sold)時にセットされ、cancel_purchase等の
       // キャンセルで null に戻る。以前はメッセージ履歴から算出していたため、
       // キャンセル済みの取引が「購入した商品」に残り続けるバグがあった。
-      const { data: purchasedItems } = await supabase
-        .from("item")
-        .select("*")
-        .eq("buyer_id", user.id)
-        .order("created_at", { ascending: false });
+      // buyer_id は一般ユーザーが直接読めないため、自分の購入分だけ返す関数を使う
+      const { data: purchasedItems } = await supabase.rpc("my_purchased_items");
       if (purchasedItems) setPurchases(purchasedItems);
 
       const { data: blockedRows } = await supabase
@@ -157,6 +156,7 @@ export default function MyPage() {
     const next = nicknameInput.trim();
     if (!next) { alert("ニックネームを入力してください"); return; }
     if (next === currentNickname) return;
+    if (isReservedNickname(next)) { alert("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
     if (!confirm(`ニックネームを「${next}」に変更しますか？\n次に変更できるのは1週間後です。`)) return;
     setSavingNickname(true);
     // 出品・メッセージ・評価に保存されている名前もまとめて書き換える

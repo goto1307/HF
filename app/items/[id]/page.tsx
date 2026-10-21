@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
@@ -68,11 +69,18 @@ export default function ItemDetail() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: itemData } = await supabase.from("item").select("*").eq("id", params.id).single();
-      if (itemData) setItem(itemData);
+      const { data: itemData } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).single();
+      if (!itemData) return;
+      // 購入者は本人・出品者にだけ返る(それ以外は null)
+      let buyerId: string | null = null;
+      if (user) {
+        const { data } = await supabase.rpc("get_item_buyer", { p_item_id: itemData.id });
+        buyerId = data ?? null;
+      }
+      setItem({ ...itemData, buyer_id: buyerId });
     };
     fetchData();
-  }, [params.id]);
+  }, [params.id, user]);
 
   useEffect(() => {
     if (!user) { setMessages([]); return; }
@@ -192,7 +200,7 @@ export default function ItemDetail() {
       .single();
 
     if (error) {
-      alert("メッセージの送信に失敗しました");
+      alert(error.message?.includes("多すぎます") ? error.message : "メッセージの送信に失敗しました");
       setInput(content);
       return;
     }

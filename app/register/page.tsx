@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 import PasswordInput from "@/components/PasswordInput";
+import { isReservedNickname } from "@/lib/nickname";
 
 const TERMS_TEXT = `HOKUMA 利用規約
 
@@ -180,6 +181,7 @@ export default function Register() {
   const handleRegister = async () => {
     if (!isValidEmail(email)) { alert("北大のメールアドレスを入力してください"); return; }
     if (!nickname.trim()) { alert("ニックネームを入力してください"); return; }
+    if (isReservedNickname(nickname)) { alert("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
     if (!isValidPassword(password)) { alert("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
     if (!agreed) { alert("利用規約への同意が必要です"); return; }
     setLoading(true);

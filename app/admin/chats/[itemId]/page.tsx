@@ -44,10 +44,14 @@ export default function AdminItemChats() {
   const fetchData = async () => {
     const { data: itemData } = await supabase
       .from("item")
-      .select("id,title,user_id,nickname,sold,buyer_id")
+      .select("id,title,user_id,nickname,sold")
       .eq("id", params.itemId)
       .single();
-    if (itemData) setItem(itemData);
+    if (itemData) {
+      // buyer_id は列単位で読めないため、管理者にも返す関数で取得する
+      const { data: buyerId } = await supabase.rpc("get_item_buyer", { p_item_id: itemData.id });
+      setItem({ ...itemData, buyer_id: buyerId ?? null });
+    }
 
     const { data: messageData } = await supabase
       .from("message")

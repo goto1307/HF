@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 
@@ -76,7 +77,7 @@ function HomeContent() {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const { data } = await supabase.from("item").select("*").order("created_at", { ascending: false });
+      const { data } = await supabase.from("item").select(ITEM_COLUMNS).order("created_at", { ascending: false });
       if (data) setItems(data);
 
       const { data: favData } = await supabase.from("favorite").select("item_id, user_id");
