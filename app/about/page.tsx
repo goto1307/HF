@@ -33,7 +33,9 @@ export default function About() {
               🐻‍❄️ 北海道大学の学生限定
             </span>
             <h1 className="rise text-4xl sm:text-5xl font-extrabold leading-tight mb-5 text-balance" style={{ animationDelay: "0.18s" }}>
-              いらないが、<br />誰かの<span className="text-[#ff8a52]">「ちょうどいい」</span>になる。
+              いらないが、<br />
+              <span className="inline-block">誰かの<span className="text-[#ff8a52]">「ちょうどいい」</span></span>
+              <span className="inline-block">になる。</span>
             </h1>
             <p className="rise text-base leading-relaxed text-[#d9c9b8] max-w-md mx-auto md:mx-0 mb-8" style={{ animationDelay: "0.3s" }}>
               教科書、自転車、部屋のもの。HOKUMAは、北大生同士だけでちょうどいい売り買いができる、キャンパスの中だけのフリマです。
@@ -132,7 +134,9 @@ export default function About() {
       <section className="bg-[#211a14] text-[#fbf3e9] py-24 text-center">
         <div className="max-w-3xl mx-auto px-6">
           <h2 className="text-2xl sm:text-4xl font-extrabold mb-4 text-balance">
-            次に捨てるはずだったもの、<br />誰かの「ちょうどいい」にしませんか。
+            次に捨てるはずだったもの、<br />
+            <span className="inline-block">誰かの「ちょうどいい」</span>
+            <span className="inline-block">にしませんか。</span>
           </h2>
           <p className="text-sm text-[#d9c9b8] mb-8">登録は北大メールだけ。1分で始められます。</p>
           <div className="flex flex-wrap gap-3 justify-center">
