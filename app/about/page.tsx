@@ -39,7 +39,7 @@ export default function About() {
               教科書、自転車、部屋のもの。HOKUMAは、北大生同士だけでちょうどいい売り買いができる、キャンパスの中だけのフリマです。
             </p>
             <div className="rise flex flex-wrap gap-3 justify-center md:justify-start" style={{ animationDelay: "0.42s" }}>
-              <Link href="/register" className="bg-orange-700 text-white font-extrabold text-sm px-7 py-3.5 rounded-full shadow-[0_14px_30px_-12px_rgba(217,83,31,0.6)] hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgba(217,83,31,0.75)] transition-all">
+              <Link href="/join" className="bg-orange-700 text-white font-extrabold text-sm px-7 py-3.5 rounded-full shadow-[0_14px_30px_-12px_rgba(217,83,31,0.6)] hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgba(217,83,31,0.75)] transition-all">
                 新規登録してはじめる
               </Link>
               <Link href="/login" className="border border-white/35 text-[#fbf3e9] font-extrabold text-sm px-6 py-3.5 rounded-full hover:bg-white/25 hover:border-white/60 transition-colors">
@@ -136,7 +136,7 @@ export default function About() {
           </h2>
           <p className="text-sm text-[#d9c9b8] mb-8">登録は北大メールだけ。1分で始められます。</p>
           <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/register" className="bg-orange-700 text-white font-extrabold text-sm px-7 py-3.5 rounded-full shadow-[0_14px_30px_-12px_rgba(217,83,31,0.6)] hover:-translate-y-0.5 transition-transform">
+            <Link href="/join" className="bg-orange-700 text-white font-extrabold text-sm px-7 py-3.5 rounded-full shadow-[0_14px_30px_-12px_rgba(217,83,31,0.6)] hover:-translate-y-0.5 transition-transform">
               新規登録してはじめる
             </Link>
             <Link href="/" className="border border-white/35 text-[#fbf3e9] font-extrabold text-sm px-6 py-3.5 rounded-full hover:bg-white/25 transition-colors">
