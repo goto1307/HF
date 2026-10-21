@@ -168,10 +168,14 @@ function HomeContent() {
                 🐻‍❄️ 北大生限定のフリマ
               </span>
               <h1 className="text-xl sm:text-3xl font-extrabold leading-snug mb-2 text-balance tracking-tight">
-                いらないが、誰かの「ちょうどいい」になる。
+                <span className="inline-block">いらないが、</span>
+                <span className="inline-block">誰かの「ちょうどいい」</span>
+                <span className="inline-block">になる。</span>
               </h1>
               <p className="text-xs sm:text-sm text-amber-50/90 leading-relaxed mb-5">
-                教科書、自転車、部屋のもの。キャンパスの中だけで、ちょうどいい売り買いを。
+                <span className="inline-block">教科書、自転車、部屋のもの。</span>
+                <span className="inline-block">キャンパスの中だけで、</span>
+                <span className="inline-block">ちょうどいい売り買いを。</span>
               </p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                 <Link href="/join" className="bg-white text-orange-800 px-5 py-2.5 rounded-full font-bold text-sm shadow-md hover:shadow-lg hover:bg-orange-100 transition-all">

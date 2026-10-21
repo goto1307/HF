@@ -1589,7 +1589,7 @@ alter table public.meetup drop constraint if exists meetup_location_template_onl
 --
 -- alter table public.meetup drop constraint if exists meetup_location_template_only;
 -- alter table public.meetup add constraint meetup_location_template_only
---   check (location is null or location = any (array['北部食堂前','正門前','生協前','図書館前']));
+--   check (location is null or location = any (array['中央図書館前','高等教育推進機構前','クラーク会館前','工学部噴水前']));
 
 
 -- ============================================================
@@ -1611,3 +1611,265 @@ using (
   or auth.uid() = buyer_id
   or auth.uid() = seller_id
 );
+
+
+
+-- ============================================================
+-- PART S: 2026-10 セキュリティ点検で見つかった問題の修正
+-- ============================================================
+--
+-- 背景: 2026-10-21 のセキュリティ点検で、本番DBに対して次の問題を確認した。
+--   1) review.rating に 1〜5 の制約が無かった(PART F で追加したはずの
+--      review_rating_check が本番に存在しなかった)。APIを直接叩けば
+--      rating = -1000000 のような評価を投稿でき、相手の平均評価を壊せた。
+--   2) mark_item_sold に回数制限も「自分の商品は買えない」チェックも無く、
+--      1人で全商品をまとめて「売却済み」にできた。
+--      → 自分の商品の購入を禁止し、同時に取引中(受け取り前)にできるのは
+--        1人あたり5件までにする。
+--   3) 出品者は message.buyer_id に任意のユーザーを入れられたため、
+--      問い合わせをしていない無関係な人にも個別メッセージ(と通知)を
+--      送れた。meetup も同様に任意の相手に作れた。
+--      → 出品者から送れるのは「その商品で相手から先に問い合わせがある」
+--        または「実際の購入者」の場合だけにする。
+--   4) storage.objects の "anyone_can_read"(SELECT, to public)により、
+--      未ログインでも images バケットの全ファイル名の一覧を取得できた。
+--      バケットは Public なので、画像の表示(公開URL)にこのポリシーは
+--      不要。削除する。
+--   5) meetup の UPDATE ポリシーが当事者なら何でも更新できたため、
+--      提案者自身が agreed = true にして「相手が同意済み」を偽装できた。
+--      → トリガーで、同意できるのは提案者の相手だけ、提案内容を変えたら
+--        同意はリセット、提案者は常に更新した本人、に固定する。
+
+-- ---------- 1) 評価の点数を1〜5に制限 ----------
+alter table public.review drop constraint if exists review_rating_check;
+alter table public.review add constraint review_rating_check
+  check (rating between 1 and 5);
+
+-- ---------- 2) 購入: 自分の商品は不可・取引中は1人5件まで ----------
+create or replace function public.mark_item_sold(p_item_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  v_title text;
+  v_seller uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+
+  -- 同じ人の購入を直列化し、同時リクエストで上限をすり抜けられないようにする
+  perform pg_advisory_xact_lock(hashtext('mark_item_sold:' || auth.uid()::text));
+
+  select user_id into v_seller from public.item where id = p_item_id;
+  if v_seller is null then
+    raise exception '商品が見つかりません';
+  end if;
+  if v_seller = auth.uid() then
+    raise exception '自分の商品は購入できません';
+  end if;
+  if public.is_deleted(v_seller) then
+    raise exception 'この商品は購入できません';
+  end if;
+
+  if (select count(*) from public.item
+      where buyer_id = auth.uid() and received = false) >= 5 then
+    raise exception '取引中の商品が5件あります。受け取り完了またはキャンセルしてから購入してください';
+  end if;
+
+  update public.item
+  set sold = true, buyer_id = auth.uid()
+  where id = p_item_id and sold = false
+  returning title, user_id into v_title, v_seller;
+
+  if v_seller is null then
+    raise exception 'この商品はすでに売却済みです';
+  end if;
+
+  insert into public.notification (user_id, message, item_id)
+  values (v_seller, '「' || v_title || '」が売れました！', p_item_id);
+end;
+$function$;
+
+-- ---------- 3) 出品者から無関係な人に個別メッセージ・待ち合わせを送れないようにする ----------
+-- その商品について、相手(p_buyer_id)から先に問い合わせがあるか、相手が実際の購入者か。
+-- message / item のRLSに左右されないよう SECURITY DEFINER で判定する。
+create or replace function public.has_inquiry(p_item_id bigint, p_buyer_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (select 1 from public.item where id = p_item_id and buyer_id = p_buyer_id)
+      or exists (
+        select 1 from public.message
+        where item_id = p_item_id and buyer_id = p_buyer_id and user_id = p_buyer_id
+      );
+$$;
+revoke execute on function public.has_inquiry(bigint, uuid) from public, anon;
+grant execute on function public.has_inquiry(bigint, uuid) to authenticated;
+
+drop policy if exists "message_insert_valid" on public.message;
+create policy "message_insert_valid"
+on public.message for insert
+to authenticated
+with check (
+  auth.uid() = user_id
+  and (
+    (buyer_id is null
+      and exists (select 1 from public.item i where i.id = message.item_id)
+      and not public.is_blocked_by(seller_id, auth.uid()))
+    or (
+      buyer_id is not null
+      and buyer_id <> seller_id
+      and exists (
+        select 1 from public.item i
+        where i.id = message.item_id
+          and i.user_id = message.seller_id
+      )
+      and (
+        auth.uid() = buyer_id
+        or (auth.uid() = seller_id and public.has_inquiry(message.item_id, message.buyer_id))
+      )
+      and not public.is_blocked_by(
+        case when auth.uid() = buyer_id then seller_id else buyer_id end,
+        auth.uid()
+      )
+    )
+  )
+);
+
+drop policy if exists "meetup_insert_participant" on public.meetup;
+create policy "meetup_insert_participant"
+on public.meetup for insert
+to authenticated
+with check (
+  proposed_by = auth.uid()
+  and buyer_id <> (select i.user_id from public.item i where i.id = meetup.item_id)
+  and (
+    auth.uid() = buyer_id
+    or (
+      auth.uid() = (select i.user_id from public.item i where i.id = meetup.item_id)
+      and public.has_inquiry(meetup.item_id, meetup.buyer_id)
+    )
+  )
+);
+
+-- ---------- 4) 画像ファイル名の一覧を取得できないようにする ----------
+drop policy if exists "anyone_can_read" on storage.objects;
+
+-- ---------- 5) 待ち合わせの同意を提案者自身が偽装できないようにする ----------
+create or replace function public.meetup_guard()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  -- SQL Editor など、ログインユーザー以外からの操作はそのまま通す
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.proposed_by := auth.uid();
+    new.agreed := false;
+    return new;
+  end if;
+
+  if new.item_id is distinct from old.item_id or new.buyer_id is distinct from old.buyer_id then
+    raise exception '待ち合わせの対象は変更できません';
+  end if;
+
+  -- 同意する操作
+  if new.agreed and not old.agreed then
+    if auth.uid() = old.proposed_by then
+      raise exception '自分の提案には同意できません';
+    end if;
+    if new.location is distinct from old.location
+       or new.meet_at is distinct from old.meet_at
+       or new.proposed_by is distinct from old.proposed_by then
+      raise exception '同意と同時に内容は変更できません';
+    end if;
+    return new;
+  end if;
+
+  -- 同意済みのまま内容も変わらない更新は何もしない
+  if new.agreed and old.agreed
+     and new.location is not distinct from old.location
+     and new.meet_at is not distinct from old.meet_at then
+    new.proposed_by := old.proposed_by;
+    return new;
+  end if;
+
+  -- それ以外は「提案の作成・変更」: 提案者は更新した本人、同意はリセット
+  new.proposed_by := auth.uid();
+  new.agreed := false;
+  return new;
+end;
+$$;
+
+drop trigger if exists meetup_guard_trigger on public.meetup;
+create trigger meetup_guard_trigger
+before insert or update on public.meetup
+for each row
+execute function public.meetup_guard();
+
+
+-- ============================================================
+-- PART T: 個別チャットの通知の文言を公開Q&Aと分ける
+-- ============================================================
+--
+-- 背景: 本番で実際に動いている通知トリガーは、このファイルの PART D
+--   (notify_on_new_message / notify_on_new_message_trigger)ではなく、
+--   Supabase 上で直接作られた notify_on_message / message_notify_trigger
+--   だった(2026-10-22 確認)。こちらは公開Q&Aも個別チャットも
+--   「「〇〇」にメッセージが届きました」と同じ文言で通知していたため、
+--   フロント(components/Header.tsx)で個別チャットの通知だけを
+--   チャット画面に直接開くことができなかった。
+--   処理内容(誰に通知するか)は本番の関数のまま変えず、個別チャットの
+--   場合だけ文言を「取引相手からメッセージが届きました」にする。
+--   この文言を変える場合は Header.tsx の判定も合わせて変えること。
+
+create or replace function public.notify_on_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_owner uuid;
+  v_notify uuid;
+  v_message text;
+begin
+  select title, user_id into v_title, v_owner from public.item where id = new.item_id;
+
+  if new.buyer_id is not null then
+    -- 個別チャット: 送った本人以外(取引相手)に通知
+    if new.user_id = new.buyer_id then
+      v_notify := new.seller_id;
+    else
+      v_notify := new.buyer_id;
+    end if;
+    v_message := '「' || v_title || '」の取引相手からメッセージが届きました';
+  else
+    -- 公開Q&A: 出品者以外の投稿なら出品者に通知
+    if new.user_id <> v_owner then
+      v_notify := v_owner;
+    else
+      v_notify := null;
+    end if;
+    v_message := '「' || v_title || '」にメッセージが届きました';
+  end if;
+
+  if v_notify is not null and v_notify <> new.user_id then
+    insert into public.notification (user_id, message, item_id)
+    values (v_notify, v_message, new.item_id);
+  end if;
+
+  return new;
+end;
+$$;

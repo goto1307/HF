@@ -42,20 +42,10 @@ function toLocalInputValue(iso: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function quickTimeValue(daysFromNow: number, hour: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + daysFromNow);
-  d.setHours(hour, 0, 0, 0);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-const COMMON_LOCATIONS = ["北部食堂前", "正門前", "生協前", "図書館前"];
-const QUICK_TIMES = [
-  { label: "今日18時", value: () => quickTimeValue(0, 18) },
-  { label: "明日12時", value: () => quickTimeValue(1, 12) },
-  { label: "明日18時", value: () => quickTimeValue(1, 18) },
-];
+// 北大構内で人通りが多い場所。ボタンで選べるほか、自由入力もできる。
+const COMMON_LOCATIONS = ["中央図書館前", "高等教育推進機構前", "クラーク会館前", "工学部噴水前"];
+// 明るい時間帯の取引を促すため、待ち合わせはこの時刻まで。
+const LATEST_MEETUP_HOUR = 18;
 
 export default function ItemChat() {
   const params = useParams();
@@ -323,6 +313,14 @@ export default function ItemChat() {
 
   const handleSaveMeetup = async () => {
     if (!item || !buyerId || !user) return;
+    if (meetupAt) {
+      const d = new Date(meetupAt);
+      if (d.getTime() < Date.now()) { alert("過去の日時は設定できません"); return; }
+      if (d.getHours() * 60 + d.getMinutes() > LATEST_MEETUP_HOUR * 60) {
+        alert(`取引は${LATEST_MEETUP_HOUR}時までの時間で設定してください`);
+        return;
+      }
+    }
     setSavingMeetup(true);
     const nowIso = new Date().toISOString();
     const { error } = await supabase.from("meetup").upsert(
@@ -458,7 +456,7 @@ export default function ItemChat() {
             </button>
           </div>
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-            ⚠ 待ち合わせは、人通りが多く明るい場所がおすすめです。
+            ⚠ 取引は、北大生の多いキャンパス内で、明るい時間帯（{LATEST_MEETUP_HOUR}時まで）に行うのがおすすめです。
           </p>
 
           <p className="text-xs text-stone-500 mb-1.5">{TELECOM_SAFE_MODE ? "場所（下から選択してください）" : "場所（ボタンを押すか、直接入力）"}</p>
@@ -481,23 +479,12 @@ export default function ItemChat() {
               maxLength={50}
               value={meetupLocation}
               onChange={(e) => setMeetupLocation(e.target.value)}
-              placeholder="場所を入力（例：北部食堂前）"
+              placeholder="場所を入力（例：クラーク会館前）"
               className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm outline-none bg-white focus:border-orange-600 transition-colors mb-3"
             />
           )}
 
-          <p className="text-xs text-stone-500 mb-1.5">日時（ボタンを押すか、直接指定）</p>
-          <div className="flex gap-1.5 flex-wrap mb-2">
-            {QUICK_TIMES.map((qt) => (
-              <button
-                key={qt.label}
-                onClick={() => setMeetupAt(qt.value())}
-                className="px-3 py-1.5 rounded-full text-xs font-bold border bg-white text-orange-700 border-orange-200 hover:border-orange-400 transition-colors"
-              >
-                {qt.label}
-              </button>
-            ))}
-          </div>
+          <p className="text-xs text-stone-500 mb-1.5">日時（{LATEST_MEETUP_HOUR}時まで）</p>
           <div className="mb-3">
             <input
               type="datetime-local"
@@ -533,7 +520,10 @@ export default function ItemChat() {
         {!buyerId ? (
           <p className="text-center text-stone-400 text-sm m-auto">左の一覧から会話を選んでください</p>
         ) : messages.length === 0 ? (
-          <p className="text-center text-stone-400 text-sm m-auto">まだメッセージがありません。最初のメッセージを送りましょう。</p>
+          <p className="text-center text-stone-400 text-sm m-auto leading-relaxed">
+            まだメッセージがありません。<br />
+            最初は、取引できる日時の候補を3つほど送るのがおすすめです。
+          </p>
         ) : (
           messages.map((msg) => (
             <div key={msg.id} className={`flex gap-2 ${msg.user_id === user?.id ? "flex-row-reverse" : "flex-row"}`}>
@@ -571,7 +561,13 @@ export default function ItemChat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder={buyerId ? "メッセージを入力..." : "会話を選んでください"}
+          placeholder={
+            !buyerId
+              ? "会話を選んでください"
+              : messages.length === 0
+                ? "例：明日12時、明後日16時、金曜15時はどうですか？"
+                : "メッセージを入力..."
+          }
           className="flex-1 px-4 py-3 outline-none text-sm"
           disabled={!buyerId}
         />
