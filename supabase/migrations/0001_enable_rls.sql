@@ -2199,3 +2199,18 @@ update storage.buckets
 set file_size_limit = 5 * 1024 * 1024,
     allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 where id = 'images';
+
+
+-- ============================================================
+-- PART W: プロフィールはログインした人だけが見られるようにする
+-- ============================================================
+--
+-- 背景: profile_select_all が to public(anon 含む)だったため、未ログインでも
+--   一言メッセージ・性別・年齢を読めた。画面側(app/users/[id])で
+--   未ログインには表示しないようにしたのに合わせ、DB側も authenticated に絞る。
+
+drop policy if exists "profile_select_all" on public.profile;
+create policy "profile_select_all"
+on public.profile for select
+to authenticated
+using (public.is_admin() or not public.is_deleted(user_id));

@@ -399,15 +399,27 @@ export default function ItemDetail() {
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm text-stone-500">
               出品者：
-              <Link href={`/users/${item.user_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
-                {item.nickname}
-              </Link>
+              {/* プロフィールはログインした人だけが見られる */}
+              {user ? (
+                <Link href={`/users/${item.user_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
+                  {item.nickname}
+                </Link>
+              ) : (
+                <span className="text-stone-700 font-bold">{item.nickname}</span>
+              )}
             </span>
             {sellerRating && (
-              <Link href={`/users/${item.user_id}`} className="flex items-center gap-1 text-xs text-orange-700 font-bold hover:underline transition-colors">
-                <StarRating value={Math.round(sellerRating.avg)} size={13} />
-                {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
-              </Link>
+              user ? (
+                <Link href={`/users/${item.user_id}`} className="flex items-center gap-1 text-xs text-orange-700 font-bold hover:underline transition-colors">
+                  <StarRating value={Math.round(sellerRating.avg)} size={13} />
+                  {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
+                </Link>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-orange-700 font-bold">
+                  <StarRating value={Math.round(sellerRating.avg)} size={13} />
+                  {sellerRating.avg.toFixed(1)}（{sellerRating.count}件）
+                </span>
+              )
             )}
             {sellerDealCount != null && sellerDealCount > 0 && (
               <span className="text-xs text-stone-400">取引実績 {sellerDealCount}件</span>
