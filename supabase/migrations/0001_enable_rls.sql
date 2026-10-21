@@ -1873,3 +1873,65 @@ begin
   return new;
 end;
 $$;
+
+
+-- ============================================================
+-- PART U: ニックネームの変更(1週間に1回まで)
+-- ============================================================
+--
+-- 背景: ニックネームは auth.users の user_metadata に加えて、書き込み時に
+--   item.nickname / message.nickname / review.reviewer_nickname へコピーして
+--   保存している。マイページからニックネームを変えたときに過去の表示名が
+--   古いまま残らないよう、本人の行をまとめて書き換える関数を用意する。
+--   message / review には一般ユーザー向けの UPDATE ポリシーが無いため
+--   SECURITY DEFINER で実行する(書き換えるのは本人が書いた行だけ)。
+--   user_metadata 側はフロントから supabase.auth.updateUser で更新する。
+--
+--   トラブル後に名前を変えて別人のふりをするのを防ぐため、変更は
+--   1週間に1回までにする。最後に変更した日時は nickname_change に記録し、
+--   一般ユーザー向けのポリシーは作らない(本人も書き換えられない)。
+--   注意: user_metadata は本人がAPIから直接書き換えられるため、この制限は
+--   マイページからの通常の変更に対するもの。
+
+create table if not exists public.nickname_change (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  changed_at timestamptz not null default now()
+);
+alter table public.nickname_change enable row level security;
+
+create or replace function public.update_own_nickname(p_nickname text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nickname text := trim(p_nickname);
+  v_last timestamptz;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if v_nickname is null or char_length(v_nickname) = 0 then
+    raise exception 'ニックネームを入力してください';
+  end if;
+  if char_length(v_nickname) > 30 then
+    raise exception 'ニックネームは30文字以内にしてください';
+  end if;
+
+  select changed_at into v_last from public.nickname_change where user_id = auth.uid();
+  if v_last is not null and v_last > now() - interval '7 days' then
+    raise exception 'ニックネームの変更は1週間に1回までです。次に変更できるのは%以降です',
+      to_char((v_last + interval '7 days') at time zone 'Asia/Tokyo', 'FMMM月FMDD日 HH24:MI');
+  end if;
+
+  update public.item set nickname = v_nickname where user_id = auth.uid();
+  update public.message set nickname = v_nickname where user_id = auth.uid();
+  update public.review set reviewer_nickname = v_nickname where reviewer_id = auth.uid();
+
+  insert into public.nickname_change (user_id, changed_at) values (auth.uid(), now())
+  on conflict (user_id) do update set changed_at = excluded.changed_at;
+end;
+$$;
+revoke execute on function public.update_own_nickname(text) from public, anon;
+grant execute on function public.update_own_nickname(text) to authenticated;
