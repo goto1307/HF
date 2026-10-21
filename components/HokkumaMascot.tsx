@@ -6,7 +6,7 @@ export default function HokkumaMascot({ className = "", size = 96 }: { className
       width={size}
       height={size}
       alt="ホックマ"
-      className={className}
+      className={`rounded-2xl border border-stone-200 shadow-sm bg-white ${className}`}
     />
   );
 }
