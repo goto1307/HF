@@ -1589,7 +1589,7 @@ alter table public.meetup drop constraint if exists meetup_location_template_onl
 --
 -- alter table public.meetup drop constraint if exists meetup_location_template_only;
 -- alter table public.meetup add constraint meetup_location_template_only
---   check (location is null or location = any (array['北部食堂前','正門前','生協前','図書館前']));
+--   check (location is null or location = any (array['中央図書館前','高等教育推進機構前','クラーク会館前','工学部噴水前']));
 
 
 -- ============================================================
@@ -1611,3 +1611,60 @@ using (
   or auth.uid() = buyer_id
   or auth.uid() = seller_id
 );
+
+
+-- ============================================================
+-- PART T: 個別チャットの通知の文言を公開Q&Aと分ける
+-- ============================================================
+--
+-- 背景: 本番で実際に動いている通知トリガーは、このファイルの PART D
+--   (notify_on_new_message / notify_on_new_message_trigger)ではなく、
+--   Supabase 上で直接作られた notify_on_message / message_notify_trigger
+--   だった(2026-10-22 確認)。こちらは公開Q&Aも個別チャットも
+--   「「〇〇」にメッセージが届きました」と同じ文言で通知していたため、
+--   フロント(components/Header.tsx)で個別チャットの通知だけを
+--   チャット画面に直接開くことができなかった。
+--   処理内容(誰に通知するか)は本番の関数のまま変えず、個別チャットの
+--   場合だけ文言を「取引相手からメッセージが届きました」にする。
+--   この文言を変える場合は Header.tsx の判定も合わせて変えること。
+
+create or replace function public.notify_on_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_owner uuid;
+  v_notify uuid;
+  v_message text;
+begin
+  select title, user_id into v_title, v_owner from public.item where id = new.item_id;
+
+  if new.buyer_id is not null then
+    -- 個別チャット: 送った本人以外(取引相手)に通知
+    if new.user_id = new.buyer_id then
+      v_notify := new.seller_id;
+    else
+      v_notify := new.buyer_id;
+    end if;
+    v_message := '「' || v_title || '」の取引相手からメッセージが届きました';
+  else
+    -- 公開Q&A: 出品者以外の投稿なら出品者に通知
+    if new.user_id <> v_owner then
+      v_notify := v_owner;
+    else
+      v_notify := null;
+    end if;
+    v_message := '「' || v_title || '」にメッセージが届きました';
+  end if;
+
+  if v_notify is not null and v_notify <> new.user_id then
+    insert into public.notification (user_id, message, item_id)
+    values (v_notify, v_message, new.item_id);
+  end if;
+
+  return new;
+end;
+$$;

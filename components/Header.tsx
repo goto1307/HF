@@ -96,7 +96,11 @@ export default function Header() {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     }
     setShowNotifications(false);
-    if (n.item_id) router.push(`/items/${n.item_id}`);
+    if (!n.item_id) return;
+    // 個別チャットの通知は、商品ページを経由せずチャット画面へ直接開く。
+    // 文言は DB の notify_on_new_message() が作るものと一致させること。
+    const isPrivateChat = n.message.includes("取引相手からメッセージが届きました");
+    router.push(isPrivateChat ? `/items/${n.item_id}/chat` : `/items/${n.item_id}`);
   };
 
   const handleSearch = () => {
