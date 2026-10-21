@@ -84,7 +84,7 @@ export default function Login() {
             </button>
           </form>
           <button
-            onClick={() => router.push("/register")}
+            onClick={() => router.push("/join")}
             className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-100 transition-colors"
           >
             新規登録はこちら
