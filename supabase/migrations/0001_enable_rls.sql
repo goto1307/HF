@@ -2214,3 +2214,54 @@ create policy "profile_select_all"
 on public.profile for select
 to authenticated
 using (public.is_admin() or not public.is_deleted(user_id));
+
+
+-- ============================================================
+-- PART X: 公開Q&Aのブロック判定を、商品の本当の出品者で行う
+-- ============================================================
+--
+-- 背景: 公開Q&A(buyer_id is null)のブロック判定は
+--   is_blocked_by(seller_id, auth.uid()) だったが、フロントが公開Q&Aの投稿で
+--   seller_id を送っておらず(null)、ブロックが一度も効いていなかった。
+--   また seller_id は送る側が自由に決められるため、でたらめな値でも
+--   すり抜けられた。→ 商品の出品者(item.user_id)で判定し、seller_id を
+--   入れる場合は出品者と一致するものだけ許可する。個別チャット側は PART S のまま。
+
+drop policy if exists "message_insert_valid" on public.message;
+create policy "message_insert_valid"
+on public.message for insert
+to authenticated
+with check (
+  auth.uid() = user_id
+  and (
+    (
+      buyer_id is null
+      and exists (select 1 from public.item i where i.id = message.item_id)
+      and (
+        seller_id is null
+        or seller_id = (select i.user_id from public.item i where i.id = message.item_id)
+      )
+      and not public.is_blocked_by(
+        (select i.user_id from public.item i where i.id = message.item_id),
+        auth.uid()
+      )
+    )
+    or (
+      buyer_id is not null
+      and buyer_id <> seller_id
+      and exists (
+        select 1 from public.item i
+        where i.id = message.item_id
+          and i.user_id = message.seller_id
+      )
+      and (
+        auth.uid() = buyer_id
+        or (auth.uid() = seller_id and public.has_inquiry(message.item_id, message.buyer_id))
+      )
+      and not public.is_blocked_by(
+        case when auth.uid() = buyer_id then seller_id else buyer_id end,
+        auth.uid()
+      )
+    )
+  )
+);

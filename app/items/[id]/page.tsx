@@ -192,6 +192,8 @@ export default function ItemDetail() {
       .from("message")
       .insert({
         item_id: params.id,
+        // 公開Q&Aでも出品者を入れる(ブロック判定・通知に使う)。DB 側でも商品の出品者で判定している
+        seller_id: item?.user_id,
         user_id: user.id,
         nickname: user.user_metadata?.nickname || "匿名ユーザー",
         content,
