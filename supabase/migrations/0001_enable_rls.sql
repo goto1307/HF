@@ -2456,3 +2456,26 @@ as $$
   select nickname from public.user_nickname where user_id = p_user_id;
 $$;
 grant execute on function public.get_nickname(uuid) to authenticated;
+
+
+-- ============================================================
+-- PART AC: ポスターのQRコード読み込み回数を記録する
+-- ============================================================
+--
+-- 背景: ポスターに貼るQRコード(/qr へのリンク)が何回読み込まれたかを
+--   知りたい。読み込む人はまだ未登録(未ログイン)の場合がほとんどなので、
+--   anon からも INSERT できるようにする。件数の確認は画面を作らず、
+--   運営がSupabaseのSQL Editorで次を実行する想定:
+--     select count(*) from public.qr_scan;
+
+create table if not exists public.qr_scan (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now()
+);
+alter table public.qr_scan enable row level security;
+
+drop policy if exists "qr_scan_insert_anyone" on public.qr_scan;
+create policy "qr_scan_insert_anyone"
+on public.qr_scan for insert
+to anon, authenticated
+with check (true);
