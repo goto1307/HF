@@ -63,7 +63,7 @@ export default function WishList() {
   };
 
   return (
-    <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
+    <section className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
       <h3 className="font-bold mb-1">
         欲しいもの<span className="text-sm font-normal text-stone-400 ml-1">（{wishes.length}/{WISH_LIMIT}）</span>
       </h3>
