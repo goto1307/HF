@@ -2428,3 +2428,31 @@ for each row execute function public.notify_wish_match();
 --   乗せることで、他人のアイコンも表示できるようにする。
 
 alter table public.profile add column if not exists avatar_url text;
+
+
+-- ============================================================
+-- PART AB: 出品したことが無い利用者のページで、ニックネームが
+--          「ユーザー」のままになる不具合を修正
+-- ============================================================
+--
+-- 背景: app/users/[id] のニックネームは items[0]?.nickname(その人の出品の
+--   1件目に保存されたニックネーム)から取っていた。出品したことが一度も
+--   無い、または出品をすべて削除した利用者は items が空になるため、
+--   正式なニックネームを登録していても画面側の初期値「ユーザー」のまま
+--   表示されていた。
+--   正式なニックネームは user_nickname テーブルにあるが、なりすまし防止の
+--   ため一般ユーザー向けの SELECT ポリシーを意図的に作っていない。
+--   → SECURITY DEFINER 関数で、本人かどうかに関わらず読めるようにする
+--   (ニックネームは item/message に既に公開されている情報であり、
+--   新たに非公開情報を公開するものではない)。
+
+create or replace function public.get_nickname(p_user_id uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select nickname from public.user_nickname where user_id = p_user_id;
+$$;
+grant execute on function public.get_nickname(uuid) to authenticated;

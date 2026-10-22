@@ -29,6 +29,7 @@ export default function SellerProfile() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
+  const [nickname, setNickname] = useState("ユーザー");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ratingStats, setRatingStats] = useState<{ avg: number; count: number } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +70,11 @@ export default function SellerProfile() {
         .order("created_at", { ascending: false });
       if (itemData) setItems(itemData);
 
+      // 出品したことが無い利用者でも正しいニックネームを表示するため、
+      // items から推測せず正式なニックネームを取得する
+      const { data: nicknameData } = await supabase.rpc("get_nickname", { p_user_id: params.id });
+      if (nicknameData) setNickname(nicknameData);
+
       const { data: reviewData } = await supabase.from("review").select("rating").eq("seller_id", params.id);
       if (reviewData && reviewData.length > 0) {
         const total = reviewData.reduce((sum, r) => sum + r.rating, 0);
@@ -86,7 +92,6 @@ export default function SellerProfile() {
     fetchData();
   }, [params.id, user, authLoading]);
 
-  const nickname = items[0]?.nickname || "ユーザー";
   const soldCount = items.filter((i) => i.sold).length;
   const activeItems = items.filter((i) => !i.sold);
 
