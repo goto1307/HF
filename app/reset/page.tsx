@@ -13,7 +13,7 @@ export default function Reset() {
   const handleReset = async () => {
     if (!email) { alert("メールアドレスを入力してください"); return; }
     setLoading(true);
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.normalize("NFKC").trim().toLowerCase();
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: typeof window !== "undefined" ? `${window.location.origin}/update-password` : undefined,
     });

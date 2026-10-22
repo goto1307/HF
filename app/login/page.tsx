@@ -29,7 +29,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedEmail = email.normalize("NFKC").trim().toLowerCase();
       const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (error) {
         if (error.code === "email_not_confirmed") {
