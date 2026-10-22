@@ -12,6 +12,7 @@ import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import StarRating from "@/components/StarRating";
 import ImageCropper from "@/components/ImageCropper";
+import WishList from "@/components/WishList";
 
 type Item = {
   id: number;
@@ -292,7 +293,9 @@ export default function MyPage() {
           </div>
         </div>
 
-        <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
+        {/* 広い画面ではプロフィールと欲しいものを横に並べる */}
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
+        <section className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
           <h3 className="font-bold mb-3">プロフィール</h3>
           {!profileAvailable && (
             <p className="text-xs text-stone-400 mb-3">この機能は現在準備中です。保存できない場合があります。</p>
@@ -363,6 +366,9 @@ export default function MyPage() {
             </button>
           </div>
         </section>
+
+        <WishList />
+        </div>
 
         {blockedUsers.length > 0 && (
           <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">

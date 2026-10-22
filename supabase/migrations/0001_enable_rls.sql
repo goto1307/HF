@@ -2304,3 +2304,112 @@ begin
   end loop;
 end;
 $$;
+
+
+-- ============================================================
+-- PART Z: 欲しいもの登録(キーワード+ジャンルが一致する出品があれば通知)
+-- ============================================================
+--
+-- 仕様:
+--   - 1人3件まで(将来プレミアムで増やす想定。上限は wish_limit() で決める)
+--   - キーワード(1〜30文字)とジャンル(null = 指定なし)を登録
+--   - 新しく出品されたとき、キーワードがタイトルかハッシュタグに含まれ
+--     (大文字小文字は区別しない)、ジャンルが一致(または指定なし)なら、
+--     登録した人にアプリ内通知を送る。同じ出品で複数一致しても通知は1件
+--   - 自分の出品・自分がブロックした人の出品・退会済みの人には通知しない
+--   - 本人しか読めない(何を欲しがっているかは他人に見せない)
+
+create table if not exists public.wish (
+  id bigserial primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  keyword text not null check (char_length(trim(keyword)) between 1 and 30),
+  category text,
+  created_at timestamptz not null default now()
+);
+create index if not exists wish_user_id_idx on public.wish (user_id);
+alter table public.wish enable row level security;
+revoke all on public.wish from anon;
+grant select, insert, delete on public.wish to authenticated;
+grant usage, select on sequence public.wish_id_seq to authenticated;
+
+drop policy if exists "wish_select_own" on public.wish;
+create policy "wish_select_own"
+on public.wish for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "wish_insert_own" on public.wish;
+create policy "wish_insert_own"
+on public.wish for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "wish_delete_own" on public.wish;
+create policy "wish_delete_own"
+on public.wish for delete
+to authenticated
+using (auth.uid() = user_id);
+
+-- 1人あたりの登録上限(プレミアムを入れるときはここを変える)
+create or replace function public.wish_limit(p_user_id uuid)
+returns integer
+language sql
+stable
+as $$
+  select 3;
+$$;
+
+create or replace function public.limit_wish_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.keyword := trim(new.keyword);
+  if (select count(*) from public.wish where user_id = new.user_id) >= public.wish_limit(new.user_id) then
+    raise exception '欲しいものは%件まで登録できます', public.wish_limit(new.user_id);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists limit_wish_count_trigger on public.wish;
+create trigger limit_wish_count_trigger
+before insert on public.wish
+for each row execute function public.limit_wish_count();
+
+-- 出品されたら、一致する「欲しいもの」を登録している人に通知する
+create or replace function public.notify_wish_match()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.notification (user_id, message, item_id)
+  select distinct on (w.user_id)
+    w.user_id,
+    '欲しいもの「' || w.keyword || '」に一致する「' || new.title || '」が出品されました',
+    new.id
+  from public.wish w
+  where w.user_id <> new.user_id
+    and (w.category is null or w.category = new.category)
+    and (
+      position(lower(w.keyword) in lower(coalesce(new.title, ''))) > 0
+      or exists (
+        select 1 from unnest(coalesce(new.hashtags, array[]::text[])) as t(tag)
+        where position(lower(w.keyword) in lower(t.tag)) > 0
+      )
+    )
+    and not public.is_blocked_by(w.user_id, new.user_id)
+    and not public.is_deleted(w.user_id)
+  order by w.user_id, w.created_at;
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_wish_match_trigger on public.item;
+create trigger notify_wish_match_trigger
+after insert on public.item
+for each row execute function public.notify_wish_match();
