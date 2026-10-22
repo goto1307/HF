@@ -13,6 +13,7 @@ import HokkumaMascot from "@/components/HokkumaMascot";
 import StarRating from "@/components/StarRating";
 import ImageCropper from "@/components/ImageCropper";
 import WishList from "@/components/WishList";
+import { AVATAR_PRESETS } from "@/lib/avatarPresets";
 
 type Item = {
   id: number;
@@ -139,6 +140,22 @@ export default function MyPage() {
     setAvatarCropFile(file);
   };
 
+  const applyAvatarUrl = async (url: string) => {
+    if (!user) return false;
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { avatar_url: url },
+    });
+    if (updateError) { alert("アイコンの更新に失敗しました"); return false; }
+    // プロフィールテーブルにも保存し、チャットなど他の利用者からもアイコンが見えるようにする
+    const { error: profileError } = await supabase.from("profile").upsert({
+      user_id: user.id,
+      avatar_url: url,
+      updated_at: new Date().toISOString(),
+    });
+    if (profileError) { alert("アイコンの公開設定に失敗しました"); return false; }
+    return true;
+  };
+
   const handleAvatarCropConfirm = async (cropped: File) => {
     setAvatarCropFile(null);
     if (!user) return;
@@ -151,11 +168,14 @@ export default function MyPage() {
       return;
     }
     const { data: urlData } = supabase.storage.from("images").getPublicUrl(fileName);
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: { avatar_url: urlData.publicUrl },
-    });
+    await applyAvatarUrl(urlData.publicUrl);
     setUploadingAvatar(false);
-    if (updateError) { alert("アイコンの更新に失敗しました"); return; }
+  };
+
+  const handleSelectPresetAvatar = async (url: string) => {
+    setUploadingAvatar(true);
+    await applyAvatarUrl(url);
+    setUploadingAvatar(false);
   };
 
   const currentNickname: string = user?.user_metadata?.nickname || "";
@@ -298,6 +318,20 @@ export default function MyPage() {
           <div>
             <h2 className="text-xl font-bold mb-1">マイページ</h2>
             <p className="text-sm text-stone-500">{user?.user_metadata?.nickname || user?.email}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs text-stone-400">初期アイコン：</span>
+              {AVATAR_PRESETS.map((url) => (
+                <button
+                  key={url}
+                  type="button"
+                  onClick={() => handleSelectPresetAvatar(url)}
+                  disabled={uploadingAvatar}
+                  className="w-8 h-8 rounded-full overflow-hidden border border-stone-200 hover:border-orange-400 transition-colors disabled:opacity-50"
+                >
+                  <img src={url} alt="初期アイコン" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

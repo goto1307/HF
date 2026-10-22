@@ -2413,3 +2413,18 @@ drop trigger if exists notify_wish_match_trigger on public.item;
 create trigger notify_wish_match_trigger
 after insert on public.item
 for each row execute function public.notify_wish_match();
+
+
+-- ============================================================
+-- PART AA: チャット等に表示するアイコン画像を他の利用者にも公開する
+-- ============================================================
+--
+-- 背景: マイページのアイコンは auth.users.raw_user_meta_data(avatar_url)に
+--   しか保存しておらず、他人からは読めなかった(admin_list_users 経由の
+--   管理者しか見られない)。そのため公開Q&A・個別チャット・ユーザーページで
+--   相手のアイコンを表示できず、頭文字の丸アイコンで代用していた。
+--   bio/gender/age と同じく public.profile に avatar_url を持たせ、
+--   既存の profile_select_all(ログインユーザーなら誰でも閲覧可)に
+--   乗せることで、他人のアイコンも表示できるようにする。
+
+alter table public.profile add column if not exists avatar_url text;

@@ -42,6 +42,7 @@ export default function ItemDetail() {
   const { user } = useAuth();
   const [item, setItem] = useState<Item | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>({});
   const [input, setInput] = useState("");
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -74,6 +75,21 @@ export default function ItemDetail() {
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [input]);
+
+  useEffect(() => {
+    const ids = Array.from(new Set(messages.map((m) => m.user_id))).filter((id) => !(id in avatarMap));
+    if (ids.length === 0) return;
+    const fetchAvatars = async () => {
+      const { data } = await supabase.from("profile").select("user_id,avatar_url").in("user_id", ids);
+      setAvatarMap((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = null;
+        for (const row of data || []) next[row.user_id] = row.avatar_url;
+        return next;
+      });
+    };
+    fetchAvatars();
+  }, [messages, avatarMap]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -527,12 +543,18 @@ export default function ItemDetail() {
             ) : null}
             {user && messages.map((msg) => (
               <div key={msg.id} className={`flex gap-2 ${msg.user_id === user?.id ? "flex-row-reverse" : "flex-row"}`}>
-                <div className="w-8 h-8 bg-orange-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {msg.nickname?.[0] || "?"}
-                </div>
+                <Link href={`/users/${msg.user_id}`} className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden block">
+                  {avatarMap[msg.user_id] ? (
+                    <img src={avatarMap[msg.user_id]!} alt={msg.nickname} className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 bg-orange-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {msg.nickname?.[0] || "?"}
+                    </div>
+                  )}
+                </Link>
                 <div className={`max-w-xs ${msg.user_id === user?.id ? "items-end" : "items-start"} flex flex-col`}>
                   <p className="text-xs text-stone-500 mb-1 flex items-center gap-1">
-                    {msg.nickname}
+                    <Link href={`/users/${msg.user_id}`} className="hover:underline">{msg.nickname}</Link>
                     {msg.user_id === item.user_id && (
                       <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">出品者</span>
                     )}

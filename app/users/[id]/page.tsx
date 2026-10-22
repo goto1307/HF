@@ -21,6 +21,7 @@ type Profile = {
   bio: string | null;
   gender: string | null;
   age: number | null;
+  avatar_url: string | null;
 };
 
 export default function SellerProfile() {
@@ -77,7 +78,7 @@ export default function SellerProfile() {
       }
 
       // profile テーブルは未作成の場合がある(移行未適用)ため、失敗しても無視する
-      const { data: profileData } = await supabase.from("profile").select("bio,gender,age").eq("user_id", params.id).maybeSingle();
+      const { data: profileData } = await supabase.from("profile").select("bio,gender,age,avatar_url").eq("user_id", params.id).maybeSingle();
       if (profileData) setProfile(profileData);
 
       setLoading(false);
@@ -169,9 +170,17 @@ export default function SellerProfile() {
       <main className="max-w-2xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 mb-6">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-orange-700 text-white flex items-center justify-center text-2xl font-bold shrink-0">
-              {nickname[0]}
-            </div>
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={nickname}
+                className="w-16 h-16 rounded-full object-cover border border-stone-200 shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-orange-700 text-white flex items-center justify-center text-2xl font-bold shrink-0">
+                {nickname[0]}
+              </div>
+            )}
             <div>
               <h2 className="text-xl font-bold">{nickname}</h2>
               {ratingStats && ratingStats.count > 0 ? (
