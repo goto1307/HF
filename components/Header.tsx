@@ -141,6 +141,14 @@ export default function Header() {
                   出品・売れた商品
                 </Link>
               )}
+              {user && (
+                <Link
+                  href="/mypage#wish"
+                  className="hidden md:inline-block text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/30 transition-colors whitespace-nowrap shrink-0"
+                >
+                  欲しいもの
+                </Link>
+              )}
             </div>
           )}
           <nav className="flex items-center gap-1 sm:gap-2 shrink-0">

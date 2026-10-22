@@ -118,6 +118,14 @@ export default function MyPage() {
   }, [authLoading, user, router]);
 
   const loading = authLoading || dataLoading;
+
+  // 読み込みが終わってから中身が表示されるため、#wish や #selling で開かれたときは
+  // 表示後にその欄までスクロールする
+  useEffect(() => {
+    if (loading) return;
+    const id = window.location.hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView();
+  }, [loading]);
   const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
   const nothingYet = !loading && items.length === 0 && reviews.length === 0 && purchases.length === 0;
 
