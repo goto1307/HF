@@ -12,6 +12,7 @@ import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import StarRating from "@/components/StarRating";
 import ImageCropper from "@/components/ImageCropper";
+import WishList from "@/components/WishList";
 
 type Item = {
   id: number;
@@ -363,6 +364,8 @@ export default function MyPage() {
             </button>
           </div>
         </section>
+
+        <WishList />
 
         {blockedUsers.length > 0 && (
           <section className="mb-8 bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
