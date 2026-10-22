@@ -537,7 +537,7 @@ export default function ItemDetail() {
                       <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">出品者</span>
                     )}
                   </p>
-                  <div className={`px-4 py-2 rounded-2xl text-sm ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
+                  <div className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
                     {msg.content}
                   </div>
                   {user && msg.user_id !== user.id && (
@@ -561,12 +561,12 @@ export default function ItemDetail() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
                 }
               }}
-              placeholder={!TELECOM_SAFE_MODE && item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力...(Shift+Enterで送信)" : "ログインするとメッセージを送れます"}
+              placeholder={!TELECOM_SAFE_MODE && item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力...(Shift+Enterで改行)" : "ログインするとメッセージを送れます"}
               className="flex-1 px-4 py-3 outline-none text-sm disabled:bg-stone-100 resize-none overflow-hidden"
               disabled={!user || (!TELECOM_SAFE_MODE && item.sold)}
             />

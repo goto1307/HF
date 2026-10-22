@@ -548,7 +548,7 @@ export default function ItemChat() {
                     <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">出品者</span>
                   )}
                 </p>
-                <div className={`px-4 py-2 rounded-2xl text-sm ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
+                <div className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
                   {msg.content}
                 </div>
                 {user && msg.user_id !== user.id && (
@@ -573,7 +573,7 @@ export default function ItemChat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               sendMessage();
             }
@@ -583,7 +583,7 @@ export default function ItemChat() {
               ? "会話を選んでください"
               : messages.length === 0
                 ? "例：明日12時、明後日16時、金曜15時はどうですか？"
-                : "メッセージを入力...(Shift+Enterで送信)"
+                : "メッセージを入力...(Shift+Enterで改行)"
           }
           className="flex-1 px-4 py-3 outline-none text-sm resize-none overflow-hidden"
           disabled={!buyerId}
