@@ -2413,3 +2413,56 @@ drop trigger if exists notify_wish_match_trigger on public.item;
 create trigger notify_wish_match_trigger
 after insert on public.item
 for each row execute function public.notify_wish_match();
+
+
+-- ============================================================
+-- PART AA: 商品が購入されたら、出品者にお知らせメールを送る
+-- ============================================================
+--
+-- 仕組み: item.sold が false → true になったら、pg_net で Edge Function
+--   notify-sold(supabase/functions/notify-sold)を呼ぶ。Edge Function が
+--   DB で売却済みを確かめ直し、出品者の登録メールアドレスに Resend で送る。
+--   - 合言葉は Vault の sold_email_hook_secret に保存し(コードには書かない)、
+--     Edge Function の Secrets の HOOK_SECRET と同じ値にする
+--   - メール送信で何が起きても購入処理は止めない(例外は警告にして握りつぶす)
+--   - 事前に「select vault.create_secret('<ランダムな値>', 'sold_email_hook_secret');」
+--     を一度だけ実行しておくこと(値はこのファイルに書かない)
+
+create extension if not exists pg_net;
+
+create or replace function public.notify_sold_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_secret text;
+begin
+  if new.sold and not coalesce(old.sold, false) and new.buyer_id is not null then
+    begin
+      select decrypted_secret into v_secret
+      from vault.decrypted_secrets
+      where name = 'sold_email_hook_secret'
+      limit 1;
+
+      if v_secret is not null then
+        perform net.http_post(
+          url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-sold',
+          body := jsonb_build_object('item_id', new.id),
+          headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
+        );
+      end if;
+    exception when others then
+      raise warning 'notify_sold_email failed: %', sqlerrm;
+    end;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.notify_sold_email() from public, anon, authenticated;
+
+drop trigger if exists notify_sold_email_trigger on public.item;
+create trigger notify_sold_email_trigger
+after update of sold on public.item
+for each row execute function public.notify_sold_email();
