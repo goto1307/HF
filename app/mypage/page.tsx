@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import { isReservedNickname } from "@/lib/nickname";
 import { validateImageFile } from "@/lib/resizeImage";
+import { makeImagePath } from "@/lib/uploadPath";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import StarRating from "@/components/StarRating";
@@ -133,10 +134,10 @@ export default function MyPage() {
     setAvatarCropFile(null);
     if (!user) return;
     setUploadingAvatar(true);
-    const fileName = `avatars/${user.id}_${Date.now()}_${cropped.name}`;
+    const fileName = makeImagePath(`avatars/${user.id}_`);
     const { error: uploadError } = await supabase.storage.from("images").upload(fileName, cropped);
     if (uploadError) {
-      alert("アイコンのアップロードに失敗しました");
+      alert(`アイコンのアップロードに失敗しました: ${uploadError.message}`);
       setUploadingAvatar(false);
       return;
     }
