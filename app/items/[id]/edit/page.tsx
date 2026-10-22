@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import { validateImageFile } from "@/lib/resizeImage";
+import { makeImagePath } from "@/lib/uploadPath";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 
@@ -119,7 +120,7 @@ export default function EditItem() {
 
     const uploadedUrls: string[] = [];
     for (const file of newImages) {
-      const fileName = `${Date.now()}_${file.name}`;
+      const fileName = makeImagePath();
       const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
       if (uploadError) {
         alert("画像のアップロードに失敗しました");
