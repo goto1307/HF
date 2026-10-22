@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/siteUrl";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://hokuma-market.com";
+  const base = SITE_URL;
   return [
     { url: `${base}/`, priority: 1 },
     { url: `${base}/about`, priority: 0.9 },

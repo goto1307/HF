@@ -2214,3 +2214,93 @@ create policy "profile_select_all"
 on public.profile for select
 to authenticated
 using (public.is_admin() or not public.is_deleted(user_id));
+
+
+-- ============================================================
+-- PART X: 公開Q&Aのブロック判定を、商品の本当の出品者で行う
+-- ============================================================
+--
+-- 背景: 公開Q&A(buyer_id is null)のブロック判定は
+--   is_blocked_by(seller_id, auth.uid()) だったが、フロントが公開Q&Aの投稿で
+--   seller_id を送っておらず(null)、ブロックが一度も効いていなかった。
+--   また seller_id は送る側が自由に決められるため、でたらめな値でも
+--   すり抜けられた。→ 商品の出品者(item.user_id)で判定し、seller_id を
+--   入れる場合は出品者と一致するものだけ許可する。個別チャット側は PART S のまま。
+
+drop policy if exists "message_insert_valid" on public.message;
+create policy "message_insert_valid"
+on public.message for insert
+to authenticated
+with check (
+  auth.uid() = user_id
+  and (
+    (
+      buyer_id is null
+      and exists (select 1 from public.item i where i.id = message.item_id)
+      and (
+        seller_id is null
+        or seller_id = (select i.user_id from public.item i where i.id = message.item_id)
+      )
+      and not public.is_blocked_by(
+        (select i.user_id from public.item i where i.id = message.item_id),
+        auth.uid()
+      )
+    )
+    or (
+      buyer_id is not null
+      and buyer_id <> seller_id
+      and exists (
+        select 1 from public.item i
+        where i.id = message.item_id
+          and i.user_id = message.seller_id
+      )
+      and (
+        auth.uid() = buyer_id
+        or (auth.uid() = seller_id and public.has_inquiry(message.item_id, message.buyer_id))
+      )
+      and not public.is_blocked_by(
+        case when auth.uid() = buyer_id then seller_id else buyer_id end,
+        auth.uid()
+      )
+    )
+  )
+);
+
+
+-- ============================================================
+-- PART Y: 購入者・売却済み・受け取り済みを、出品者が直接変えられないようにする
+-- ============================================================
+--
+-- 背景: item_insert_own / item_update_own は user_id しか見ていないため、
+--   出品者は自分の商品の buyer_id / sold / received を自由に設定できた。
+--   友達を「受け取り済みの購入者」にして評価を水増しする、問い合わせの無い
+--   相手を購入者にして個別メッセージを送る(PART S の制限のすり抜け)、
+--   他人の「購入した商品」に勝手に商品を出す、などができた。
+--   → 列単位の INSERT / UPDATE 権限で、この3列(と id・user_id・created_at)
+--     を一般ユーザーから外す。購入・受け取り・キャンセルは SECURITY DEFINER
+--     の RPC(mark_item_sold / mark_item_received / cancel_purchase /
+--     admin_cancel_purchase)で行うので影響しない。
+--   注意: item に列を追加したときは、編集させたい列なら
+--     「grant insert (列), update (列) on public.item to authenticated;」も必要。
+
+revoke insert, update on public.item from anon, authenticated;
+do $$
+declare
+  c text;
+begin
+  for c in
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'item'
+      and column_name not in ('id', 'user_id', 'buyer_id', 'sold', 'received', 'created_at')
+  loop
+    execute format('grant update (%I) on public.item to authenticated', c);
+  end loop;
+  for c in
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'item'
+      and column_name not in ('id', 'buyer_id', 'sold', 'received', 'created_at')
+  loop
+    execute format('grant insert (%I) on public.item to authenticated', c);
+  end loop;
+end;
+$$;

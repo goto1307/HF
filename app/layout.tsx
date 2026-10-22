@@ -3,6 +3,7 @@ import Link from "next/link";
 import { M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthProvider";
+import { SITE_URL } from "@/lib/siteUrl";
 
 const mplusRounded = M_PLUS_Rounded_1c({
   variable: "--font-mplus-rounded",
@@ -11,6 +12,7 @@ const mplusRounded = M_PLUS_Rounded_1c({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "HOKUMA | 北大生のためのフリマ",
   description: "北海道大学の学生同士で教科書や自転車などを気軽に売り買いできるフリマアプリ",
 };
