@@ -2265,3 +2265,42 @@ with check (
     )
   )
 );
+
+
+-- ============================================================
+-- PART Y: 購入者・売却済み・受け取り済みを、出品者が直接変えられないようにする
+-- ============================================================
+--
+-- 背景: item_insert_own / item_update_own は user_id しか見ていないため、
+--   出品者は自分の商品の buyer_id / sold / received を自由に設定できた。
+--   友達を「受け取り済みの購入者」にして評価を水増しする、問い合わせの無い
+--   相手を購入者にして個別メッセージを送る(PART S の制限のすり抜け)、
+--   他人の「購入した商品」に勝手に商品を出す、などができた。
+--   → 列単位の INSERT / UPDATE 権限で、この3列(と id・user_id・created_at)
+--     を一般ユーザーから外す。購入・受け取り・キャンセルは SECURITY DEFINER
+--     の RPC(mark_item_sold / mark_item_received / cancel_purchase /
+--     admin_cancel_purchase)で行うので影響しない。
+--   注意: item に列を追加したときは、編集させたい列なら
+--     「grant insert (列), update (列) on public.item to authenticated;」も必要。
+
+revoke insert, update on public.item from anon, authenticated;
+do $$
+declare
+  c text;
+begin
+  for c in
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'item'
+      and column_name not in ('id', 'user_id', 'buyer_id', 'sold', 'received', 'created_at')
+  loop
+    execute format('grant update (%I) on public.item to authenticated', c);
+  end loop;
+  for c in
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'item'
+      and column_name not in ('id', 'buyer_id', 'sold', 'received', 'created_at')
+  loop
+    execute format('grant insert (%I) on public.item to authenticated', c);
+  end loop;
+end;
+$$;
