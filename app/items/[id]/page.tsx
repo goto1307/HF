@@ -66,6 +66,14 @@ export default function ItemDetail() {
   const [buying, setBuying] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -546,14 +554,20 @@ export default function ItemDetail() {
             <div ref={bottomRef} />
           </div>
           <div className="flex border-t border-stone-200">
-            <input
-              type="text"
+            <textarea
+              ref={inputRef}
+              rows={1}
               maxLength={500}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={!TELECOM_SAFE_MODE && item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力..." : "ログインするとメッセージを送れます"}
-              className="flex-1 px-4 py-3 outline-none text-sm disabled:bg-stone-100"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder={!TELECOM_SAFE_MODE && item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力...(Shift+Enterで送信)" : "ログインするとメッセージを送れます"}
+              className="flex-1 px-4 py-3 outline-none text-sm disabled:bg-stone-100 resize-none overflow-hidden"
               disabled={!user || (!TELECOM_SAFE_MODE && item.sold)}
             />
             <button onClick={sendMessage} disabled={!user || (!TELECOM_SAFE_MODE && item.sold)} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">

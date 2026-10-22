@@ -77,6 +77,14 @@ export default function ItemChat() {
   const [messageReportReason, setMessageReportReason] = useState("");
   const [reportingMessageBusy, setReportingMessageBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -558,20 +566,26 @@ export default function ItemChat() {
         <div ref={bottomRef} />
       </div>
       <div className="flex border-t border-stone-200">
-        <input
-          type="text"
+        <textarea
+          ref={inputRef}
+          rows={1}
           maxLength={500}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
           placeholder={
             !buyerId
               ? "会話を選んでください"
               : messages.length === 0
                 ? "例：明日12時、明後日16時、金曜15時はどうですか？"
-                : "メッセージを入力..."
+                : "メッセージを入力...(Shift+Enterで送信)"
           }
-          className="flex-1 px-4 py-3 outline-none text-sm"
+          className="flex-1 px-4 py-3 outline-none text-sm resize-none overflow-hidden"
           disabled={!buyerId}
         />
         <button onClick={sendMessage} disabled={!buyerId} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">
