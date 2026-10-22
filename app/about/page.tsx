@@ -150,6 +150,8 @@ export default function About() {
           <p className="mt-14 pt-6 border-t border-white/10 text-xs text-[#a5947f] leading-relaxed">
             HOKUMAは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。
             <br />
+            <Link href="/terms" className="underline">利用規約</Link>
+            <span className="mx-2">・</span>
             <Link href="/privacy" className="underline">プライバシーポリシー</Link>
           </p>
         </div>

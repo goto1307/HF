@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { validateImageFile } from "@/lib/resizeImage";
@@ -290,7 +291,11 @@ export default function Sell() {
                 onChange={(e) => setAgreed(e.target.checked)}
                 className="accent-orange-700 w-4 h-4"
               />
-              上記と利用規約に同意して出品する
+              <span>
+                上記と
+                <Link href="/terms" target="_blank" onClick={(e) => e.stopPropagation()} className="text-orange-700 underline">利用規約</Link>
+                に同意して出品する
+              </span>
             </label>
           </div>
 
