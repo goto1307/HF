@@ -526,7 +526,7 @@ function HomeContent() {
                       </div>
                     )}
                     {item.sold && (
-                      <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-extrabold text-center px-2 py-1 rounded-full shadow-md tracking-wider">
+                      <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-extrabold text-center px-2.5 py-1 rounded-full shadow-md tracking-wider">
                         SOLD OUT
                       </div>
                     )}
