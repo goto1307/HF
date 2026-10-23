@@ -170,7 +170,7 @@ function DemandsContent() {
 
   const renderVoteButton = (id: number, large = false) => {
     const v = votes[id];
-    const size = large ? "flex-1 text-sm py-2.5" : "text-xs px-3 py-1";
+    const size = large ? "flex-1 text-sm py-2.5" : "flex-1 text-xs py-2";
     if (v?.my_done) {
       return (
         <span className={`font-bold rounded-full border text-center bg-stone-100 text-stone-500 border-stone-200 ${size}`}>買えた！</span>
@@ -322,23 +322,24 @@ function DemandsContent() {
                   {d.status === "open" && (
                     <p className="text-[11px] font-bold text-stone-500 mt-1">{wantCount(votes[d.id])}人が欲しい</p>
                   )}
-                  <div className="mt-auto pt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-auto pt-3 flex flex-col gap-1.5">
+                    {/* 詳細はいちばん押されるので、カードの幅いっぱいの大きいボタンにする */}
                     <button
                       onClick={() => openDetail(d.id)}
-                      className="text-xs font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1 hover:bg-stone-100 transition-colors"
+                      className="w-full text-sm font-bold text-stone-700 bg-stone-50 border border-stone-200 rounded-full py-2.5 hover:bg-stone-100 transition-colors"
                     >
-                      詳細
+                      詳細を見る
                     </button>
                     {active && !own && (
-                      <>
+                      <div className="flex gap-1.5">
                         {renderVoteButton(d.id)}
                         <Link
                           href={`/sell?demand=${d.id}`}
-                          className="text-xs font-bold text-white bg-orange-700 rounded-full px-3 py-1 hover:bg-orange-800 transition-colors"
+                          className="flex-1 text-center text-xs font-bold text-white bg-orange-700 rounded-full py-2 hover:bg-orange-800 transition-colors"
                         >
                           応える
                         </Link>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>

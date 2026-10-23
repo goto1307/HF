@@ -7,26 +7,27 @@ import { useAuth } from "@/lib/AuthProvider";
 import { jstToday, type DemandVote } from "@/lib/demand";
 import { IconX } from "@/components/icons";
 
-// ログイン後、画面右下で上を向いて考え事をしているホックマのまわりに、
-// みんなの欲しい！の商品名を吹き出しでポンポン出す。
+// ログイン後、商品を探すページ(/)の右下で上を向いて考え事をしているホックマの
+// まわりに、みんなの欲しい！の商品名を吹き出しでポンポン出す。
 
 type Bubble = { id: number; title: string };
 
 // 吹き出しを置く場所(右下の箱の右端・下端からの距離 px)。ホックマの頭の左上に、
 // 重ならないように並べる。m はスマホ、d は PC。m が null の場所はスマホでは使わない。
+// ホックマの下の説明文の分だけ上にずらしてある。
 const SLOTS: { m: [number, number] | null; d: [number, number] }[] = [
-  { m: [56, 140], d: [70, 178] },
-  { m: [10, 180], d: [16, 240] },
-  { m: [150, 160], d: [150, 214] },
-  { m: null, d: [170, 140] },
-  { m: null, d: [190, 262] },
+  { m: [56, 176], d: [70, 218] },
+  { m: [10, 216], d: [16, 280] },
+  { m: [150, 196], d: [150, 254] },
+  { m: null, d: [170, 180] },
+  { m: null, d: [190, 302] },
 ];
-const SWAP_INTERVAL_MS = 3500;
+const SWAP_INTERVAL_MS = 1500;
 const CACHE_MS = 60_000;
 const HIDE_KEY = "demandBubblesHidden";
 
-// フォームやチャットの入力欄にかぶる画面では出さない
-const HIDDEN_PATHS = [/^\/sell/, /^\/demands\/new/, /^\/items\/[^/]+\/(chat|edit)/, /^\/admin/];
+// 出すのは商品を探すページだけ
+const SHOWN_PATH = "/";
 
 // 欲しい人が多い欲しい！と新しい欲しい！を優先して出す。
 // 優先度 = 僕も！の人数 × VOTE_WEIGHT + 新しさ(登録から FRESH_DAYS 日以内なら最大 FRESH_BONUS)
@@ -59,7 +60,7 @@ export default function DemandBubbles() {
     }
   });
 
-  const isHiddenPath = HIDDEN_PATHS.some((re) => re.test(pathname));
+  const isHiddenPath = pathname !== SHOWN_PATH;
 
   useEffect(() => {
     if (!user) return;
@@ -118,11 +119,11 @@ export default function DemandBubbles() {
   };
 
   return (
-    <div className="fixed bottom-0 right-0 z-10 w-[320px] h-[300px] pointer-events-none">
+    <div className="fixed bottom-0 right-0 z-10 w-[320px] h-[340px] pointer-events-none">
       {pool.length === 0 ? (
         <Link
           href="/demands/new"
-          className="pointer-events-auto absolute right-14 bottom-[140px] sm:right-[70px] sm:bottom-[178px] animate-bubble-pop max-w-[150px] bg-white border border-orange-200 text-orange-800 text-xs font-bold px-3 py-2 rounded-2xl shadow-md hover:bg-orange-50 transition-colors"
+          className="pointer-events-auto absolute right-14 bottom-[176px] sm:right-[70px] sm:bottom-[218px] animate-bubble-pop max-w-[150px] bg-white border border-orange-200 text-orange-800 text-xs font-bold px-3 py-2 rounded-2xl shadow-md hover:bg-orange-50 transition-colors"
         >
           みんなの欲しい！を待ってるよ
         </Link>
@@ -153,13 +154,22 @@ export default function DemandBubbles() {
       )}
 
       <div className="pointer-events-auto absolute right-3 bottom-3 sm:right-4 sm:bottom-4">
-        <Link href="/demands" aria-label="みんなの欲しい！を見る" className="block hover:-translate-y-0.5 transition-transform">
+        <Link href="/demands" className="flex flex-col items-end group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hokkuma-thinking.png" alt="考え事をしているホックマ" className="h-[110px] sm:h-[150px] w-auto drop-shadow-md" />
+          <img
+            src="/hokkuma-thinking.png"
+            alt="考え事をしているホックマ"
+            className="h-[110px] sm:h-[150px] w-auto mr-3 drop-shadow-md group-hover:-translate-y-0.5 transition-transform"
+          />
+          {/* 吹き出しが何なのかを文章で伝える */}
+          <span className="mt-1 bg-white/95 border border-orange-200 rounded-xl px-2.5 py-1 text-right leading-tight shadow-sm group-hover:border-orange-400 transition-colors">
+            <span className="block text-[11px] sm:text-xs font-bold text-orange-800 whitespace-nowrap">ふきだしは、みんなの欲しい！</span>
+            <span className="block text-[10px] sm:text-[11px] text-stone-500 whitespace-nowrap">持っていたら出品してみよう →</span>
+          </span>
         </Link>
         <button
           onClick={hide}
-          className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full bg-white/90 border border-stone-200 text-stone-400 hover:text-stone-600 shadow-sm"
+          className="absolute -top-1 right-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/90 border border-stone-200 text-stone-400 hover:text-stone-600 shadow-sm"
           aria-label="ホックマをしばらく隠す"
         >
           <IconX size={11} />
