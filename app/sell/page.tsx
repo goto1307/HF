@@ -1,20 +1,39 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { validateImageFile } from "@/lib/resizeImage";
 import { makeImagePath } from "@/lib/uploadPath";
+import { DEMAND_COLUMNS, DEMAND_MATCH_LIMIT, findMatchingDemands, formatBudget, formatDeadline, jstToday, type Demand, type MyDemand } from "@/lib/demand";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 import { IconWarning, IconPackage, IconX } from "@/components/icons";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
+const TITLE_MAX = 45;
 
-export default function Sell() {
+// 出品の下書き(migration PART AG)。写真は保存しない。
+type Draft = {
+  id: number;
+  title: string;
+  price: number | null;
+  is_free: boolean;
+  category: string | null;
+  condition: string | null;
+  area: string | null;
+  hashtags: string[];
+  detail: string;
+  demand_id: number | null;
+  updated_at: string;
+};
+const DRAFT_COLUMNS = "id,title,price,is_free,category,condition,area,hashtags,detail,demand_id,updated_at";
+
+function SellContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
@@ -31,6 +50,95 @@ export default function Sell() {
   const [hashtagInput, setHashtagInput] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // 出品後に「この欲しい！の中にありませんか？」と案内する候補
+  const [offer, setOffer] = useState<{ itemId: number; candidates: Demand[] } | null>(null);
+  const [offerSelected, setOfferSelected] = useState<Set<number>>(new Set());
+  const [offering, setOffering] = useState(false);
+  // 「この欲しい！に応える」から来たときの欲しい！と、読み込んだ下書き
+  const [linkedDemand, setLinkedDemand] = useState<Demand | null>(null);
+  const [draftId, setDraftId] = useState<number | null>(null);
+  const [drafts, setDrafts] = useState<Draft[] | null>(null);
+  const [showDrafts, setShowDrafts] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  const fetchDemand = async (id: number) => {
+    const { data } = await supabase.from("demand").select(DEMAND_COLUMNS).eq("id", id).maybeSingle();
+    return (data as Demand | null) ?? null;
+  };
+
+  // /sell?demand=ID で開かれたら、その欲しい！の商品名・金額・タグを入れておく
+  const demandParam = Number(searchParams.get("demand")) || null;
+  useEffect(() => {
+    if (!user || !demandParam) return;
+    const load = async () => {
+      const d = await fetchDemand(demandParam);
+      if (!d) return;
+      setLinkedDemand(d);
+      setTitle(d.title.slice(0, TITLE_MAX));
+      if (d.budget === 0) { setIsFree(true); setPrice(""); } else { setIsFree(false); setPrice(String(d.budget)); }
+      setHashtags(d.tags);
+    };
+    load();
+  }, [user, demandParam]);
+
+  const openDrafts = async () => {
+    setShowDrafts(true);
+    const { data, error } = await supabase.from("item_draft").select(DRAFT_COLUMNS).order("updated_at", { ascending: false });
+    if (error) { alert("下書きの読み込みに失敗しました"); setShowDrafts(false); return; }
+    setDrafts((data ?? []) as Draft[]);
+  };
+
+  const applyDraft = async (d: Draft) => {
+    setTitle(d.title);
+    setIsFree(d.is_free);
+    setPrice(d.price === null ? "" : String(d.price));
+    setCategory(d.category ?? "");
+    setCondition(d.condition ?? "");
+    setArea(d.area ?? "");
+    setHashtags(d.hashtags);
+    setDetail(d.detail);
+    setDraftId(d.id);
+    setShowDrafts(false);
+    setLinkedDemand(d.demand_id ? await fetchDemand(d.demand_id) : null);
+  };
+
+  const deleteDraft = async (d: Draft) => {
+    if (!confirm(`下書き「${d.title || "（タイトルなし）"}」を削除しますか？`)) return;
+    const { error } = await supabase.from("item_draft").delete().eq("id", d.id);
+    if (error) { alert("削除に失敗しました"); return; }
+    setDrafts((prev) => (prev ?? []).filter((x) => x.id !== d.id));
+    if (draftId === d.id) setDraftId(null);
+  };
+
+  const saveDraft = async () => {
+    if (!user) { alert("ログインしてください"); router.push("/login"); return; }
+    if (!isFree && price && (!Number.isInteger(Number(price)) || Number(price) < 0 || Number(price) > 50000)) {
+      alert("価格は0円〜50,000円の範囲で入力してください");
+      return;
+    }
+    const values = {
+      title: title.slice(0, TITLE_MAX),
+      price: isFree || !price ? null : Number(price),
+      is_free: isFree,
+      category: category || null,
+      condition: condition || null,
+      area: area.trim() || null,
+      hashtags,
+      detail,
+      demand_id: linkedDemand?.id ?? null,
+    };
+    setSavingDraft(true);
+    const { data, error } = draftId
+      ? await supabase.from("item_draft").update({ ...values, updated_at: new Date().toISOString() }).eq("id", draftId).select("id").single()
+      : await supabase.from("item_draft").insert(values).select("id").single();
+    setSavingDraft(false);
+    if (error || !data) {
+      alert(error?.message.includes("件まで") ? error.message : "下書きの保存に失敗しました");
+      return;
+    }
+    setDraftId(data.id);
+    alert("下書きに保存しました。写真は下書きに保存されないので、出品するときに追加してください。");
+  };
 
   const addHashtag = () => {
     const tag = hashtagInput.trim().replace(/^#/, "");
@@ -105,7 +213,7 @@ export default function Sell() {
       imageUrls.push(urlData.publicUrl);
     }
 
-    const { error } = await supabase.from("item").insert({
+    const { data: inserted, error } = await supabase.from("item").insert({
       title,
       price: isFree ? 0 : Number(price),
       category,
@@ -117,12 +225,55 @@ export default function Sell() {
       condition: condition || null,
       area: area.trim() || null,
       hashtags: hashtags.length > 0 ? hashtags : null,
-    });
+    }).select("id").single();
 
+    if (error || !inserted) { setLoading(false); alert("出品に失敗しました"); return; }
+
+    // 出品できた下書きは消す(失敗しても出品自体には影響しないので結果は見ない)
+    if (draftId) await supabase.from("item_draft").delete().eq("id", draftId);
+
+    const candidates = await findDemandsForItem();
     setLoading(false);
+    if (candidates.length === 0) {
+      alert("出品しました！");
+      router.push("/");
+      return;
+    }
+    setShowConfirm(false);
+    // 応えた欲しい！は最初から選んでおく
+    setOfferSelected(new Set(linkedDemand && candidates.some((d) => d.id === linkedDemand.id) ? [linkedDemand.id] : []));
+    setOffer({ itemId: inserted.id, candidates });
+  };
 
-    if (error) { alert("出品に失敗しました"); return; }
-    alert("出品しました！");
+  // 出品した商品に合いそうな、他の人の受付中の欲しい！を探す
+  const findDemandsForItem = async () => {
+    const [{ data: openData }, { data: mineData }] = await Promise.all([
+      supabase.from("demand").select(DEMAND_COLUMNS).eq("status", "open").gte("deadline", jstToday()),
+      supabase.rpc("my_demands"),
+    ]);
+    const mineIds = new Set(((mineData ?? []) as MyDemand[]).filter((d) => d.is_owner).map((d) => d.id));
+    const others = ((openData ?? []) as Demand[]).filter((d) => !mineIds.has(d.id));
+    const matched = findMatchingDemands(others, { title, hashtags });
+    // 応えた欲しい！は、一致判定に関係なく候補の先頭に入れる(まだ受付中なら)
+    const linked = linkedDemand && others.find((d) => d.id === linkedDemand.id);
+    if (!linked) return matched;
+    return [linked, ...matched.filter((d) => d.id !== linked.id)].slice(0, DEMAND_MATCH_LIMIT);
+  };
+
+  const finishOffer = async (send: boolean) => {
+    if (!offer) return;
+    if (send && offerSelected.size > 0) {
+      setOffering(true);
+      const { data, error } = await supabase.rpc("offer_item_to_demands", {
+        p_item_id: offer.itemId,
+        p_demand_ids: [...offerSelected],
+      });
+      setOffering(false);
+      if (error) { alert(`通知の送信に失敗しました: ${error.message}`); return; }
+      alert(`出品しました！欲しい！を登録した${data ?? 0}人に知らせました。`);
+    } else {
+      alert("出品しました！");
+    }
     router.push("/");
   };
 
@@ -134,7 +285,24 @@ export default function Sell() {
         <button onClick={() => router.back()} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 戻る
         </button>
-        <h2 className="text-2xl font-bold mb-6">出品する</h2>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-2xl font-bold">出品する</h2>
+          <button
+            onClick={openDrafts}
+            className="shrink-0 text-sm font-bold text-orange-700 border border-orange-200 bg-white rounded-full px-4 py-2 hover:bg-orange-100 transition-colors"
+          >
+            下書きから選ぶ
+          </button>
+        </div>
+        {draftId && <p className="text-xs text-stone-500 mb-2">下書きを編集中です。出品すると下書きは削除されます。</p>}
+        {linkedDemand && (
+          <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-sm">
+            <p className="font-bold text-orange-800">欲しい！「{linkedDemand.title}」に応える出品です</p>
+            <p className="text-xs text-stone-600 mt-0.5">
+              {formatBudget(linkedDemand.budget)}・{formatDeadline(linkedDemand.deadline)}。出品すると、この欲しい！を登録した人に知らせられます。写真がまだなら「下書きに保存」しておけます。
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-5 bg-white rounded-2xl shadow-sm border border-stone-200 p-5">
           <div>
@@ -304,8 +472,56 @@ export default function Sell() {
           <button onClick={handleReview} disabled={!agreed} className="w-full bg-orange-700 text-white py-4 rounded-full font-bold text-lg disabled:opacity-50 hover:bg-orange-800 transition-colors shadow-sm">
             出品する
           </button>
+          <button
+            onClick={saveDraft}
+            disabled={savingDraft}
+            className="w-full -mt-2 border border-orange-200 text-orange-700 py-3 rounded-full font-bold text-sm bg-white disabled:opacity-50 hover:bg-orange-100 transition-colors"
+          >
+            {savingDraft ? "保存中..." : draftId ? "下書きを上書き保存" : "下書きに保存"}
+          </button>
         </div>
       </main>
+
+      {showDrafts && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setShowDrafts(false)}>
+          <div className="bg-white rounded-2xl shadow-lg max-w-md w-full max-h-[85vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-bold">下書きから選ぶ</p>
+              <button onClick={() => setShowDrafts(false)} className="text-stone-400 hover:text-stone-600 transition-colors" aria-label="閉じる">
+                <IconX size={20} />
+              </button>
+            </div>
+            {drafts === null ? (
+              <p className="text-center text-stone-400 text-sm py-8">読み込み中...</p>
+            ) : drafts.length === 0 ? (
+              <p className="text-center text-stone-400 text-sm py-8">下書きはありません</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {drafts.map((d) => (
+                  <div key={d.id} className={`flex items-center gap-2 border rounded-xl p-3 ${draftId === d.id ? "border-orange-400 bg-orange-50" : "border-stone-200"}`}>
+                    <button onClick={() => applyDraft(d)} className="flex-1 min-w-0 text-left">
+                      <span className="block font-bold text-sm truncate">{d.title || "（タイトルなし）"}</span>
+                      <span className="block text-xs text-stone-500">
+                        {d.is_free ? "無料" : d.price !== null ? `¥${d.price.toLocaleString()}` : "価格未入力"}
+                        {d.demand_id && "・欲しい！に応える出品"}
+                        ・{new Date(d.updated_at).toLocaleDateString("ja-JP")}に保存
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => deleteDraft(d)}
+                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-red-500 transition-colors"
+                      aria-label="下書きを削除"
+                    >
+                      <IconX size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] text-stone-400 mt-3">下書きは10件まで保存できます。写真は保存されません。</p>
+          </div>
+        </div>
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
@@ -355,6 +571,56 @@ export default function Sell() {
         </div>
       )}
 
+      {offer && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg max-w-md w-full max-h-[85vh] overflow-y-auto p-6">
+            <p className="font-bold text-center mb-1">出品しました！</p>
+            <p className="text-sm text-stone-600 text-center mb-4">
+              この商品は、これらの欲しい！の中にありませんか？選んだ欲しい！を投稿した人に通知を送ります。あなたの出品が早く買われるかもしれません。
+            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              {offer.candidates.map((d) => (
+                <label key={d.id} className="flex items-start gap-3 border border-stone-200 rounded-xl p-3 cursor-pointer hover:bg-orange-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={offerSelected.has(d.id)}
+                    onChange={() => setOfferSelected((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(d.id)) next.delete(d.id); else next.add(d.id);
+                      return next;
+                    })}
+                    className="accent-orange-700 w-4 h-4 mt-0.5 shrink-0"
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-bold text-sm break-all">{d.title}</span>
+                    <span className="block text-xs text-stone-500">{formatBudget(d.budget)}・{formatDeadline(d.deadline)}</span>
+                    {d.tags.length > 0 && (
+                      <span className="block text-[11px] text-orange-600 truncate">{d.tags.map((t) => `#${t}`).join(" ")}</span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => finishOffer(false)}
+                disabled={offering}
+                className="flex-1 border border-stone-300 text-stone-600 py-3 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
+              >
+                送らない
+              </button>
+              <button
+                onClick={() => finishOffer(true)}
+                disabled={offering || offerSelected.size === 0}
+                className="flex-1 bg-orange-700 text-white py-3 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors disabled:opacity-50"
+              >
+                {offering ? "送信中..." : `通知を送る（${offerSelected.size}件）`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {cropQueue[0] && (
         <ImageCropper
           file={cropQueue[0]}
@@ -364,5 +630,13 @@ export default function Sell() {
         />
       )}
     </div>
+  );
+}
+
+export default function Sell() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-stone-50" />}>
+      <SellContent />
+    </Suspense>
   );
 }

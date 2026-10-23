@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
+import DemandFulfillModal from "@/components/DemandFulfillModal";
+import type { MyDemand } from "@/lib/demand";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/components/icons";
 
@@ -66,6 +68,7 @@ export default function ItemDetail() {
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
   const [buyAgreed, setBuyAgreed] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [openDemands, setOpenDemands] = useState<MyDemand[] | null>(null);
   const [showLightbox, setShowLightbox] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -314,6 +317,11 @@ export default function ItemDetail() {
     setBuying(false);
     if (error) { alert(`購入処理に失敗しました: ${error.message}`); return; }
     setItem({ ...item, sold: true, buyer_id: user.id });
+
+    // まだ買えていない自分の欲しい！(登録したもの・僕も！を押したもの)があれば、この商品で満たされたか聞く
+    const { data } = await supabase.rpc("my_demands", { p_item_id: item.id });
+    const mine = ((data ?? []) as MyDemand[]).filter((d) => d.status === "open" && !d.my_done);
+    if (mine.length > 0) { setOpenDemands(mine); return; }
     router.push(`/items/${item.id}/chat`);
   };
 
@@ -657,6 +665,14 @@ export default function ItemDetail() {
               ログインして購入する
             </button>
           )
+        )}
+
+        {openDemands && (
+          <DemandFulfillModal
+            itemId={item.id}
+            demands={openDemands}
+            onDone={() => router.push(`/items/${item.id}/chat`)}
+          />
         )}
 
         {reportingMessage && (

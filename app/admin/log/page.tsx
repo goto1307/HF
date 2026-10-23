@@ -29,6 +29,7 @@ const ACTION_LABELS: Record<string, string> = {
   delete_message: "メッセージ削除",
   delete_review: "評価削除",
   cancel_purchase: "取引の強制キャンセル",
+  delete_demand: "欲しい！削除",
 };
 
 export default function AdminLog() {

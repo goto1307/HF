@@ -2602,3 +2602,1317 @@ begin
 end;
 $$;
 revoke execute on function public.notify_sold_email() from public, anon, authenticated;
+
+
+-- ============================================================
+-- PART AF: みんなの欲しい！(需要の見える化)。PART Z の欲しいもの登録を置き換える
+-- ============================================================
+--
+-- 仕様:
+--   - ログインした人は「欲しい！」を登録できる(商品名20文字以内・出せる金額・
+--     いつまでに欲しいか・タグ・備考)。期限内で受付中のものはログインした
+--     全員が見られるが、誰が登録したか(user_id)は見せない。
+--   - 期限が切れた・買えた・取り下げた欲しい！は一覧に出なくなるが、
+--     データは消さずに残す(本人は my_demands() でいつでも見られる)。
+--   - 出品者は、出品した商品を一致しそうな欲しい！に知らせられる
+--     (offer_item_to_demands)。同じ欲しい！に同じ商品で送れるのは1回だけ。
+--   - 購入者は、買った商品で満たされた欲しい！を「買えた！」にできる
+--     (fulfill_my_demands)。そのとき出品者にありがとうの通知が届く。
+--   - 状態の変更はすべて RPC 経由。UPDATE/DELETE の権限は付けない。
+
+-- ---------- PART Z の欲しいもの登録を破棄 ----------
+drop trigger if exists notify_wish_match_trigger on public.item;
+drop function if exists public.notify_wish_match();
+drop table if exists public.wish;
+drop function if exists public.limit_wish_count();
+drop function if exists public.wish_limit(uuid);
+
+-- 期限の判定は日本時間の日付で行う
+create or replace function public.jst_today()
+returns date
+language sql
+stable
+as $$
+  select (now() at time zone 'Asia/Tokyo')::date;
+$$;
+
+create table if not exists public.demand (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null check (char_length(title) between 1 and 20),
+  budget integer not null check (budget between 0 and 50000),
+  deadline date not null,
+  tags text[] not null default '{}' check (cardinality(tags) <= 5),
+  note text check (note is null or char_length(note) <= 200),
+  status text not null default 'open' check (status in ('open', 'fulfilled', 'withdrawn')),
+  fulfilled_item_id bigint references public.item(id) on delete set null,
+  closed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists demand_open_idx on public.demand (status, deadline);
+create index if not exists demand_user_id_idx on public.demand (user_id);
+alter table public.demand enable row level security;
+
+-- user_id は列ごと読めなくする(誰が欲しがっているかは見せない)
+revoke all on public.demand from anon, authenticated;
+grant select (id, title, budget, deadline, tags, note, status, created_at) on public.demand to authenticated;
+grant insert (title, budget, deadline, tags, note) on public.demand to authenticated;
+
+drop policy if exists "demand_select_open_or_own" on public.demand;
+create policy "demand_select_open_or_own"
+on public.demand for select
+to authenticated
+using (
+  auth.uid() = user_id
+  or (
+    status = 'open'
+    and deadline >= public.jst_today()
+    and not public.is_deleted(user_id)
+    and not public.is_blocked_by(auth.uid(), user_id)  -- 自分がブロックした人の欲しい！は出さない
+  )
+);
+
+drop policy if exists "demand_insert_own" on public.demand;
+create policy "demand_insert_own"
+on public.demand for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+-- 入力値の整形と、受付中の欲しい！は1人10件までの制限
+create or replace function public.prepare_demand()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.is_deleted(new.user_id) then
+    raise exception '欲しい！を登録できません';
+  end if;
+
+  new.title := trim(new.title);
+  new.note := nullif(trim(coalesce(new.note, '')), '');
+  new.tags := coalesce((
+    select array_agg(t order by min_ord)
+    from (
+      select t, min(ord) as min_ord
+      from unnest(coalesce(new.tags, array[]::text[])) with ordinality as x(raw, ord),
+           lateral (select trim(both from regexp_replace(trim(raw), '^#+', ''))) as y(t)
+      where t <> ''
+      group by t
+    ) s
+  ), array[]::text[]);
+  if exists (select 1 from unnest(new.tags) as t where char_length(t) > 20) then
+    raise exception 'タグは20文字以内にしてください';
+  end if;
+
+  if new.deadline < public.jst_today() then
+    raise exception '期限は今日以降の日付にしてください';
+  end if;
+  if new.deadline > public.jst_today() + 365 then
+    raise exception '期限は1年以内にしてください';
+  end if;
+
+  new.status := 'open';
+  new.fulfilled_item_id := null;
+  new.closed_at := null;
+  new.created_at := now();
+
+  perform pg_advisory_xact_lock(hashtext('demand_insert:' || new.user_id::text));
+  if (select count(*) from public.demand
+      where user_id = new.user_id and status = 'open' and deadline >= public.jst_today()) >= 10 then
+    raise exception '受付中の欲しい！は10件まで登録できます';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists prepare_demand_trigger on public.demand;
+create trigger prepare_demand_trigger
+before insert on public.demand
+for each row execute function public.prepare_demand();
+
+-- 出品者が「この商品をこの欲しい！に知らせた」記録(二重通知の防止用)
+create table if not exists public.demand_offer (
+  demand_id bigint not null references public.demand(id) on delete cascade,
+  item_id bigint not null references public.item(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (demand_id, item_id)
+);
+alter table public.demand_offer enable row level security;
+-- 一般ユーザー向けのポリシーは作らない。下の SECURITY DEFINER 関数経由でのみ使う。
+
+-- 自分の欲しい！をすべて(期限切れ・買えた・取り下げも含めて)返す。
+-- p_item_id を渡すと、その商品が出品者から知らされていたかを offered に入れる。
+create or replace function public.my_demands(p_item_id bigint default null)
+returns table (
+  id bigint,
+  title text,
+  budget integer,
+  deadline date,
+  tags text[],
+  note text,
+  status text,
+  fulfilled_item_id bigint,
+  created_at timestamptz,
+  offered boolean
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select d.id, d.title, d.budget, d.deadline, d.tags, d.note, d.status,
+         d.fulfilled_item_id, d.created_at,
+         exists (select 1 from public.demand_offer o where o.demand_id = d.id and o.item_id = p_item_id)
+  from public.demand d
+  where d.user_id = auth.uid()
+  order by d.created_at desc;
+$$;
+revoke execute on function public.my_demands(bigint) from public, anon;
+grant execute on function public.my_demands(bigint) to authenticated;
+
+-- 自分の欲しい！を「買えた！」または「取り下げ」にする(商品なし)
+create or replace function public.close_my_demand(p_demand_id bigint, p_status text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if p_status not in ('fulfilled', 'withdrawn') then
+    raise exception '不正な状態です';
+  end if;
+  update public.demand
+  set status = p_status, closed_at = now()
+  where id = p_demand_id and user_id = auth.uid() and status = 'open';
+  if not found then
+    raise exception 'この欲しい！は変更できません';
+  end if;
+end;
+$$;
+revoke execute on function public.close_my_demand(bigint, text) from public, anon;
+grant execute on function public.close_my_demand(bigint, text) to authenticated;
+
+-- 出品者が、自分の出品を欲しい！を登録した人に知らせる。知らせた件数を返す。
+create or replace function public.offer_item_to_demands(p_item_id bigint, p_demand_ids bigint[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_count integer;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if cardinality(p_demand_ids) > 10 then
+    raise exception '一度に知らせられるのは10件までです';
+  end if;
+
+  select title into v_title
+  from public.item
+  where id = p_item_id and user_id = auth.uid() and sold = false;
+  if v_title is null then
+    raise exception '商品が見つかりません';
+  end if;
+
+  -- 1つの商品から知らせられるのは合計10件まで(無関係な欲しい！への連投を防ぐ)
+  perform pg_advisory_xact_lock(hashtext('demand_offer:' || p_item_id::text));
+  if (select count(*) from public.demand_offer where item_id = p_item_id) + cardinality(p_demand_ids) > 10 then
+    raise exception '1つの商品から知らせられるのは10件までです';
+  end if;
+
+  with ins as (
+    insert into public.demand_offer (demand_id, item_id)
+    select d.id, p_item_id
+    from public.demand d
+    where d.id = any(p_demand_ids)
+      and d.status = 'open'
+      and d.deadline >= public.jst_today()
+      and d.user_id <> auth.uid()
+      and not public.is_deleted(d.user_id)
+      and not public.is_blocked_by(d.user_id, auth.uid())
+      and not public.is_blocked_by(auth.uid(), d.user_id)
+    on conflict do nothing
+    returning demand_id
+  )
+  insert into public.notification (user_id, message, item_id)
+  select d.user_id, 'あなたの欲しい！「' || d.title || '」に合いそうな「' || v_title || '」が出品されました', p_item_id
+  from ins join public.demand d on d.id = ins.demand_id;
+
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+revoke execute on function public.offer_item_to_demands(bigint, bigint[]) from public, anon;
+grant execute on function public.offer_item_to_demands(bigint, bigint[]) to authenticated;
+
+-- 購入者が、買った商品で満たされた自分の欲しい！を「買えた！」にする。
+-- 1件以上変わったら出品者にありがとうの通知を送る。変えた件数を返す。
+create or replace function public.fulfill_my_demands(p_item_id bigint, p_demand_ids bigint[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_seller uuid;
+  v_count integer;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+
+  select title, user_id into v_title, v_seller
+  from public.item
+  where id = p_item_id and buyer_id = auth.uid();
+  if v_seller is null then
+    raise exception 'この商品の購入者ではありません';
+  end if;
+
+  update public.demand
+  set status = 'fulfilled', fulfilled_item_id = p_item_id, closed_at = now()
+  where id = any(p_demand_ids) and user_id = auth.uid() and status = 'open';
+  get diagnostics v_count = row_count;
+
+  if v_count > 0 and not public.is_deleted(v_seller) then
+    insert into public.notification (user_id, message, item_id)
+    values (v_seller, '「' || v_title || '」で、だれかの欲しい！がかないました。出品ありがとう！', p_item_id);
+  end if;
+  return v_count;
+end;
+$$;
+revoke execute on function public.fulfill_my_demands(bigint, bigint[]) from public, anon;
+grant execute on function public.fulfill_my_demands(bigint, bigint[]) to authenticated;
+
+-- 管理者バックアップ(PART P)に demand / demand_offer を追加し、破棄した wish は外す
+create or replace function public.admin_export_all()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  select jsonb_build_object(
+    'exported_at', now(),
+    'users', (select coalesce(jsonb_agg(jsonb_build_object(
+        'id', u.id, 'email', u.email,
+        'nickname', u.raw_user_meta_data ->> 'nickname',
+        'created_at', u.created_at, 'banned_until', u.banned_until
+      )), '[]'::jsonb) from auth.users u),
+    'item', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.item t),
+    'message', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.message t),
+    'review', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.review t),
+    'report', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.report t),
+    'meetup', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.meetup t),
+    'notification', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.notification t),
+    'favorite', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.favorite t),
+    'profile', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.profile t),
+    'blocked_user', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.blocked_user t),
+    'deleted_users', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.deleted_users t),
+    'admin_action_log', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.admin_action_log t),
+    'demand', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.demand t),
+    'demand_offer', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.demand_offer t)
+  ) into result;
+
+  return result;
+end;
+$$;
+
+
+-- ============================================================
+-- PART AG: 欲しい！の「僕も！」・出品の下書き・欲しい！の通報と管理者による削除
+-- ============================================================
+--
+-- 仕様:
+--   - 僕も！: 他の人の欲しい！に「僕も欲しい」を付けられる(もう一度押すと取り消し)。
+--     誰が押したかは見せず、人数だけ返す。出品者がその欲しい！に商品を
+--     知らせたときは、僕も！を押した人にも通知が届く。
+--   - 出品の下書き: 出品フォームの内容(写真以外)を1人10件まで保存できる。本人のみ。
+--   - 通報: 欲しい！を通報できる(report.demand_id)。通報は1分に1回まで。
+--   - 管理者: 欲しい！の一覧(登録者・僕も！の数・通報数つき)と、理由付きの削除。
+--     削除は status = 'removed' にするだけで、データは残す。登録者に通知し、操作ログに残す。
+
+-- ---------- 運営による削除の状態を追加 ----------
+alter table public.demand drop constraint if exists demand_status_check;
+alter table public.demand add constraint demand_status_check
+  check (status in ('open', 'fulfilled', 'withdrawn', 'removed'));
+
+-- ---------- 僕も！ ----------
+create table if not exists public.demand_vote (
+  demand_id bigint not null references public.demand(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (demand_id, user_id)
+);
+create index if not exists demand_vote_user_id_idx on public.demand_vote (user_id);
+alter table public.demand_vote enable row level security;
+-- 一般ユーザー向けのポリシーは作らない。下の SECURITY DEFINER 関数経由でのみ使う。
+
+-- 一覧に出ている欲しい！ごとの僕も！の人数と、自分が押したかどうか
+create or replace function public.demand_vote_summary()
+returns table (demand_id bigint, votes integer, voted boolean)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select d.id,
+         (select count(*) from public.demand_vote v where v.demand_id = d.id)::integer,
+         exists (select 1 from public.demand_vote v where v.demand_id = d.id and v.user_id = auth.uid())
+  from public.demand d
+  where auth.uid() is not null
+    and (
+      d.user_id = auth.uid()
+      or (d.status = 'open' and d.deadline >= public.jst_today() and not public.is_deleted(d.user_id))
+    );
+$$;
+revoke execute on function public.demand_vote_summary() from public, anon;
+grant execute on function public.demand_vote_summary() to authenticated;
+
+-- 僕も！を付ける/取り消す。押したあとの人数と状態を返す。
+create or replace function public.toggle_demand_vote(p_demand_id bigint)
+returns table (votes integer, voted boolean)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
+  v_voted boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+
+  select user_id into v_owner
+  from public.demand
+  where id = p_demand_id and status = 'open' and deadline >= public.jst_today();
+  if v_owner is null or public.is_deleted(v_owner) or public.is_blocked_by(auth.uid(), v_owner) then
+    raise exception 'この欲しい！は受付が終わりました';
+  end if;
+  if v_owner = auth.uid() then
+    raise exception '自分の欲しい！には押せません';
+  end if;
+
+  delete from public.demand_vote where demand_id = p_demand_id and user_id = auth.uid();
+  v_voted := not found;
+  if v_voted then
+    insert into public.demand_vote (demand_id, user_id) values (p_demand_id, auth.uid());
+  end if;
+
+  return query
+    select (select count(*) from public.demand_vote v where v.demand_id = p_demand_id)::integer, v_voted;
+end;
+$$;
+revoke execute on function public.toggle_demand_vote(bigint) from public, anon;
+grant execute on function public.toggle_demand_vote(bigint) to authenticated;
+
+-- PART AF の offer_item_to_demands を、僕も！を押した人にも通知するよう置き換える
+create or replace function public.offer_item_to_demands(p_item_id bigint, p_demand_ids bigint[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_count integer;
+  v_offered bigint[];
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if cardinality(p_demand_ids) > 10 then
+    raise exception '一度に知らせられるのは10件までです';
+  end if;
+
+  select title into v_title
+  from public.item
+  where id = p_item_id and user_id = auth.uid() and sold = false;
+  if v_title is null then
+    raise exception '商品が見つかりません';
+  end if;
+
+  -- 1つの商品から知らせられるのは合計10件まで(無関係な欲しい！への連投を防ぐ)
+  perform pg_advisory_xact_lock(hashtext('demand_offer:' || p_item_id::text));
+  if (select count(*) from public.demand_offer where item_id = p_item_id) + cardinality(p_demand_ids) > 10 then
+    raise exception '1つの商品から知らせられるのは10件までです';
+  end if;
+
+  with ins as (
+    insert into public.demand_offer (demand_id, item_id)
+    select d.id, p_item_id
+    from public.demand d
+    where d.id = any(p_demand_ids)
+      and d.status = 'open'
+      and d.deadline >= public.jst_today()
+      and d.user_id <> auth.uid()
+      and not public.is_deleted(d.user_id)
+      and not public.is_blocked_by(d.user_id, auth.uid())
+      and not public.is_blocked_by(auth.uid(), d.user_id)
+    on conflict do nothing
+    returning demand_id
+  )
+  select coalesce(array_agg(demand_id), array[]::bigint[]) into v_offered from ins;
+
+  -- 登録した人には欲しい！ごとに1件
+  insert into public.notification (user_id, message, item_id)
+  select d.user_id, 'あなたの欲しい！「' || d.title || '」に合いそうな「' || v_title || '」が出品されました', p_item_id
+  from public.demand d
+  where d.id = any(v_offered);
+  get diagnostics v_count = row_count;
+
+  -- 僕も！を押した人には1人1件(登録した人として通知済みの人・出品者本人は除く)
+  insert into public.notification (user_id, message, item_id)
+  select distinct on (v.user_id)
+    v.user_id, '僕も！を押した欲しい！「' || d.title || '」に合いそうな「' || v_title || '」が出品されました', p_item_id
+  from public.demand_vote v
+  join public.demand d on d.id = v.demand_id
+  where v.demand_id = any(v_offered)
+    and v.user_id <> auth.uid()
+    and v.user_id not in (select d2.user_id from public.demand d2 where d2.id = any(v_offered))
+    and not public.is_deleted(v.user_id)
+    and not public.is_blocked_by(v.user_id, auth.uid())
+    and not public.is_blocked_by(auth.uid(), v.user_id)
+  order by v.user_id, v.created_at;
+
+  return v_count;
+end;
+$$;
+
+-- ---------- 出品の下書き ----------
+create table if not exists public.item_draft (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null default '' check (char_length(title) <= 45),
+  price integer check (price is null or price between 0 and 50000),
+  is_free boolean not null default false,
+  category text check (category is null or char_length(category) <= 20),
+  condition text check (condition is null or char_length(condition) <= 10),
+  area text check (area is null or char_length(area) <= 50),
+  hashtags text[] not null default '{}' check (cardinality(hashtags) <= 20),
+  detail text not null default '' check (char_length(detail) <= 150),
+  demand_id bigint references public.demand(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists item_draft_user_id_idx on public.item_draft (user_id);
+alter table public.item_draft enable row level security;
+revoke all on public.item_draft from anon, authenticated;
+grant select, delete on public.item_draft to authenticated;
+grant insert (title, price, is_free, category, condition, area, hashtags, detail, demand_id) on public.item_draft to authenticated;
+grant update (title, price, is_free, category, condition, area, hashtags, detail, demand_id, updated_at) on public.item_draft to authenticated;
+
+drop policy if exists "item_draft_select_own" on public.item_draft;
+create policy "item_draft_select_own"
+on public.item_draft for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "item_draft_insert_own" on public.item_draft;
+create policy "item_draft_insert_own"
+on public.item_draft for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "item_draft_update_own" on public.item_draft;
+create policy "item_draft_update_own"
+on public.item_draft for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "item_draft_delete_own" on public.item_draft;
+create policy "item_draft_delete_own"
+on public.item_draft for delete
+to authenticated
+using (auth.uid() = user_id);
+
+create or replace function public.limit_item_draft_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('item_draft_insert:' || new.user_id::text));
+  if (select count(*) from public.item_draft where user_id = new.user_id) >= 10 then
+    raise exception '下書きは10件まで保存できます';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists limit_item_draft_count_trigger on public.item_draft;
+create trigger limit_item_draft_count_trigger
+before insert on public.item_draft
+for each row execute function public.limit_item_draft_count();
+
+-- ---------- 欲しい！の通報 ----------
+alter table public.report add column if not exists demand_id bigint references public.demand(id) on delete set null;
+alter table public.report drop constraint if exists report_target_check;
+alter table public.report add constraint report_target_check
+  check (item_id is not null or reported_user_id is not null or message_id is not null or demand_id is not null);
+
+-- 通報者には登録した人が分からないので、関数の中で reported_user_id を埋める
+create or replace function public.report_demand(p_demand_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '通報理由を入力してください';
+  end if;
+  if char_length(p_reason) > 600 then
+    raise exception '通報理由は600文字以内にしてください';
+  end if;
+
+  select user_id into v_owner
+  from public.demand
+  where id = p_demand_id and status = 'open';
+  if v_owner is null then
+    raise exception 'この欲しい！は通報できません';
+  end if;
+  if v_owner = auth.uid() then
+    raise exception '自分の欲しい！は通報できません';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('report_insert:' || auth.uid()::text));
+  if exists (
+    select 1 from public.report
+    where reporter_id = auth.uid() and created_at > now() - interval '1 minute'
+  ) then
+    raise exception '通報は1分に1回までです。しばらくしてからもう一度お試しください';
+  end if;
+
+  insert into public.report (reporter_id, reported_user_id, demand_id, reason)
+  values (auth.uid(), v_owner, p_demand_id, trim(p_reason));
+end;
+$$;
+revoke execute on function public.report_demand(bigint, text) from public, anon;
+grant execute on function public.report_demand(bigint, text) to authenticated;
+
+-- ---------- 管理者: 欲しい！の一覧と削除 ----------
+create or replace function public.admin_list_demands()
+returns table (
+  id bigint,
+  user_id uuid,
+  email text,
+  nickname text,
+  title text,
+  budget integer,
+  deadline date,
+  tags text[],
+  note text,
+  status text,
+  created_at timestamptz,
+  votes integer,
+  reports integer
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  return query
+    select d.id, d.user_id, u.email::text, (u.raw_user_meta_data ->> 'nickname')::text,
+           d.title, d.budget, d.deadline, d.tags, d.note, d.status, d.created_at,
+           (select count(*) from public.demand_vote v where v.demand_id = d.id)::integer,
+           (select count(*) from public.report r where r.demand_id = d.id)::integer
+    from public.demand d
+    left join auth.users u on u.id = d.user_id
+    order by d.created_at desc;
+end;
+$$;
+revoke execute on function public.admin_list_demands() from public, anon;
+grant execute on function public.admin_list_demands() to authenticated;
+
+create or replace function public.admin_delete_demand(p_demand_id bigint, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
+  v_title text;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  if p_reason is null or char_length(trim(p_reason)) = 0 then
+    raise exception '削除理由を入力してください';
+  end if;
+
+  update public.demand
+  set status = 'removed', closed_at = now()
+  where id = p_demand_id and status <> 'removed'
+  returning user_id, title into v_owner, v_title;
+  if v_owner is null then
+    raise exception '欲しい！が見つからないか、すでに削除されています';
+  end if;
+
+  insert into public.notification (user_id, message, item_id, read)
+  values (v_owner, 'あなたの欲しい！「' || v_title || '」が運営により削除されました。理由: ' || trim(p_reason), null, false);
+
+  insert into public.admin_action_log (admin_id, action, target_id, detail)
+  values (auth.uid(), 'delete_demand', p_demand_id::text, trim(p_reason));
+end;
+$$;
+revoke execute on function public.admin_delete_demand(bigint, text) from public, anon;
+grant execute on function public.admin_delete_demand(bigint, text) to authenticated;
+
+-- 管理者バックアップ(PART P)に demand_vote / item_draft を追加
+create or replace function public.admin_export_all()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  select jsonb_build_object(
+    'exported_at', now(),
+    'users', (select coalesce(jsonb_agg(jsonb_build_object(
+        'id', u.id, 'email', u.email,
+        'nickname', u.raw_user_meta_data ->> 'nickname',
+        'created_at', u.created_at, 'banned_until', u.banned_until
+      )), '[]'::jsonb) from auth.users u),
+    'item', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.item t),
+    'message', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.message t),
+    'review', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.review t),
+    'report', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.report t),
+    'meetup', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.meetup t),
+    'notification', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.notification t),
+    'favorite', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.favorite t),
+    'profile', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.profile t),
+    'blocked_user', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.blocked_user t),
+    'deleted_users', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.deleted_users t),
+    'admin_action_log', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.admin_action_log t),
+    'demand', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.demand t),
+    'demand_offer', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.demand_offer t),
+    'demand_vote', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.demand_vote t),
+    'item_draft', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.item_draft t)
+  ) into result;
+
+  return result;
+end;
+$$;
+
+
+-- ============================================================
+-- PART AH: 欲しい！の期限のお知らせ・編集(延長)・みんなで買えた！・管理者向け集計
+-- ============================================================
+--
+-- 仕様:
+--   - 期限のお知らせ: 期限の3日前〜当日に、登録者がサイトを開いたとき
+--     (send_demand_reminders を呼んだとき)に1回だけ通知する。期限を延ばすと
+--     新しい期限でもう一度お知らせする。通知には demand_id を入れ、押すと
+--     その欲しい！を開けるようにする。
+--   - 編集: 登録者は受付中(期限切れを含む)の欲しい！を編集できる。期限を
+--     延ばせば、期限切れのものも一覧に戻る。
+--   - みんなで買えた！: 登録者が買えた！にしても、まだ買えていない僕も！の人が
+--     いる間は受付中のまま一覧に残す。登録者と僕も！の全員が買えた！(または
+--     僕も！を取り消し)になったら、欲しい！自体が買えた！になる。
+--     僕も！の人も、買った商品で「買えた！」にできる。
+--   - 管理者向け集計: admin_demand_stats() で欲しい！の利用状況をまとめて返す。
+
+alter table public.demand add column if not exists owner_fulfilled_at timestamptz;
+alter table public.demand add column if not exists reminded_deadline date;
+alter table public.demand_vote add column if not exists fulfilled_at timestamptz;
+alter table public.demand_vote add column if not exists fulfilled_item_id bigint references public.item(id) on delete set null;
+alter table public.notification add column if not exists demand_id bigint references public.demand(id) on delete set null;
+
+-- この PART を入れる前に買えた！にしたものは、登録者が買えた！にしたものとして扱う
+update public.demand set owner_fulfilled_at = closed_at
+where status = 'fulfilled' and owner_fulfilled_at is null;
+
+-- ---------- 共通の部品 ----------
+-- タグの整形(前後の空白と先頭の # を取り、空・重複を除く)
+create or replace function public.normalize_demand_tags(p_tags text[])
+returns text[]
+language sql
+immutable
+as $$
+  select coalesce((
+    select array_agg(t order by min_ord)
+    from (
+      select t, min(ord) as min_ord
+      from unnest(coalesce(p_tags, array[]::text[])) with ordinality as x(raw, ord),
+           lateral (select trim(both from regexp_replace(trim(raw), '^#+', ''))) as y(t)
+      where t <> ''
+      group by t
+    ) s
+  ), array[]::text[]);
+$$;
+
+-- 期限・タグの確認(登録と編集で共通)
+create or replace function public.check_demand_values(p_deadline date, p_tags text[])
+returns void
+language plpgsql
+stable
+as $$
+begin
+  if exists (select 1 from unnest(p_tags) as t where char_length(t) > 20) then
+    raise exception 'タグは20文字以内にしてください';
+  end if;
+  if cardinality(p_tags) > 5 then
+    raise exception 'タグは5個までです';
+  end if;
+  if p_deadline < public.jst_today() then
+    raise exception '期限は今日以降の日付にしてください';
+  end if;
+  if p_deadline > public.jst_today() + 365 then
+    raise exception '期限は1年以内にしてください';
+  end if;
+end;
+$$;
+
+-- まだ買えていない人数(登録者 + 買えていない僕も！)
+create or replace function public.demand_wanters(p_demand_id bigint)
+returns integer
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select ((select count(*) from public.demand_vote v where v.demand_id = p_demand_id and v.fulfilled_at is null)
+        + (select case when d.owner_fulfilled_at is null then 1 else 0 end from public.demand d where d.id = p_demand_id))::integer;
+$$;
+
+-- 登録者も僕も！の人も全員買えた！なら、欲しい！自体を買えた！にする
+create or replace function public.finalize_demand(p_demand_id bigint)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.demand
+  set status = 'fulfilled', closed_at = now()
+  where id = p_demand_id
+    and status = 'open'
+    and owner_fulfilled_at is not null
+    and not exists (select 1 from public.demand_vote v where v.demand_id = p_demand_id and v.fulfilled_at is null);
+$$;
+revoke execute on function public.finalize_demand(bigint) from public, anon, authenticated;
+
+-- ---------- 登録時の確認を共通の部品に置き換え(上限は、登録者がまだ買えていないものだけ数える) ----------
+create or replace function public.prepare_demand()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.is_deleted(new.user_id) then
+    raise exception '欲しい！を登録できません';
+  end if;
+
+  new.title := trim(new.title);
+  new.note := nullif(trim(coalesce(new.note, '')), '');
+  new.tags := public.normalize_demand_tags(new.tags);
+  perform public.check_demand_values(new.deadline, new.tags);
+
+  new.status := 'open';
+  new.fulfilled_item_id := null;
+  new.owner_fulfilled_at := null;
+  new.reminded_deadline := null;
+  new.closed_at := null;
+  new.created_at := now();
+
+  perform pg_advisory_xact_lock(hashtext('demand_insert:' || new.user_id::text));
+  if (select count(*) from public.demand
+      where user_id = new.user_id and status = 'open' and owner_fulfilled_at is null
+        and deadline >= public.jst_today()) >= 10 then
+    raise exception '受付中の欲しい！は10件まで登録できます';
+  end if;
+  return new;
+end;
+$$;
+
+-- ---------- 自分の欲しい！(登録したもの + 僕も！を押したもの) ----------
+drop function if exists public.my_demands(bigint);
+create or replace function public.my_demands(p_item_id bigint default null)
+returns table (
+  id bigint,
+  title text,
+  budget integer,
+  deadline date,
+  tags text[],
+  note text,
+  status text,
+  fulfilled_item_id bigint,
+  created_at timestamptz,
+  offered boolean,
+  is_owner boolean,
+  my_done boolean,
+  wanters integer
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select d.id, d.title, d.budget, d.deadline, d.tags, d.note, d.status,
+         d.fulfilled_item_id, d.created_at,
+         exists (select 1 from public.demand_offer o where o.demand_id = d.id and o.item_id = p_item_id),
+         d.user_id = auth.uid(),
+         case when d.user_id = auth.uid() then d.owner_fulfilled_at is not null else mv.fulfilled_at is not null end,
+         public.demand_wanters(d.id)
+  from public.demand d
+  left join public.demand_vote mv on mv.demand_id = d.id and mv.user_id = auth.uid()
+  where d.user_id = auth.uid()
+     or (mv.user_id is not null and d.status <> 'removed')
+  order by d.created_at desc;
+$$;
+revoke execute on function public.my_demands(bigint) from public, anon;
+grant execute on function public.my_demands(bigint) to authenticated;
+
+-- ---------- 一覧用の僕も！の集計 ----------
+-- votes = まだ買えていない僕も！の人数、owner_done = 登録者が買えた！済みか
+drop function if exists public.demand_vote_summary();
+create or replace function public.demand_vote_summary()
+returns table (demand_id bigint, votes integer, voted boolean, my_done boolean, owner_done boolean)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select d.id,
+         (select count(*) from public.demand_vote v where v.demand_id = d.id and v.fulfilled_at is null)::integer,
+         mv.user_id is not null,
+         coalesce(mv.fulfilled_at is not null, false),
+         d.owner_fulfilled_at is not null
+  from public.demand d
+  left join public.demand_vote mv on mv.demand_id = d.id and mv.user_id = auth.uid()
+  where auth.uid() is not null
+    and (
+      d.user_id = auth.uid()
+      or mv.user_id is not null
+      or (d.status = 'open' and d.deadline >= public.jst_today() and not public.is_deleted(d.user_id))
+    );
+$$;
+revoke execute on function public.demand_vote_summary() from public, anon;
+grant execute on function public.demand_vote_summary() to authenticated;
+
+drop function if exists public.toggle_demand_vote(bigint);
+create or replace function public.toggle_demand_vote(p_demand_id bigint)
+returns table (votes integer, voted boolean, owner_done boolean)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
+  v_owner_done boolean;
+  v_voted boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+
+  select d.user_id, d.owner_fulfilled_at is not null into v_owner, v_owner_done
+  from public.demand d
+  where d.id = p_demand_id and d.status = 'open' and d.deadline >= public.jst_today();
+  if v_owner is null or public.is_deleted(v_owner) or public.is_blocked_by(auth.uid(), v_owner) then
+    raise exception 'この欲しい！は受付が終わりました';
+  end if;
+  if v_owner = auth.uid() then
+    raise exception '自分の欲しい！には押せません';
+  end if;
+  if exists (select 1 from public.demand_vote v
+             where v.demand_id = p_demand_id and v.user_id = auth.uid() and v.fulfilled_at is not null) then
+    raise exception 'この欲しい！はもう買えた！にしています';
+  end if;
+
+  delete from public.demand_vote v where v.demand_id = p_demand_id and v.user_id = auth.uid();
+  v_voted := not found;
+  if v_voted then
+    insert into public.demand_vote (demand_id, user_id) values (p_demand_id, auth.uid());
+  else
+    -- 最後の1人が取り消したら、欲しい！自体を買えた！にする場合がある
+    perform public.finalize_demand(p_demand_id);
+  end if;
+
+  return query
+    select (select count(*) from public.demand_vote v where v.demand_id = p_demand_id and v.fulfilled_at is null)::integer,
+           v_voted, v_owner_done;
+end;
+$$;
+revoke execute on function public.toggle_demand_vote(bigint) from public, anon;
+grant execute on function public.toggle_demand_vote(bigint) to authenticated;
+
+-- ---------- 買えた！・取り下げ ----------
+-- fulfilled: 登録者でも僕も！の人でも、自分の分を買えた！にする
+-- withdrawn: 登録者のみ。まだ買えていない僕も！の人には通知する
+create or replace function public.close_my_demand(p_demand_id bigint, p_status text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+
+  if p_status = 'fulfilled' then
+    update public.demand
+    set owner_fulfilled_at = now()
+    where id = p_demand_id and user_id = auth.uid() and status = 'open' and owner_fulfilled_at is null;
+    if not found then
+      update public.demand_vote v
+      set fulfilled_at = now()
+      from public.demand d
+      where v.demand_id = p_demand_id and v.user_id = auth.uid() and v.fulfilled_at is null
+        and d.id = v.demand_id and d.status = 'open';
+      if not found then
+        raise exception 'この欲しい！は変更できません';
+      end if;
+    end if;
+    perform public.finalize_demand(p_demand_id);
+
+  elsif p_status = 'withdrawn' then
+    update public.demand
+    set status = 'withdrawn', closed_at = now()
+    where id = p_demand_id and user_id = auth.uid() and status = 'open' and owner_fulfilled_at is null
+    returning title into v_title;
+    if v_title is null then
+      raise exception 'この欲しい！は取り下げられません';
+    end if;
+    insert into public.notification (user_id, message, item_id, demand_id)
+    select v.user_id, '僕も！を押した欲しい！「' || v_title || '」が取り下げられました', null, p_demand_id
+    from public.demand_vote v
+    where v.demand_id = p_demand_id and v.fulfilled_at is null and not public.is_deleted(v.user_id);
+
+  else
+    raise exception '不正な状態です';
+  end if;
+end;
+$$;
+
+-- 購入者が、買った商品で自分の分(登録した欲しい！・僕も！を押した欲しい！)を買えた！にする
+create or replace function public.fulfill_my_demands(p_item_id bigint, p_demand_ids bigint[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_seller uuid;
+  v_owner_count integer;
+  v_vote_count integer;
+  v_id bigint;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+
+  select title, user_id into v_title, v_seller
+  from public.item
+  where id = p_item_id and buyer_id = auth.uid();
+  if v_seller is null then
+    raise exception 'この商品の購入者ではありません';
+  end if;
+
+  update public.demand
+  set owner_fulfilled_at = now(), fulfilled_item_id = p_item_id
+  where id = any(p_demand_ids) and user_id = auth.uid() and status = 'open' and owner_fulfilled_at is null;
+  get diagnostics v_owner_count = row_count;
+
+  update public.demand_vote v
+  set fulfilled_at = now(), fulfilled_item_id = p_item_id
+  from public.demand d
+  where v.demand_id = any(p_demand_ids) and v.user_id = auth.uid() and v.fulfilled_at is null
+    and d.id = v.demand_id and d.status = 'open';
+  get diagnostics v_vote_count = row_count;
+
+  foreach v_id in array p_demand_ids loop
+    perform public.finalize_demand(v_id);
+  end loop;
+
+  if v_owner_count + v_vote_count > 0 and not public.is_deleted(v_seller) then
+    insert into public.notification (user_id, message, item_id)
+    values (v_seller, '「' || v_title || '」で、だれかの欲しい！がかないました。出品ありがとう！', p_item_id);
+  end if;
+  return v_owner_count + v_vote_count;
+end;
+$$;
+
+-- ---------- 出品者からのお知らせは、まだ買えていない人にだけ送る ----------
+create or replace function public.offer_item_to_demands(p_item_id bigint, p_demand_ids bigint[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_count integer;
+  v_offered bigint[];
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if cardinality(p_demand_ids) > 10 then
+    raise exception '一度に知らせられるのは10件までです';
+  end if;
+
+  select title into v_title
+  from public.item
+  where id = p_item_id and user_id = auth.uid() and sold = false;
+  if v_title is null then
+    raise exception '商品が見つかりません';
+  end if;
+
+  -- 1つの商品から知らせられるのは合計10件まで(無関係な欲しい！への連投を防ぐ)
+  perform pg_advisory_xact_lock(hashtext('demand_offer:' || p_item_id::text));
+  if (select count(*) from public.demand_offer where item_id = p_item_id) + cardinality(p_demand_ids) > 10 then
+    raise exception '1つの商品から知らせられるのは10件までです';
+  end if;
+
+  with ins as (
+    insert into public.demand_offer (demand_id, item_id)
+    select d.id, p_item_id
+    from public.demand d
+    where d.id = any(p_demand_ids)
+      and d.status = 'open'
+      and d.deadline >= public.jst_today()
+      and d.user_id <> auth.uid()
+      and not public.is_deleted(d.user_id)
+      and not public.is_blocked_by(d.user_id, auth.uid())
+      and not public.is_blocked_by(auth.uid(), d.user_id)
+    on conflict do nothing
+    returning demand_id
+  )
+  select coalesce(array_agg(demand_id), array[]::bigint[]) into v_offered from ins;
+
+  -- 登録した人(まだ買えていない人)には欲しい！ごとに1件
+  insert into public.notification (user_id, message, item_id)
+  select d.user_id, 'あなたの欲しい！「' || d.title || '」に合いそうな「' || v_title || '」が出品されました', p_item_id
+  from public.demand d
+  where d.id = any(v_offered) and d.owner_fulfilled_at is null;
+  get diagnostics v_count = row_count;
+
+  -- 僕も！を押した(まだ買えていない)人には1人1件(登録した人として通知済みの人・出品者本人は除く)
+  insert into public.notification (user_id, message, item_id)
+  select distinct on (v.user_id)
+    v.user_id, '僕も！を押した欲しい！「' || d.title || '」に合いそうな「' || v_title || '」が出品されました', p_item_id
+  from public.demand_vote v
+  join public.demand d on d.id = v.demand_id
+  where v.demand_id = any(v_offered)
+    and v.fulfilled_at is null
+    and v.user_id <> auth.uid()
+    and v.user_id not in (select d2.user_id from public.demand d2 where d2.id = any(v_offered) and d2.owner_fulfilled_at is null)
+    and not public.is_deleted(v.user_id)
+    and not public.is_blocked_by(v.user_id, auth.uid())
+    and not public.is_blocked_by(auth.uid(), v.user_id)
+  order by v.user_id, v.created_at;
+
+  return v_count;
+end;
+$$;
+
+-- ---------- 編集(期限の延長を含む) ----------
+create or replace function public.update_my_demand(
+  p_demand_id bigint,
+  p_title text,
+  p_budget integer,
+  p_deadline date,
+  p_tags text[],
+  p_note text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tags text[];
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+
+  v_tags := public.normalize_demand_tags(p_tags);
+  perform public.check_demand_values(p_deadline, v_tags);
+
+  -- 文字数・金額は demand テーブルの check 制約で確かめる
+  update public.demand
+  set title = trim(p_title),
+      budget = p_budget,
+      deadline = p_deadline,
+      tags = v_tags,
+      note = nullif(trim(coalesce(p_note, '')), '')
+  where id = p_demand_id and user_id = auth.uid() and status = 'open' and owner_fulfilled_at is null;
+  if not found then
+    raise exception 'この欲しい！は編集できません';
+  end if;
+end;
+$$;
+revoke execute on function public.update_my_demand(bigint, text, integer, date, text[], text) from public, anon;
+grant execute on function public.update_my_demand(bigint, text, integer, date, text[], text) to authenticated;
+
+-- ---------- 期限のお知らせ ----------
+-- サイトを開いたとき(通知を読み込むとき)に呼ぶ。送った件数を返す。
+create or replace function public.send_demand_reminders()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  if auth.uid() is null then
+    return 0;
+  end if;
+
+  with due as (
+    update public.demand
+    set reminded_deadline = deadline
+    where user_id = auth.uid()
+      and status = 'open'
+      and owner_fulfilled_at is null
+      and deadline between public.jst_today() and public.jst_today() + 3
+      and reminded_deadline is distinct from deadline
+    returning id, title, deadline
+  )
+  insert into public.notification (user_id, message, item_id, demand_id)
+  select auth.uid(),
+         '欲しい！「' || title || '」の期限(' || to_char(deadline, 'FMMM/FMDD') || ')が近づいています。まだ欲しい場合は、編集から期限を延ばせます',
+         null, id
+  from due;
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+revoke execute on function public.send_demand_reminders() from public, anon;
+grant execute on function public.send_demand_reminders() to authenticated;
+
+-- ---------- 管理者向け集計 ----------
+create or replace function public.admin_demand_stats()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_today date := public.jst_today();
+  -- 週は月曜はじまり(日本時間)
+  v_week date := date_trunc('week', v_today)::date;
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  with active as (
+    select d.*, public.demand_wanters(d.id) as wanters
+    from public.demand d
+    where d.status = 'open' and d.deadline >= v_today
+  ),
+  fulfilled_people as (
+    select owner_fulfilled_at as at, fulfilled_item_id from public.demand where owner_fulfilled_at is not null
+    union all
+    select fulfilled_at, fulfilled_item_id from public.demand_vote where fulfilled_at is not null
+  ),
+  weeks as (
+    select (v_week - 7 * g)::date as week_start from generate_series(0, 7) as g
+  )
+  select jsonb_build_object(
+    'counts', jsonb_build_object(
+      'active', (select count(*) from active),
+      'expired', (select count(*) from public.demand where status = 'open' and deadline < v_today),
+      'fulfilled', (select count(*) from public.demand where status = 'fulfilled'),
+      'withdrawn', (select count(*) from public.demand where status = 'withdrawn'),
+      'removed', (select count(*) from public.demand where status = 'removed'),
+      'total', (select count(*) from public.demand)
+    ),
+    'posters', (select count(distinct user_id) from public.demand),
+    'votes_total', (select count(*) from public.demand_vote),
+    'wanters_active', (select coalesce(sum(wanters), 0) from active),
+    'fulfilled_people', (select count(*) from fulfilled_people),
+    'fulfilled_by_purchase', (select count(*) from fulfilled_people where fulfilled_item_id is not null),
+    'offers', (select count(*) from public.demand_offer),
+    'offered_items', (select count(distinct item_id) from public.demand_offer),
+    'offered_items_sold', (
+      select count(distinct o.item_id) from public.demand_offer o join public.item i on i.id = o.item_id where i.sold
+    ),
+    'avg_days_to_fulfill', (
+      select round(avg(extract(epoch from owner_fulfilled_at - created_at) / 86400)::numeric, 1)
+      from public.demand where owner_fulfilled_at is not null
+    ),
+    'budget_active', (
+      select jsonb_build_object(
+        'avg', round(avg(budget)),
+        'median', percentile_cont(0.5) within group (order by budget)
+      ) from active
+    ),
+    'weekly', (
+      select jsonb_agg(jsonb_build_object(
+        'week_start', w.week_start,
+        'created', (select count(*) from public.demand d
+                    where (d.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                      and (d.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'fulfilled', (select count(*) from fulfilled_people f
+                      where (f.at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7)
+      ) order by w.week_start)
+      from weeks w
+    ),
+    'top_tags', (
+      select coalesce(jsonb_agg(jsonb_build_object('tag', tag, 'demands', n, 'wanters', w) order by w desc, n desc), '[]'::jsonb)
+      from (
+        select t.tag, count(*) as n, sum(a.wanters) as w
+        from active a, unnest(a.tags) as t(tag)
+        group by t.tag
+        order by w desc, n desc
+        limit 15
+      ) s
+    ),
+    'top_demands', (
+      select coalesce(jsonb_agg(jsonb_build_object('id', id, 'title', title, 'budget', budget, 'deadline', deadline, 'wanters', wanters) order by wanters desc, created_at desc), '[]'::jsonb)
+      from (select * from active order by wanters desc, created_at desc limit 10) s
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_demand_stats() from public, anon;
+grant execute on function public.admin_demand_stats() to authenticated;

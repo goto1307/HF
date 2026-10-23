@@ -13,11 +13,14 @@ type Report = {
   reported_user_id: string | null;
   reporter_id: string | null;
   message_id: number | null;
+  demand_id: number | null;
   reason: string;
   created_at: string;
   item: { title: string; user_id: string } | null;
   message: { content: string; user_id: string } | null;
 };
+
+type ReportedDemand = { id: number; title: string; note: string | null; status: string };
 
 type AdminUser = {
   id: string;
@@ -38,6 +41,10 @@ export default function AdminReports() {
   const [deleteMessageTarget, setDeleteMessageTarget] = useState<Report | null>(null);
   const [messageDeleteReason, setMessageDeleteReason] = useState("");
   const [deletingMessage, setDeletingMessage] = useState(false);
+  const [demandMap, setDemandMap] = useState<Record<number, ReportedDemand>>({});
+  const [deleteDemandTarget, setDeleteDemandTarget] = useState<Report | null>(null);
+  const [demandDeleteReason, setDemandDeleteReason] = useState("");
+  const [deletingDemand, setDeletingDemand] = useState(false);
 
   const isAdmin = isAdminEmail(user?.email);
 
@@ -49,7 +56,7 @@ export default function AdminReports() {
     const fetchReports = async () => {
       const { data } = await supabase
         .from("report")
-        .select("id, item_id, reported_user_id, reporter_id, message_id, reason, created_at, item:item_id(title,user_id), message:message_id(content,user_id)")
+        .select("id, item_id, reported_user_id, reporter_id, message_id, demand_id, reason, created_at, item:item_id(title,user_id), message:message_id(content,user_id)")
         .order("created_at", { ascending: false });
       if (data) setReports(data as unknown as Report[]);
 
@@ -58,6 +65,14 @@ export default function AdminReports() {
         const map: Record<string, AdminUser> = {};
         for (const u of users as AdminUser[]) map[u.id] = u;
         setUserMap(map);
+      }
+
+      // 通報された欲しい！の中身(登録者以外は読めないので管理者用の関数で取る)
+      const { data: demands } = await supabase.rpc("admin_list_demands");
+      if (demands) {
+        const map: Record<number, ReportedDemand> = {};
+        for (const d of demands as ReportedDemand[]) map[d.id] = d;
+        setDemandMap(map);
       }
       setLoading(false);
     };
@@ -110,6 +125,22 @@ export default function AdminReports() {
     setMessageDeleteReason("");
   };
 
+  const handleConfirmDeleteDemand = async () => {
+    if (!deleteDemandTarget?.demand_id) return;
+    if (!demandDeleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    setDeletingDemand(true);
+    const { error } = await supabase.rpc("admin_delete_demand", {
+      p_demand_id: deleteDemandTarget.demand_id,
+      p_reason: demandDeleteReason.trim(),
+    });
+    setDeletingDemand(false);
+    if (error) { alert(`削除に失敗しました: ${error.message}`); return; }
+    const id = deleteDemandTarget.demand_id;
+    setDemandMap((prev) => ({ ...prev, [id]: { ...prev[id], status: "removed" } }));
+    setDeleteDemandTarget(null);
+    setDemandDeleteReason("");
+  };
+
   if (authLoading || (loading && isAdmin)) {
     return (
       <div className="min-h-screen bg-stone-50">
@@ -136,6 +167,7 @@ export default function AdminReports() {
           <h2 className="text-2xl font-bold">通報一覧（{reports.length}件）</h2>
           <div className="flex gap-3">
             <Link href="/admin/users" className="text-sm font-bold text-orange-700 hover:underline">ユーザー管理へ</Link>
+            <Link href="/admin/demands" className="text-sm font-bold text-orange-700 hover:underline">欲しい！一覧へ</Link>
             <Link href="/admin/items" className="text-sm font-bold text-orange-700 hover:underline">商品/チャットへ</Link>
             <Link href="/admin/reviews" className="text-sm font-bold text-orange-700 hover:underline">評価一覧へ</Link>
             <Link href="/admin/log" className="text-sm font-bold text-orange-700 hover:underline">操作ログへ</Link>
@@ -150,7 +182,12 @@ export default function AdminReports() {
             {reports.map((r) => (
               <div key={r.id} className="bg-white border border-red-200 rounded-2xl p-4 shadow-sm">
                 <div className="flex justify-between items-start gap-2 mb-1.5">
-                  {r.message_id ? (
+                  {r.demand_id ? (
+                    <Link href="/admin/demands" className="font-bold text-sm text-orange-700 hover:underline">
+                      欲しい！：{demandMap[r.demand_id]?.title || `ID ${r.demand_id}`}
+                      {demandMap[r.demand_id]?.status === "removed" && "（削除済み）"}
+                    </Link>
+                  ) : r.message_id ? (
                     <span className="font-bold text-sm text-orange-700">
                       メッセージ{r.item_id && <> （<Link href={`/items/${r.item_id}`} className="hover:underline">{r.item?.title || `商品ID ${r.item_id}`}</Link>）</>}
                     </span>
@@ -169,6 +206,14 @@ export default function AdminReports() {
                 {r.message_id && (
                   <p className="text-xs text-stone-500 bg-stone-50 rounded-lg px-3 py-2 mb-1.5">
                     通報されたメッセージ：{r.message ? `「${r.message.content}」（送信者：${describeUser(r.message.user_id)}）` : "（既に削除されています）"}
+                  </p>
+                )}
+                {r.demand_id && (
+                  <p className="text-xs text-stone-500 mb-1.5">登録者：{describeUser(r.reported_user_id)}</p>
+                )}
+                {r.demand_id && demandMap[r.demand_id]?.note && (
+                  <p className="text-xs text-stone-500 bg-stone-50 rounded-lg px-3 py-2 mb-1.5 whitespace-pre-wrap break-all">
+                    備考：{demandMap[r.demand_id].note}
                   </p>
                 )}
                 <p className="text-sm text-stone-700 mb-3">{r.reason}</p>
@@ -194,6 +239,14 @@ export default function AdminReports() {
                       className="text-xs font-bold bg-red-500 text-white px-4 py-1.5 rounded-full hover:bg-red-600 transition-colors disabled:opacity-50"
                     >
                       メッセージを削除する
+                    </button>
+                  )}
+                  {r.demand_id && demandMap[r.demand_id] && demandMap[r.demand_id].status !== "removed" && (
+                    <button
+                      onClick={() => { setDeleteDemandTarget(r); setDemandDeleteReason(""); }}
+                      className="text-xs font-bold bg-red-500 text-white px-4 py-1.5 rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      欲しい！を削除する
                     </button>
                   )}
                   {r.item_id && !r.message_id && (
@@ -243,6 +296,44 @@ export default function AdminReports() {
                 className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
               >
                 {deletingItem ? "削除中..." : "削除して通知する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteDemandTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !deletingDemand && setDeleteDemandTarget(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="font-bold text-sm mb-1 text-center">この欲しい！を削除しますか？</p>
+            <p className="text-center text-orange-700 font-bold text-sm mb-4 truncate">
+              {deleteDemandTarget.demand_id && demandMap[deleteDemandTarget.demand_id]?.title}
+            </p>
+            <label className="block text-xs font-bold text-stone-500 mb-1">削除理由（登録者に通知されます）</label>
+            <textarea
+              value={demandDeleteReason}
+              onChange={(e) => setDemandDeleteReason(e.target.value)}
+              maxLength={300}
+              placeholder="例：不適切な内容のため削除しました"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-4 outline-none h-20 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteDemandTarget(null)}
+                disabled={deletingDemand}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleConfirmDeleteDemand}
+                disabled={deletingDemand}
+                className="flex-1 bg-red-500 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {deletingDemand ? "削除中..." : "削除して通知する"}
               </button>
             </div>
           </div>
