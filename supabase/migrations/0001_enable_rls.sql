@@ -2532,3 +2532,75 @@ drop trigger if exists notify_sold_email_trigger on public.item;
 create trigger notify_sold_email_trigger
 after update of sold on public.item
 for each row execute function public.notify_sold_email();
+
+
+-- ============================================================
+-- PART AE: 購入お知らせメールの送りすぎを防ぐ
+-- ============================================================
+--
+-- 背景: PART AD のままだと「購入 → キャンセル → 購入」を繰り返すたびに
+--   出品者へメールが飛ぶ。悪意のある利用者が特定の出品者にメールを大量に
+--   送りつけたり、Resend の送信枠を使い切らせて他の人の通知を止めたりできた。
+--   → 送ったメールを sold_email_log に記録し、次の場合は送らない。
+--     - 同じ商品のメールを24時間以内に送っている
+--     - 同じ購入者がきっかけのメールを24時間以内に10通送っている
+--   サイト内の通知(notification)はこれまでどおり毎回作られる。
+--   sold_email_log は利用者からは読み書きできない(ポリシー無しのRLS)。
+
+create table if not exists public.sold_email_log (
+  id bigint generated always as identity primary key,
+  item_id bigint not null,
+  buyer_id uuid not null,
+  created_at timestamptz not null default now()
+);
+alter table public.sold_email_log enable row level security;
+revoke all on public.sold_email_log from anon, authenticated;
+create index if not exists sold_email_log_item_idx on public.sold_email_log (item_id, created_at);
+create index if not exists sold_email_log_buyer_idx on public.sold_email_log (buyer_id, created_at);
+
+create or replace function public.notify_sold_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_secret text;
+begin
+  if new.sold and not coalesce(old.sold, false) and new.buyer_id is not null then
+    begin
+      -- 同じ商品は24時間に1通まで
+      if exists (
+        select 1 from public.sold_email_log
+        where item_id = new.id and created_at > now() - interval '24 hours'
+      ) then
+        return new;
+      end if;
+      -- 同じ購入者がきっかけのメールは24時間に10通まで
+      if (select count(*) from public.sold_email_log
+          where buyer_id = new.buyer_id and created_at > now() - interval '24 hours') >= 10 then
+        return new;
+      end if;
+
+      select decrypted_secret into v_secret
+      from vault.decrypted_secrets
+      where name = 'sold_email_hook_secret'
+      limit 1;
+
+      if v_secret is not null then
+        insert into public.sold_email_log (item_id, buyer_id) values (new.id, new.buyer_id);
+        delete from public.sold_email_log where created_at < now() - interval '7 days';
+        perform net.http_post(
+          url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-sold',
+          body := jsonb_build_object('item_id', new.id),
+          headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
+        );
+      end if;
+    exception when others then
+      raise warning 'notify_sold_email failed: %', sqlerrm;
+    end;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.notify_sold_email() from public, anon, authenticated;
