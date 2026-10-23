@@ -12,7 +12,7 @@ import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import StarRating from "@/components/StarRating";
 import ImageCropper from "@/components/ImageCropper";
-import WishList from "@/components/WishList";
+import MyDemandsCard from "@/components/MyDemandsCard";
 import { AVATAR_PRESETS } from "@/lib/avatarPresets";
 import { IconPencil, IconPackage } from "@/components/icons";
 
@@ -121,7 +121,7 @@ export default function MyPage() {
 
   const loading = authLoading || dataLoading;
 
-  // 読み込みが終わってから中身が表示されるため、#wish や #selling で開かれたときは
+  // 読み込みが終わってから中身が表示されるため、#purchased や #selling で開かれたときは
   // 表示後にその欄までスクロールする
   useEffect(() => {
     if (loading) return;
@@ -410,7 +410,7 @@ export default function MyPage() {
           </div>
         </section>
 
-        <WishList />
+        <MyDemandsCard />
         </div>
 
         {blockedUsers.length > 0 && (

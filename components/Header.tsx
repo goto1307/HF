@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import HokkumaMascot from "@/components/HokkumaMascot";
+import DemandBubbles from "@/components/DemandBubbles";
 import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
 type Notification = {
@@ -140,14 +141,6 @@ export default function Header() {
                   className="hidden md:inline-block text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/30 transition-colors whitespace-nowrap shrink-0"
                 >
                   出品・売れた商品
-                </Link>
-              )}
-              {user && (
-                <Link
-                  href="/mypage#wish"
-                  className="hidden md:inline-block text-xs font-bold px-3 py-2 rounded-full bg-white/10 hover:bg-white/30 transition-colors whitespace-nowrap shrink-0"
-                >
-                  欲しいもの
                 </Link>
               )}
             </div>
@@ -317,11 +310,13 @@ export default function Header() {
             <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
               {[
                 { href: "/", label: "商品を探す" },
-                { href: "/mypage#selling", label: "出品商品" },
-                { href: "/mypage#purchased", label: "購入商品" },
-                { href: "/mypage", label: "マイページ" },
+                { href: "/mypage#purchased", label: "出品・購入商品" },
+                { href: "/demands", label: "みんなの欲しい！" },
               ].map((tab) => {
-                const isActive = tab.href === "/" ? pathname === "/" : pathname === "/mypage";
+                const isActive =
+                  tab.href === "/" ? pathname === "/"
+                  : tab.href === "/demands" ? pathname.startsWith("/demands")
+                  : pathname === "/mypage";
                 return (
                   <Link
                     key={tab.label}
@@ -338,6 +333,8 @@ export default function Header() {
           </div>
         )}
       </header>
+
+      <DemandBubbles />
 
       {showGuide && (
         <div

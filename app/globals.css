@@ -36,3 +36,30 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* みんなの欲しい！の吹き出しがポンと出てくる動き(components/DemandBubbles.tsx) */
+@keyframes bubble-pop {
+  0% { opacity: 0; transform: translateY(8px) scale(0.6); }
+  60% { opacity: 1; transform: translateY(-2px) scale(1.06); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-bubble-pop {
+  animation: bubble-pop 0.45s ease-out both;
+}
+
+.animate-bubble-float {
+  animation: bubble-float 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bubble-pop,
+  .animate-bubble-float {
+    animation: none;
+  }
+}

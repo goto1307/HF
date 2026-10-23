@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { validateImageFile } from "@/lib/resizeImage";
 import { makeImagePath } from "@/lib/uploadPath";
+import { DEMAND_COLUMNS, findMatchingDemands, formatBudget, formatDeadline, jstToday, type Demand } from "@/lib/demand";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 import { IconWarning, IconPackage, IconX } from "@/components/icons";
@@ -31,6 +32,10 @@ export default function Sell() {
   const [hashtagInput, setHashtagInput] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // 出品後に「この欲しい！の中にありませんか？」と案内する候補
+  const [offer, setOffer] = useState<{ itemId: number; candidates: Demand[] } | null>(null);
+  const [offerSelected, setOfferSelected] = useState<Set<number>>(new Set());
+  const [offering, setOffering] = useState(false);
 
   const addHashtag = () => {
     const tag = hashtagInput.trim().replace(/^#/, "");
@@ -105,7 +110,7 @@ export default function Sell() {
       imageUrls.push(urlData.publicUrl);
     }
 
-    const { error } = await supabase.from("item").insert({
+    const { data: inserted, error } = await supabase.from("item").insert({
       title,
       price: isFree ? 0 : Number(price),
       category,
@@ -117,12 +122,47 @@ export default function Sell() {
       condition: condition || null,
       area: area.trim() || null,
       hashtags: hashtags.length > 0 ? hashtags : null,
-    });
+    }).select("id").single();
 
+    if (error || !inserted) { setLoading(false); alert("出品に失敗しました"); return; }
+
+    const candidates = await findDemandsForItem();
     setLoading(false);
+    if (candidates.length === 0) {
+      alert("出品しました！");
+      router.push("/");
+      return;
+    }
+    setShowConfirm(false);
+    setOfferSelected(new Set());
+    setOffer({ itemId: inserted.id, candidates });
+  };
 
-    if (error) { alert("出品に失敗しました"); return; }
-    alert("出品しました！");
+  // 出品した商品に合いそうな、他の人の受付中の欲しい！を探す
+  const findDemandsForItem = async () => {
+    const [{ data: openData }, { data: mineData }] = await Promise.all([
+      supabase.from("demand").select(DEMAND_COLUMNS).eq("status", "open").gte("deadline", jstToday()),
+      supabase.rpc("my_demands"),
+    ]);
+    const mineIds = new Set(((mineData ?? []) as { id: number }[]).map((d) => d.id));
+    const others = ((openData ?? []) as Demand[]).filter((d) => !mineIds.has(d.id));
+    return findMatchingDemands(others, { title, hashtags });
+  };
+
+  const finishOffer = async (send: boolean) => {
+    if (!offer) return;
+    if (send && offerSelected.size > 0) {
+      setOffering(true);
+      const { data, error } = await supabase.rpc("offer_item_to_demands", {
+        p_item_id: offer.itemId,
+        p_demand_ids: [...offerSelected],
+      });
+      setOffering(false);
+      if (error) { alert(`通知の送信に失敗しました: ${error.message}`); return; }
+      alert(`出品しました！欲しい！を登録した${data ?? 0}人に知らせました。`);
+    } else {
+      alert("出品しました！");
+    }
     router.push("/");
   };
 
@@ -350,6 +390,56 @@ export default function Sell() {
                   {loading ? "出品中..." : "この内容で出品する"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {offer && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-lg max-w-md w-full max-h-[85vh] overflow-y-auto p-6">
+            <p className="font-bold text-center mb-1">出品しました！</p>
+            <p className="text-sm text-stone-600 text-center mb-4">
+              この商品は、これらの欲しい！の中にありませんか？選んだ欲しい！を投稿した人に通知を送ります。あなたの出品が早く買われるかもしれません。
+            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              {offer.candidates.map((d) => (
+                <label key={d.id} className="flex items-start gap-3 border border-stone-200 rounded-xl p-3 cursor-pointer hover:bg-orange-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={offerSelected.has(d.id)}
+                    onChange={() => setOfferSelected((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(d.id)) next.delete(d.id); else next.add(d.id);
+                      return next;
+                    })}
+                    className="accent-orange-700 w-4 h-4 mt-0.5 shrink-0"
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-bold text-sm break-all">{d.title}</span>
+                    <span className="block text-xs text-stone-500">{formatBudget(d.budget)}・{formatDeadline(d.deadline)}</span>
+                    {d.tags.length > 0 && (
+                      <span className="block text-[11px] text-orange-600 truncate">{d.tags.map((t) => `#${t}`).join(" ")}</span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => finishOffer(false)}
+                disabled={offering}
+                className="flex-1 border border-stone-300 text-stone-600 py-3 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
+              >
+                送らない
+              </button>
+              <button
+                onClick={() => finishOffer(true)}
+                disabled={offering || offerSelected.size === 0}
+                className="flex-1 bg-orange-700 text-white py-3 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors disabled:opacity-50"
+              >
+                {offering ? "送信中..." : `通知を送る（${offerSelected.size}件）`}
+              </button>
             </div>
           </div>
         </div>
