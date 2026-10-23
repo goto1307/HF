@@ -10,7 +10,9 @@ import {
   formatDeadline,
   isActiveDemand,
   jstToday,
+  wantCount,
   type Demand,
+  type DemandVote,
   type MyDemand,
 } from "@/lib/demand";
 import Header from "@/components/Header";
@@ -19,6 +21,7 @@ import { IconSearch, IconX } from "@/components/icons";
 
 const SORTS = [
   { key: "new", label: "新着順" },
+  { key: "wanted", label: "欲しい人が多い順" },
   { key: "deadline", label: "期限が近い順" },
   { key: "budget", label: "金額が高い順" },
 ] as const;
@@ -28,6 +31,7 @@ const STATUS_LABEL: Record<Demand["status"], string> = {
   open: "受付中",
   fulfilled: "買えた！",
   withdrawn: "取り下げ",
+  removed: "運営により削除",
 };
 
 function DemandsContent() {
@@ -46,13 +50,18 @@ function DemandsContent() {
   const [maxBudget, setMaxBudget] = useState("");
   const [sort, setSort] = useState<SortKey>("new");
   const [closing, setClosing] = useState(false);
+  const [votes, setVotes] = useState<Record<number, DemandVote>>({});
+  const [votingId, setVotingId] = useState<number | null>(null);
+  const [reportTarget, setReportTarget] = useState<Demand | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reporting, setReporting] = useState(false);
   // 詳細ポップアップは URL の ?id= で開く(吹き出しから直接開けるように)
   const detailId = openId;
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const [{ data: openData }, { data: mineData }] = await Promise.all([
+      const [{ data: openData }, { data: mineData }, { data: voteData }] = await Promise.all([
         supabase
           .from("demand")
           .select(DEMAND_COLUMNS)
@@ -60,9 +69,11 @@ function DemandsContent() {
           .gte("deadline", jstToday())
           .order("created_at", { ascending: false }),
         supabase.rpc("my_demands"),
+        supabase.rpc("demand_vote_summary"),
       ]);
       setDemands((openData ?? []) as Demand[]);
       setMine((mineData ?? []) as MyDemand[]);
+      setVotes(Object.fromEntries(((voteData ?? []) as DemandVote[]).map((v) => [v.demand_id, v])));
       setLoading(false);
     };
     load();
@@ -94,6 +105,7 @@ function DemandsContent() {
     .sort((a, b) => {
       if (sort === "deadline") return a.deadline.localeCompare(b.deadline);
       if (sort === "budget") return b.budget - a.budget;
+      if (sort === "wanted") return (votes[b.id]?.votes ?? 0) - (votes[a.id]?.votes ?? 0);
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
@@ -112,6 +124,27 @@ function DemandsContent() {
     setSelectedTag(null);
   };
 
+  const toggleVote = async (id: number) => {
+    setVotingId(id);
+    const { data, error } = await supabase.rpc("toggle_demand_vote", { p_demand_id: id });
+    setVotingId(null);
+    if (error) { alert(`僕も！に失敗しました: ${error.message}`); return; }
+    const row = (data as { votes: number; voted: boolean }[] | null)?.[0];
+    if (row) setVotes((prev) => ({ ...prev, [id]: { demand_id: id, ...row } }));
+  };
+
+  const handleReport = async () => {
+    if (!reportTarget) return;
+    if (!reportReason.trim()) { alert("通報理由を入力してください"); return; }
+    setReporting(true);
+    const { error } = await supabase.rpc("report_demand", { p_demand_id: reportTarget.id, p_reason: reportReason.trim() });
+    setReporting(false);
+    if (error) { alert(error.message.includes("1分に1回") ? error.message : `通報に失敗しました: ${error.message}`); return; }
+    alert("通報しました。ご協力ありがとうございます。");
+    setReportTarget(null);
+    setReportReason("");
+  };
+
   const closeDemand = async (status: "fulfilled" | "withdrawn") => {
     if (!detail) return;
     const message = status === "fulfilled"
@@ -125,6 +158,22 @@ function DemandsContent() {
     setMine((prev) => prev.map((d) => (d.id === detail.id ? { ...d, status } : d)));
     setDemands((prev) => prev.filter((d) => d.id !== detail.id));
     openDetail(null);
+  };
+
+  const renderVoteButton = (id: number, large = false) => {
+    const voted = votes[id]?.voted ?? false;
+    return (
+      <button
+        onClick={() => toggleVote(id)}
+        disabled={votingId === id}
+        aria-pressed={voted}
+        className={`font-bold rounded-full border transition-colors disabled:opacity-50 ${
+          large ? "flex-1 text-sm py-2.5" : "text-xs px-3 py-1"
+        } ${voted ? "bg-orange-100 text-orange-800 border-orange-300" : "bg-white text-orange-700 border-orange-200 hover:bg-orange-50"}`}
+      >
+        {voted ? "僕も！済み" : "僕も！"}
+      </button>
+    );
   };
 
   if (!authLoading && !user) {
@@ -253,12 +302,26 @@ function DemandsContent() {
                   <p className="font-bold text-sm text-stone-800 break-all line-clamp-2 mb-1">{d.title}</p>
                   <p className="text-orange-700 font-extrabold text-base tracking-tight">{formatBudget(d.budget)}</p>
                   <p className="text-[11px] text-stone-400 mt-0.5">{formatDeadline(d.deadline)}</p>
-                  <button
-                    onClick={() => openDetail(d.id)}
-                    className="mt-2 self-start text-xs font-bold text-orange-700 border border-orange-200 rounded-full px-3 py-1 hover:bg-orange-100 transition-colors"
-                  >
-                    詳細
-                  </button>
+                  <p className="text-[11px] font-bold text-stone-500 mt-1">{wantCount(votes[d.id]?.votes ?? 0)}人が欲しい</p>
+                  <div className="mt-auto pt-2 flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => openDetail(d.id)}
+                      className="text-xs font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1 hover:bg-stone-100 transition-colors"
+                    >
+                      詳細
+                    </button>
+                    {active && !mineIds.has(d.id) && (
+                      <>
+                        {renderVoteButton(d.id)}
+                        <Link
+                          href={`/sell?demand=${d.id}`}
+                          className="text-xs font-bold text-white bg-orange-700 rounded-full px-3 py-1 hover:bg-orange-800 transition-colors"
+                        >
+                          応える
+                        </Link>
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -295,6 +358,10 @@ function DemandsContent() {
                   <div className="flex gap-3">
                     <dt className="w-24 shrink-0 text-stone-500">いつまでに</dt>
                     <dd>{formatDeadline(detail.deadline)}</dd>
+                  </div>
+                  <div className="flex gap-3">
+                    <dt className="w-24 shrink-0 text-stone-500">欲しい人</dt>
+                    <dd>{wantCount(votes[detail.id]?.votes ?? 0)}人</dd>
                   </div>
                   {detailIsMine && (
                     <div className="flex gap-3">
@@ -334,15 +401,58 @@ function DemandsContent() {
                     </div>
                   )
                 ) : (
-                  <Link
-                    href="/sell"
-                    className="block text-center mt-5 bg-orange-700 text-white py-3 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors"
-                  >
-                    持っているなら出品する
-                  </Link>
+                  <>
+                    <div className="flex gap-2 mt-5">
+                      {renderVoteButton(detail.id, true)}
+                      <Link
+                        href={`/sell?demand=${detail.id}`}
+                        className="flex-1 text-center bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors"
+                      >
+                        この欲しい！に応える
+                      </Link>
+                    </div>
+                    <button
+                      onClick={() => { setReportTarget(detail); setReportReason(""); }}
+                      className="block mx-auto mt-4 text-xs text-stone-400 underline hover:text-red-500 transition-colors"
+                    >
+                      この欲しい！を通報する
+                    </button>
+                  </>
                 )}
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {reportTarget && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={() => !reporting && setReportTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="font-bold text-sm mb-1 text-center">この欲しい！を通報しますか？</p>
+            <p className="text-center text-stone-500 text-sm mb-4 truncate">「{reportTarget.title}」</p>
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              maxLength={500}
+              placeholder="通報理由を入力してください"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-4 outline-none h-20 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setReportTarget(null)}
+                disabled={reporting}
+                className="flex-1 border border-stone-300 text-stone-600 py-2 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleReport}
+                disabled={reporting}
+                className="flex-1 bg-red-500 text-white py-2 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-red-600 transition-colors"
+              >
+                {reporting ? "送信中..." : "通報する"}
+              </button>
+            </div>
           </div>
         </div>
       )}

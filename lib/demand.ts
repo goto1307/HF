@@ -12,7 +12,7 @@ export type Demand = {
   deadline: string; // YYYY-MM-DD(日本時間の日付)
   tags: string[];
   note: string | null;
-  status: "open" | "fulfilled" | "withdrawn";
+  status: "open" | "fulfilled" | "withdrawn" | "removed";
   created_at: string;
 };
 
@@ -21,6 +21,14 @@ export type MyDemand = Demand & {
   fulfilled_item_id: number | null;
   offered: boolean;
 };
+
+// demand_vote_summary() の戻り値(僕も！の人数と、自分が押したか)
+export type DemandVote = { demand_id: number; votes: number; voted: boolean };
+
+// 欲しがっている人数 = 登録した本人 + 僕も！の人数
+export function wantCount(votes: number) {
+  return votes + 1;
+}
 
 // 日本時間の今日を YYYY-MM-DD で返す(DB の jst_today() と合わせる)
 export function jstToday() {

@@ -245,6 +245,9 @@ export default function Header() {
                       <Link href="/admin/reviews" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         評価一覧
                       </Link>
+                      <Link href="/admin/demands" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
+                        欲しい！一覧
+                      </Link>
                       <Link href="/admin/log" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         操作ログ
                       </Link>

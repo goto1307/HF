@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
-import { jstToday } from "@/lib/demand";
+import { jstToday, type DemandVote } from "@/lib/demand";
 import { IconX } from "@/components/icons";
 
 // ログイン後、画面右下で上を向いて考え事をしているホックマのまわりに、
@@ -28,17 +28,21 @@ const HIDE_KEY = "demandBubblesHidden";
 // フォームやチャットの入力欄にかぶる画面では出さない
 const HIDDEN_PATHS = [/^\/sell/, /^\/demands\/new/, /^\/items\/[^/]+\/(chat|edit)/, /^\/admin/];
 
+// 欲しい人が多い欲しい！と新しい欲しい！を優先して出す。
+// 優先度 = 僕も！の人数 × VOTE_WEIGHT + 新しさ(登録から FRESH_DAYS 日以内なら最大 FRESH_BONUS)
+const VOTE_WEIGHT = 2;
+const FRESH_DAYS = 7;
+const FRESH_BONUS = 4;
+const POOL_SIZE = 15;
+
+function priority(b: Bubble & { created_at: string }, votes: number) {
+  const ageDays = (Date.now() - new Date(b.created_at).getTime()) / 86400000;
+  const fresh = Math.max(0, 1 - ageDays / FRESH_DAYS) * FRESH_BONUS;
+  return votes * VOTE_WEIGHT + fresh + Math.random() * 0.5; // 同じくらいの優先度なら毎回少し入れ替わる
+}
+
 // ページを移動するたびに取り直さないよう、少しの間だけ覚えておく
 let cache: { at: number; bubbles: Bubble[] } | null = null;
-
-function shuffle<T>(arr: T[]) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 export default function DemandBubbles() {
   const { user } = useAuth();
@@ -61,17 +65,26 @@ export default function DemandBubbles() {
     if (!user) return;
     const load = async () => {
       if (!cache || Date.now() - cache.at >= CACHE_MS) {
-        const { data } = await supabase
-          .from("demand")
-          .select("id,title")
-          .eq("status", "open")
-          .gte("deadline", jstToday())
-          .order("created_at", { ascending: false })
-          .limit(30);
-        cache = { at: Date.now(), bubbles: (data ?? []) as Bubble[] };
+        const [{ data }, { data: voteData }] = await Promise.all([
+          supabase
+            .from("demand")
+            .select("id,title,created_at")
+            .eq("status", "open")
+            .gte("deadline", jstToday())
+            .order("created_at", { ascending: false })
+            .limit(100),
+          supabase.rpc("demand_vote_summary"),
+        ]);
+        const votes = new Map(((voteData ?? []) as DemandVote[]).map((v) => [v.demand_id, v.votes]));
+        const bubbles = ((data ?? []) as (Bubble & { created_at: string })[])
+          .map((b) => ({ b, p: priority(b, votes.get(b.id) ?? 0) }))
+          .sort((x, y) => y.p - x.p)
+          .slice(0, POOL_SIZE)
+          .map(({ b }) => ({ id: b.id, title: b.title }));
+        cache = { at: Date.now(), bubbles };
       }
-      // 最初は空いている場所へ順番に出す
-      const bubbles = shuffle(cache.bubbles);
+      // 優先度の高い順に、最初は空いている場所へ順番に出す
+      const bubbles = cache.bubbles;
       setPool(bubbles);
       setSlots(bubbles.slice(0, SLOTS.length).map((bubble, i) => ({ bubble, key: i })));
     };
