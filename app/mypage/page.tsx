@@ -581,7 +581,7 @@ export default function MyPage() {
                         ) : (
                           <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 opacity-50"><IconPackage size={32} /></div>
                         )}
-                        <div className="absolute top-2 -right-8 w-32 rotate-45 bg-red-600 text-white text-xs font-extrabold text-center py-0.5 shadow-md tracking-wider">
+                        <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-extrabold text-center px-2 py-1 rounded-full shadow-md tracking-wider">
                           SOLD OUT
                         </div>
                       </Link>
