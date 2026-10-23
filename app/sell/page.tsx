@@ -8,6 +8,7 @@ import { validateImageFile } from "@/lib/resizeImage";
 import { makeImagePath } from "@/lib/uploadPath";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
+import { IconWarning, IconPackage, IconX } from "@/components/icons";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -149,9 +150,9 @@ export default function Sell() {
                   )}
                   <button
                     onClick={() => removeImage(i)}
-                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow"
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
                   >
-                    ×
+                    <IconX size={11} />
                   </button>
                 </div>
               ))}
@@ -177,8 +178,9 @@ export default function Sell() {
               {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
             {category === "自転車" && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                ⚠ 自転車の譲渡には防犯登録の名義変更が必要です。お忘れなく。
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2 flex items-center gap-1.5">
+                <IconWarning size={14} className="shrink-0" />
+                自転車の譲渡には防犯登録の名義変更が必要です。お忘れなく。
               </p>
             )}
           </div>
@@ -250,7 +252,7 @@ export default function Sell() {
                 {hashtags.map((tag) => (
                   <span key={tag} className="flex items-center gap-1 bg-orange-50 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">
                     #{tag}
-                    <button type="button" onClick={() => removeHashtag(tag)} className="text-orange-400 hover:text-orange-700">×</button>
+                    <button type="button" onClick={() => removeHashtag(tag)} className="text-orange-400 hover:text-orange-700"><IconX size={10} /></button>
                   </span>
                 ))}
               </div>
@@ -311,7 +313,7 @@ export default function Sell() {
             {previews[0] ? (
               <img src={previews[0]} alt="" className="w-full h-56 object-cover" />
             ) : (
-              <div className="bg-orange-50 h-40 flex items-center justify-center text-orange-200 text-4xl">📦</div>
+              <div className="bg-orange-50 h-40 flex items-center justify-center text-orange-200"><IconPackage size={40} /></div>
             )}
             <div className="p-6">
               <p className="text-xs font-bold text-orange-700 mb-4 text-center">この内容で出品します。よろしいですか？</p>

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import HokkumaMascot from "@/components/HokkumaMascot";
+import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconHandshake, IconWarning, IconX } from "@/components/icons";
 
 type Notification = {
   id: number;
@@ -122,7 +123,7 @@ export default function Header() {
           {pathname === "/" && (
             <div className="flex-1 hidden sm:flex items-center gap-2">
               <div className="flex-1 max-w-md flex items-center bg-white rounded-full px-4 py-2">
-                <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
+                <IconSearch size={16} className="text-stone-400 mr-2" />
                 <input
                   type="text"
                   maxLength={100}
@@ -160,7 +161,7 @@ export default function Header() {
                     className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors"
                     aria-label="通知"
                   >
-                    <span className="text-base sm:text-lg">🔔</span>
+                    <IconBell size={18} />
                     {unreadCount > 0 && (
                       <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
                         {unreadCount > 9 ? "9+" : unreadCount}
@@ -229,10 +230,10 @@ export default function Header() {
             <div ref={menuRef}>
               <button
                 onClick={() => setShowMenu((v) => !v)}
-                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors text-lg"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors"
                 aria-label="メニュー"
               >
-                ☰
+                <IconMenu size={18} />
               </button>
               {showMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
@@ -298,7 +299,7 @@ export default function Header() {
         {pathname === "/" && (
           <div className="sm:hidden px-3 pb-3">
             <div className="flex items-center bg-white rounded-full px-4 py-2">
-              <span className="text-stone-400 mr-2" aria-hidden>🔍</span>
+              <IconSearch size={16} className="text-stone-400 mr-2" />
               <input
                 type="text"
                 maxLength={100}
@@ -358,8 +359,8 @@ export default function Header() {
                 <HokkumaMascot size={32} />
                 <h2 className="text-xl font-extrabold text-stone-700">初めての方に</h2>
               </div>
-              <button onClick={() => setShowGuide(false)} className="text-2xl leading-none text-stone-400 hover:text-stone-600 transition-colors" aria-label="閉じる">
-                ×
+              <button onClick={() => setShowGuide(false)} className="text-stone-400 hover:text-stone-600 transition-colors" aria-label="閉じる">
+                <IconX size={20} />
               </button>
             </div>
             <p className="text-sm text-stone-600 font-bold mb-2">北大生が開発した、北大生専用のフリマサイトです。</p>
@@ -367,7 +368,7 @@ export default function Header() {
 
             <div className="flex flex-col gap-3">
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
-                <span className="text-2xl shrink-0">📷</span>
+                <IconCamera size={26} className="shrink-0 text-orange-600" />
                 <div>
                   <p className="text-xs font-bold text-orange-700 mb-0.5">STEP 1</p>
                   <p className="font-bold text-sm mb-1">出品する</p>
@@ -378,7 +379,7 @@ export default function Header() {
               </div>
 
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
-                <span className="text-2xl shrink-0">💬</span>
+                <IconMessage size={26} className="shrink-0 text-orange-600" />
                 <div>
                   <p className="text-xs font-bold text-orange-700 mb-0.5">STEP 2</p>
                   <p className="font-bold text-sm mb-1">やりとりする</p>
@@ -389,7 +390,7 @@ export default function Header() {
               </div>
 
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
-                <span className="text-2xl shrink-0">🤝</span>
+                <IconHandshake size={26} className="shrink-0 text-orange-600" />
                 <div>
                   <p className="text-xs font-bold text-orange-700 mb-0.5">STEP 3</p>
                   <p className="font-bold text-sm mb-1">受け渡し・評価</p>
@@ -401,7 +402,7 @@ export default function Header() {
             </div>
 
             <div className="mt-4 bg-orange-50 border border-orange-200 rounded-2xl p-4">
-              <p className="font-bold text-xs mb-2 text-orange-800">⚠ 安全なお取引のために</p>
+              <p className="font-bold text-xs mb-2 text-orange-800 flex items-center gap-1"><IconWarning size={13} /> 安全なお取引のために</p>
               <ul className="text-xs text-stone-600 list-disc pl-4 flex flex-col gap-1">
                 <li>受け渡しは人通りが多く明るい場所で行いましょう</li>
                 <li>個人情報（住所など）はやり取りしないようにしましょう</li>

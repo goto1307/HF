@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
+import { IconPackage } from "@/components/icons";
 
 type Item = {
   id: number;
@@ -258,7 +259,7 @@ export default function SellerProfile() {
                 {(item.image_urls?.[0] ?? item.image_url) ? (
                   <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
                 ) : (
-                  <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
+                  <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200"><IconPackage size={32} /></div>
                 )}
                 <div className="p-3">
                   <p className="font-bold mb-1 text-sm truncate">{item.title}</p>

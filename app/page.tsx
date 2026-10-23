@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
+import { IconPackage, IconHeart, IconX, IconMenu } from "@/components/icons";
 
 const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["すべて", "北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -155,10 +156,10 @@ function HomeContent() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)]" aria-hidden />
           <button
             onClick={dismissHero}
-            className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors text-lg leading-none"
+            className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
             aria-label="閉じる"
           >
-            ×
+            <IconX size={15} />
           </button>
           <div className="absolute -top-24 right-10 w-56 h-56 rounded-full bg-white/10" aria-hidden />
           <div className="absolute -bottom-20 left-[8%] w-36 h-36 rounded-full bg-white/10" aria-hidden />
@@ -223,20 +224,20 @@ function HomeContent() {
           onClick={() => setShowFilters((v) => !v)}
           className="hidden md:flex items-center gap-1.5 text-sm font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1.5 bg-white hover:bg-stone-100 hover:border-orange-400 transition-colors"
         >
-          {showFilters ? "✕ 絞り込みを閉じる" : "☰ 絞り込みを表示"}
+          {showFilters ? <><IconX size={14} /> 絞り込みを閉じる</> : <><IconMenu size={14} /> 絞り込みを表示</>}
         </button>
         <button
           onClick={() => setShowMobileFilters(true)}
           className="md:hidden flex items-center gap-1.5 text-sm font-bold text-stone-600 border border-stone-200 rounded-full px-3 py-1.5 bg-white hover:bg-stone-100 hover:border-orange-400 transition-colors"
         >
-          ☰ 絞り込み
+          <IconMenu size={14} /> 絞り込み
         </button>
       </div>
 
       {showMobileFilters && (
         <div className="md:hidden fixed inset-0 z-40 bg-white flex flex-col">
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-stone-200 shrink-0">
-            <button onClick={() => setShowMobileFilters(false)} className="text-2xl leading-none text-stone-500" aria-label="閉じる">✕</button>
+            <button onClick={() => setShowMobileFilters(false)} className="text-stone-500" aria-label="閉じる"><IconX size={22} /></button>
             <p className="font-bold">絞り込み</p>
             <button
               onClick={() => {
@@ -520,8 +521,8 @@ function HomeContent() {
                         className={`w-full h-32 object-cover transition-transform duration-500 group-hover:scale-110 ${item.sold ? "opacity-50" : ""}`}
                       />
                     ) : (
-                      <div className={`bg-gradient-to-br from-orange-50 to-amber-50 h-32 flex items-center justify-center text-orange-200 text-3xl ${item.sold ? "opacity-50" : ""}`}>
-                        📦
+                      <div className={`bg-gradient-to-br from-orange-50 to-amber-50 h-32 flex items-center justify-center text-orange-200 ${item.sold ? "opacity-50" : ""}`}>
+                        <IconPackage size={32} />
                       </div>
                     )}
                     {item.sold && (
@@ -532,9 +533,9 @@ function HomeContent() {
                     {!item.sold && (
                       <button
                         onClick={(e) => toggleLike(e, item.id)}
-                        className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-md hover:scale-110 transition-transform"
+                        className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center shadow-md hover:scale-110 transition-transform"
                       >
-                        {likedByMe.has(item.id) ? "❤️" : "🤍"}
+                        <IconHeart size={15} filled={likedByMe.has(item.id)} className={likedByMe.has(item.id) ? "text-orange-600" : "text-orange-300"} />
                       </button>
                     )}
                   </div>

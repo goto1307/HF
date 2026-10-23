@@ -8,6 +8,7 @@ import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
+import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/components/icons";
 
 type Item = {
   id: number;
@@ -350,7 +351,7 @@ export default function ItemDetail() {
                 <img src={gallery[activeImage]} alt={item.title} className={`w-full h-80 sm:h-96 object-cover ${item.sold ? "opacity-50" : ""}`} />
               </button>
             ) : (
-              <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 text-4xl ${item.sold ? "opacity-50" : ""}`}>📦</div>
+              <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 ${item.sold ? "opacity-50" : ""}`}><IconPackage size={40} /></div>
             )}
             {item.sold && (
               <div className="absolute top-4 -right-10 w-40 rotate-45 bg-red-600 text-white text-sm font-extrabold text-center py-1 shadow-md tracking-wider">
@@ -377,7 +378,7 @@ export default function ItemDetail() {
               disabled={togglingLike || item.sold}
               className="flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:hover:bg-orange-50 rounded-full pl-2 pr-3.5 py-1.5 transition-colors"
             >
-              <span className="text-lg">{likedByMe ? "❤️" : "🤍"}</span>
+              <IconHeart size={18} filled={likedByMe} className={likedByMe ? "text-orange-600" : "text-orange-300"} />
               <span className="text-sm font-bold text-orange-700">{likeCount}件のいいね</span>
             </button>
           </div>
@@ -390,10 +391,10 @@ export default function ItemDetail() {
           >
             <button
               onClick={() => setShowLightbox(false)}
-              className="absolute top-4 right-4 text-white text-3xl leading-none"
+              className="absolute top-4 right-4 text-white"
               aria-label="閉じる"
             >
-              ✕
+              <IconX size={28} />
             </button>
             <img
               src={gallery[activeImage]}
@@ -416,8 +417,9 @@ export default function ItemDetail() {
             {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
           </p>
           {item.category === "自転車" && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-              ⚠ 自転車の譲渡には防犯登録の名義変更が必要です。取引の際はお忘れなく。
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 flex items-center gap-1.5">
+              <IconWarning size={14} className="shrink-0" />
+              自転車の譲渡には防犯登録の名義変更が必要です。取引の際はお忘れなく。
             </p>
           )}
           <p className="text-stone-600 mb-2 whitespace-pre-wrap">{item.detail}</p>
@@ -469,8 +471,8 @@ export default function ItemDetail() {
         </div>
 
         {canReview && !showReviewForm && (
-          <button onClick={() => setShowReviewForm(true)} className="text-orange-700 text-xs font-bold mb-2 block hover:text-orange-800 transition-colors">
-            ★ 出品者を評価する
+          <button onClick={() => setShowReviewForm(true)} className="text-orange-700 text-xs font-bold mb-2 flex items-center gap-1 hover:text-orange-800 transition-colors">
+            <IconStar size={12} /> 出品者を評価する
           </button>
         )}
         {alreadyReviewed && (
@@ -502,8 +504,8 @@ export default function ItemDetail() {
           </div>
         )}
 
-        <button onClick={() => setShowReport(!showReport)} className="text-red-400 text-xs mb-4 block hover:text-red-500 transition-colors">
-          ⚠ この商品を通報する
+        <button onClick={() => setShowReport(!showReport)} className="text-red-400 text-xs mb-4 flex items-center gap-1 hover:text-red-500 transition-colors">
+          <IconWarning size={12} /> この商品を通報する
         </button>
 
         {showReport && (

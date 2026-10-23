@@ -14,6 +14,7 @@ import StarRating from "@/components/StarRating";
 import ImageCropper from "@/components/ImageCropper";
 import WishList from "@/components/WishList";
 import { AVATAR_PRESETS } from "@/lib/avatarPresets";
+import { IconPencil, IconPackage } from "@/components/icons";
 
 type Item = {
   id: number;
@@ -311,7 +312,7 @@ export default function MyPage() {
               </div>
             )}
             <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-stone-300 shadow-sm flex items-center justify-center text-xs cursor-pointer hover:bg-stone-100 transition-colors">
-              {uploadingAvatar ? "…" : "✎"}
+              {uploadingAvatar ? "…" : <IconPencil size={11} />}
               <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} disabled={uploadingAvatar} />
             </label>
           </div>
@@ -471,7 +472,7 @@ export default function MyPage() {
                         {(item.image_urls?.[0] ?? item.image_url) ? (
                           <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
                         ) : (
-                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200"><IconPackage size={32} /></div>
                         )}
                       </Link>
                       <div className="p-3">
@@ -536,7 +537,7 @@ export default function MyPage() {
                         {(item.image_urls?.[0] ?? item.image_url) ? (
                           <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
                         ) : (
-                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200"><IconPackage size={32} /></div>
                         )}
                       </Link>
                       <div className="p-3">
@@ -578,7 +579,7 @@ export default function MyPage() {
                         {(item.image_urls?.[0] ?? item.image_url) ? (
                           <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover opacity-50" />
                         ) : (
-                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl opacity-50">📦</div>
+                          <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 opacity-50"><IconPackage size={32} /></div>
                         )}
                         <div className="absolute top-2 -right-8 w-32 rotate-45 bg-red-600 text-white text-xs font-extrabold text-center py-0.5 shadow-md tracking-wider">
                           SOLD OUT
