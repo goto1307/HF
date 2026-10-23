@@ -115,8 +115,9 @@ export function IconMessage({ className, size }: IconProps) {
 export function IconHandshake({ className, size }: IconProps) {
   return (
     <Svg size={size} className={className}>
-      <path d="M2 13.5l4.8-3.8 3 2 2.2-1.6 3 2 4.8-3.8" />
-      <path d="M8.8 11.7l2.6 3.1a1.3 1.3 0 0 0 2 .05l.5-.6" />
+      <path d="M2 14.5 8 10.8" />
+      <path d="M22 14.5 16 10.8" />
+      <path d="M8 10.8l1.6 1.7 1.4-1.2 1.4 1.2 1.6-1.7" />
     </Svg>
   );
 }
