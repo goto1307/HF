@@ -2542,7 +2542,7 @@ for each row execute function public.notify_sold_email();
 --   出品者へメールが飛ぶ。悪意のある利用者が特定の出品者にメールを大量に
 --   送りつけたり、Resend の送信枠を使い切らせて他の人の通知を止めたりできた。
 --   → 送ったメールを sold_email_log に記録し、次の場合は送らない。
---     - 同じ商品のメールを24時間以内に送っている
+--     - 同じ商品のメールを24時間以内に2通送っている
 --     - 同じ購入者がきっかけのメールを24時間以内に10通送っている
 --   サイト内の通知(notification)はこれまでどおり毎回作られる。
 --   sold_email_log は利用者からは読み書きできない(ポリシー無しのRLS)。
@@ -2569,11 +2569,9 @@ declare
 begin
   if new.sold and not coalesce(old.sold, false) and new.buyer_id is not null then
     begin
-      -- 同じ商品は24時間に1通まで
-      if exists (
-        select 1 from public.sold_email_log
-        where item_id = new.id and created_at > now() - interval '24 hours'
-      ) then
+      -- 同じ商品は24時間に2通まで
+      if (select count(*) from public.sold_email_log
+          where item_id = new.id and created_at > now() - interval '24 hours') >= 2 then
         return new;
       end if;
       -- 同じ購入者がきっかけのメールは24時間に10通まで
