@@ -320,7 +320,7 @@ export default function MyPage() {
             <h2 className="text-xl font-bold mb-1">マイページ</h2>
             <p className="text-sm text-stone-500">{user?.user_metadata?.nickname || user?.email}</p>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-stone-400">初期アイコン：</span>
+              <span className="text-xs text-stone-400">アイコン：</span>
               {AVATAR_PRESETS.map((url) => (
                 <button
                   key={url}
@@ -329,7 +329,7 @@ export default function MyPage() {
                   disabled={uploadingAvatar}
                   className="w-8 h-8 rounded-full overflow-hidden border border-stone-200 hover:border-orange-400 transition-colors disabled:opacity-50"
                 >
-                  <img src={url} alt="初期アイコン" className="w-full h-full object-cover" />
+                  <img src={url} alt="アイコン" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
