@@ -112,12 +112,11 @@ export function IconMessage({ className, size }: IconProps) {
   );
 }
 
-export function IconHandshake({ className, size }: IconProps) {
+export function IconCheckCircle({ className, size }: IconProps) {
   return (
     <Svg size={size} className={className}>
-      <path d="M2 14.5 8 10.8" />
-      <path d="M22 14.5 16 10.8" />
-      <path d="M8 10.8l1.6 1.7 1.4-1.2 1.4 1.2 1.6-1.7" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M7.5 12.5l3 3 6-6.5" />
     </Svg>
   );
 }

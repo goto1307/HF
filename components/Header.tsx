@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import HokkumaMascot from "@/components/HokkumaMascot";
-import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconHandshake, IconWarning, IconX } from "@/components/icons";
+import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
 type Notification = {
   id: number;
@@ -390,7 +390,7 @@ export default function Header() {
               </div>
 
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex gap-3">
-                <IconHandshake size={26} className="shrink-0 text-orange-600" />
+                <IconCheckCircle size={26} className="shrink-0 text-orange-600" />
                 <div>
                   <p className="text-xs font-bold text-orange-700 mb-0.5">STEP 3</p>
                   <p className="font-bold text-sm mb-1">受け渡し・評価</p>

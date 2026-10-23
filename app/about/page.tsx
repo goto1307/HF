@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import HokkumaMascot from "@/components/HokkumaMascot";
-import { IconCamera, IconMessage, IconHandshake } from "@/components/icons";
+import { IconCamera, IconMessage, IconCheckCircle } from "@/components/icons";
 
 export const metadata: Metadata = {
   title: "HOKUMA | 北海道大学の学生専用フリマアプリ",
@@ -99,7 +99,7 @@ export default function About() {
             {[
               { icon: IconCamera, title: "出品する", desc: "写真を撮って、タイトルと価格を入れるだけ。最短1分で出品できます。" },
               { icon: IconMessage, title: "やりとりする", desc: "チャットで質問し、購入後は待ち合わせ場所と日時をその場で相談します。" },
-              { icon: IconHandshake, title: "受け渡し・評価", desc: "人通りの多い場所で直接受け渡し。取引完了後にお互いを評価できます。" },
+              { icon: IconCheckCircle, title: "受け渡し・評価", desc: "人通りの多い場所で直接受け渡し。取引完了後にお互いを評価できます。" },
             ].map((s) => (
               <div key={s.title} className="relative text-center px-4">
                 <div className="w-16 h-16 rounded-full bg-white/5 border border-white/15 flex items-center justify-center mx-auto mb-4">
