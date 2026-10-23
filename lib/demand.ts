@@ -1,4 +1,4 @@
-// みんなの欲しい！(migration PART AD)。user_id は列ごと読めないので含めない。
+// みんなの欲しい！(migration PART AF)。user_id は列ごと読めないので含めない。
 export const DEMAND_COLUMNS = "id,title,budget,deadline,tags,note,status,created_at";
 
 export const DEMAND_TITLE_MAX = 20;

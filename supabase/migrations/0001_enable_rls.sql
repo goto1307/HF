@@ -2482,7 +2482,130 @@ with check (true);
 
 
 -- ============================================================
--- PART AD: みんなの欲しい！(需要の見える化)。PART Z の欲しいもの登録を置き換える
+-- PART AD: 商品が購入されたら、出品者にお知らせメールを送る
+-- ============================================================
+--
+-- 仕組み: item.sold が false → true になったら、pg_net で Edge Function
+--   notify-sold(supabase/functions/notify-sold)を呼ぶ。Edge Function が
+--   DB で売却済みを確かめ直し、出品者の登録メールアドレスに Resend で送る。
+--   - 合言葉は Vault の sold_email_hook_secret に保存し(コードには書かない)、
+--     Edge Function の Secrets の HOOK_SECRET と同じ値にする
+--   - メール送信で何が起きても購入処理は止めない(例外は警告にして握りつぶす)
+--   - 事前に「select vault.create_secret('<ランダムな値>', 'sold_email_hook_secret');」
+--     を一度だけ実行しておくこと(値はこのファイルに書かない)
+
+create extension if not exists pg_net;
+
+create or replace function public.notify_sold_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_secret text;
+begin
+  if new.sold and not coalesce(old.sold, false) and new.buyer_id is not null then
+    begin
+      select decrypted_secret into v_secret
+      from vault.decrypted_secrets
+      where name = 'sold_email_hook_secret'
+      limit 1;
+
+      if v_secret is not null then
+        perform net.http_post(
+          url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-sold',
+          body := jsonb_build_object('item_id', new.id),
+          headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
+        );
+      end if;
+    exception when others then
+      raise warning 'notify_sold_email failed: %', sqlerrm;
+    end;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.notify_sold_email() from public, anon, authenticated;
+
+drop trigger if exists notify_sold_email_trigger on public.item;
+create trigger notify_sold_email_trigger
+after update of sold on public.item
+for each row execute function public.notify_sold_email();
+
+
+-- ============================================================
+-- PART AE: 購入お知らせメールの送りすぎを防ぐ
+-- ============================================================
+--
+-- 背景: PART AD のままだと「購入 → キャンセル → 購入」を繰り返すたびに
+--   出品者へメールが飛ぶ。悪意のある利用者が特定の出品者にメールを大量に
+--   送りつけたり、Resend の送信枠を使い切らせて他の人の通知を止めたりできた。
+--   → 送ったメールを sold_email_log に記録し、次の場合は送らない。
+--     - 同じ商品のメールを24時間以内に2通送っている
+--     - 同じ購入者がきっかけのメールを24時間以内に10通送っている
+--   サイト内の通知(notification)はこれまでどおり毎回作られる。
+--   sold_email_log は利用者からは読み書きできない(ポリシー無しのRLS)。
+
+create table if not exists public.sold_email_log (
+  id bigint generated always as identity primary key,
+  item_id bigint not null,
+  buyer_id uuid not null,
+  created_at timestamptz not null default now()
+);
+alter table public.sold_email_log enable row level security;
+revoke all on public.sold_email_log from anon, authenticated;
+create index if not exists sold_email_log_item_idx on public.sold_email_log (item_id, created_at);
+create index if not exists sold_email_log_buyer_idx on public.sold_email_log (buyer_id, created_at);
+
+create or replace function public.notify_sold_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_secret text;
+begin
+  if new.sold and not coalesce(old.sold, false) and new.buyer_id is not null then
+    begin
+      -- 同じ商品は24時間に2通まで
+      if (select count(*) from public.sold_email_log
+          where item_id = new.id and created_at > now() - interval '24 hours') >= 2 then
+        return new;
+      end if;
+      -- 同じ購入者がきっかけのメールは24時間に10通まで
+      if (select count(*) from public.sold_email_log
+          where buyer_id = new.buyer_id and created_at > now() - interval '24 hours') >= 10 then
+        return new;
+      end if;
+
+      select decrypted_secret into v_secret
+      from vault.decrypted_secrets
+      where name = 'sold_email_hook_secret'
+      limit 1;
+
+      if v_secret is not null then
+        insert into public.sold_email_log (item_id, buyer_id) values (new.id, new.buyer_id);
+        delete from public.sold_email_log where created_at < now() - interval '7 days';
+        perform net.http_post(
+          url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-sold',
+          body := jsonb_build_object('item_id', new.id),
+          headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
+        );
+      end if;
+    exception when others then
+      raise warning 'notify_sold_email failed: %', sqlerrm;
+    end;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.notify_sold_email() from public, anon, authenticated;
+
+
+-- ============================================================
+-- PART AF: みんなの欲しい！(需要の見える化)。PART Z の欲しいもの登録を置き換える
 -- ============================================================
 --
 -- 仕様:
@@ -2811,7 +2934,7 @@ $$;
 
 
 -- ============================================================
--- PART AE: 欲しい！の「僕も！」・出品の下書き・欲しい！の通報と管理者による削除
+-- PART AG: 欲しい！の「僕も！」・出品の下書き・欲しい！の通報と管理者による削除
 -- ============================================================
 --
 -- 仕様:
@@ -2898,7 +3021,7 @@ $$;
 revoke execute on function public.toggle_demand_vote(bigint) from public, anon;
 grant execute on function public.toggle_demand_vote(bigint) to authenticated;
 
--- PART AD の offer_item_to_demands を、僕も！を押した人にも通知するよう置き換える
+-- PART AF の offer_item_to_demands を、僕も！を押した人にも通知するよう置き換える
 create or replace function public.offer_item_to_demands(p_item_id bigint, p_demand_ids bigint[])
 returns integer
 language plpgsql
@@ -3208,7 +3331,7 @@ $$;
 
 
 -- ============================================================
--- PART AF: 欲しい！の期限のお知らせ・編集(延長)・みんなで買えた！・管理者向け集計
+-- PART AH: 欲しい！の期限のお知らせ・編集(延長)・みんなで買えた！・管理者向け集計
 -- ============================================================
 --
 -- 仕様:
@@ -3230,7 +3353,7 @@ alter table public.demand_vote add column if not exists fulfilled_at timestamptz
 alter table public.demand_vote add column if not exists fulfilled_item_id bigint references public.item(id) on delete set null;
 alter table public.notification add column if not exists demand_id bigint references public.demand(id) on delete set null;
 
--- PART AD 以前に買えた！にしたものは、登録者が買えた！にしたものとして扱う
+-- この PART を入れる前に買えた！にしたものは、登録者が買えた！にしたものとして扱う
 update public.demand set owner_fulfilled_at = closed_at
 where status = 'fulfilled' and owner_fulfilled_at is null;
 

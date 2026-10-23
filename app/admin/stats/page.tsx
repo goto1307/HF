@@ -8,7 +8,7 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import { formatBudget, formatDeadline } from "@/lib/demand";
 import Header from "@/components/Header";
 
-// admin_demand_stats()(migration PART AF)の戻り値
+// admin_demand_stats()(migration PART AH)の戻り値
 type Stats = {
   counts: { active: number; expired: number; fulfilled: number; withdrawn: number; removed: number; total: number };
   posters: number;

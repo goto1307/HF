@@ -15,7 +15,7 @@ const categories = ["教科書", "自転車", "家電・家具", "衣類", "そ�
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
 const TITLE_MAX = 45;
 
-// 出品の下書き(migration PART AE)。写真は保存しない。
+// 出品の下書き(migration PART AG)。写真は保存しない。
 type Draft = {
   id: number;
   title: string;
