@@ -19,8 +19,9 @@ export default function MyDemandsCard() {
     load();
   }, [user]);
 
-  const active = (demands ?? []).filter(isActiveDemand);
-  const fulfilledCount = (demands ?? []).filter((d) => d.status === "fulfilled").length;
+  // 自分が登録したもので、まだ買えていない受付中のもの
+  const active = (demands ?? []).filter((d) => d.is_owner && !d.my_done && isActiveDemand(d));
+  const fulfilledCount = (demands ?? []).filter((d) => d.my_done).length;
 
   return (
     <section className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5">

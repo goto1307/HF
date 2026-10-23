@@ -54,6 +54,7 @@ export default function DemandFulfillModal({
               <span className="min-w-0">
                 <span className="block font-bold text-sm break-all">
                   {d.title}
+                  {!d.is_owner && <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500 align-middle">僕も！</span>}
                   {d.offered && <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 align-middle">出品者から通知あり</span>}
                 </span>
                 <span className="block text-xs text-stone-500">

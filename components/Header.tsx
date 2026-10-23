@@ -13,6 +13,7 @@ type Notification = {
   id: number;
   message: string;
   item_id: number | null;
+  demand_id: number | null;
   read: boolean;
   created_at: string;
 };
@@ -27,6 +28,9 @@ function timeAgo(iso: string) {
   const day = Math.floor(hour / 24);
   return `${day}日前`;
 }
+
+// send_demand_reminders は同じタブで何度も呼ばない
+let remindersChecked = false;
 
 export default function Header() {
   const { user } = useAuth();
@@ -65,6 +69,11 @@ export default function Header() {
 
   const fetchNotifications = async () => {
     if (!user) return;
+    // 期限が近い自分の欲しい！があれば、お知らせを作ってから読み込む(1回の訪問につき1回)
+    if (!remindersChecked) {
+      remindersChecked = true;
+      await supabase.rpc("send_demand_reminders");
+    }
     const { data } = await supabase
       .from("notification")
       .select("*")
@@ -98,6 +107,7 @@ export default function Header() {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     }
     setShowNotifications(false);
+    if (n.demand_id && !n.item_id) { router.push(`/demands?mine=1&id=${n.demand_id}`); return; }
     if (!n.item_id) return;
     // 個別チャットの通知は、商品ページを経由せずチャット画面へ直接開く。
     // 文言は DB の notify_on_new_message() が作るものと一致させること。
@@ -247,6 +257,9 @@ export default function Header() {
                       </Link>
                       <Link href="/admin/demands" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         欲しい！一覧
+                      </Link>
+                      <Link href="/admin/stats" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
+                        欲しい！の集計
                       </Link>
                       <Link href="/admin/log" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         操作ログ

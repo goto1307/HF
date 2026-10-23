@@ -318,9 +318,9 @@ export default function ItemDetail() {
     if (error) { alert(`購入処理に失敗しました: ${error.message}`); return; }
     setItem({ ...item, sold: true, buyer_id: user.id });
 
-    // 受付中のまま残っている自分の欲しい！があれば、この商品で満たされたか聞く
+    // まだ買えていない自分の欲しい！(登録したもの・僕も！を押したもの)があれば、この商品で満たされたか聞く
     const { data } = await supabase.rpc("my_demands", { p_item_id: item.id });
-    const mine = ((data ?? []) as MyDemand[]).filter((d) => d.status === "open");
+    const mine = ((data ?? []) as MyDemand[]).filter((d) => d.status === "open" && !d.my_done);
     if (mine.length > 0) { setOpenDemands(mine); return; }
     router.push(`/items/${item.id}/chat`);
   };

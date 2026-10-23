@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
-import { formatBudget, formatDeadline, isActiveDemand, wantCount, type Demand } from "@/lib/demand";
+import { formatBudget, formatDeadline, isActiveDemand, type Demand } from "@/lib/demand";
 import Header from "@/components/Header";
 
 type AdminDemand = Demand & {
@@ -106,6 +106,7 @@ export default function AdminDemands() {
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="text-2xl font-bold">欲しい！一覧（{visible.length}件）</h2>
           <div className="flex gap-3">
+            <Link href="/admin/stats" className="text-sm font-bold text-orange-700 hover:underline">集計へ</Link>
             <Link href="/admin/reports" className="text-sm font-bold text-orange-700 hover:underline">通報一覧へ</Link>
             <Link href="/admin/log" className="text-sm font-bold text-orange-700 hover:underline">操作ログへ</Link>
           </div>
@@ -145,7 +146,7 @@ export default function AdminDemands() {
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 shrink-0">{statusLabel(d)}</span>
                 </div>
                 <p className="text-xs text-stone-500 mb-1">
-                  {formatBudget(d.budget)}・{formatDeadline(d.deadline)}・{wantCount(d.votes)}人が欲しい
+                  {formatBudget(d.budget)}・{formatDeadline(d.deadline)}・僕も！{d.votes}件
                   {d.reports > 0 && <span className="text-red-500 font-bold">・通報{d.reports}件</span>}
                 </p>
                 {d.tags.length > 0 && <p className="text-xs text-orange-600 mb-1">{d.tags.map((t) => `#${t}`).join(" ")}</p>}

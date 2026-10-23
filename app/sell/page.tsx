@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { validateImageFile } from "@/lib/resizeImage";
 import { makeImagePath } from "@/lib/uploadPath";
-import { DEMAND_COLUMNS, DEMAND_MATCH_LIMIT, findMatchingDemands, formatBudget, formatDeadline, jstToday, type Demand } from "@/lib/demand";
+import { DEMAND_COLUMNS, DEMAND_MATCH_LIMIT, findMatchingDemands, formatBudget, formatDeadline, jstToday, type Demand, type MyDemand } from "@/lib/demand";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 import { IconWarning, IconPackage, IconX } from "@/components/icons";
@@ -251,7 +251,7 @@ function SellContent() {
       supabase.from("demand").select(DEMAND_COLUMNS).eq("status", "open").gte("deadline", jstToday()),
       supabase.rpc("my_demands"),
     ]);
-    const mineIds = new Set(((mineData ?? []) as { id: number }[]).map((d) => d.id));
+    const mineIds = new Set(((mineData ?? []) as MyDemand[]).filter((d) => d.is_owner).map((d) => d.id));
     const others = ((openData ?? []) as Demand[]).filter((d) => !mineIds.has(d.id));
     const matched = findMatchingDemands(others, { title, hashtags });
     // 応えた欲しい！は、一致判定に関係なく候補の先頭に入れる(まだ受付中なら)

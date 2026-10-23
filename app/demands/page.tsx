@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -34,52 +34,61 @@ const STATUS_LABEL: Record<Demand["status"], string> = {
   removed: "運営により削除",
 };
 
+// 自分の欲しい！(登録したもの・僕も！を押したもの)の、自分から見た状態
+function myStatusLabel(d: MyDemand) {
+  if (d.status !== "open") return STATUS_LABEL[d.status];
+  if (d.my_done) return "自分は買えた！";
+  if (!isActiveDemand(d)) return "期限切れ";
+  return "受付中";
+}
+
 function DemandsContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const showMine = searchParams.get("mine") === "1";
-  const openId = Number(searchParams.get("id")) || null;
+  // 詳細ポップアップは URL の ?id= で開く(吹き出しや通知から直接開けるように)
+  const detailId = Number(searchParams.get("id")) || null;
 
   const [demands, setDemands] = useState<Demand[]>([]);
   const [mine, setMine] = useState<MyDemand[]>([]);
+  const [votes, setVotes] = useState<Record<number, DemandVote>>({});
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [minBudget, setMinBudget] = useState("");
   const [maxBudget, setMaxBudget] = useState("");
   const [sort, setSort] = useState<SortKey>("new");
-  const [closing, setClosing] = useState(false);
-  const [votes, setVotes] = useState<Record<number, DemandVote>>({});
+  const [busy, setBusy] = useState(false);
   const [votingId, setVotingId] = useState<number | null>(null);
   const [reportTarget, setReportTarget] = useState<Demand | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reporting, setReporting] = useState(false);
-  // 詳細ポップアップは URL の ?id= で開く(吹き出しから直接開けるように)
-  const detailId = openId;
+
+  const load = useCallback(async () => {
+    const [{ data: openData }, { data: mineData }, { data: voteData }] = await Promise.all([
+      supabase
+        .from("demand")
+        .select(DEMAND_COLUMNS)
+        .eq("status", "open")
+        .gte("deadline", jstToday())
+        .order("created_at", { ascending: false }),
+      supabase.rpc("my_demands"),
+      supabase.rpc("demand_vote_summary"),
+    ]);
+    setDemands((openData ?? []) as Demand[]);
+    setMine((mineData ?? []) as MyDemand[]);
+    setVotes(Object.fromEntries(((voteData ?? []) as DemandVote[]).map((v) => [v.demand_id, v])));
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      const [{ data: openData }, { data: mineData }, { data: voteData }] = await Promise.all([
-        supabase
-          .from("demand")
-          .select(DEMAND_COLUMNS)
-          .eq("status", "open")
-          .gte("deadline", jstToday())
-          .order("created_at", { ascending: false }),
-        supabase.rpc("my_demands"),
-        supabase.rpc("demand_vote_summary"),
-      ]);
-      setDemands((openData ?? []) as Demand[]);
-      setMine((mineData ?? []) as MyDemand[]);
-      setVotes(Object.fromEntries(((voteData ?? []) as DemandVote[]).map((v) => [v.demand_id, v])));
-      setLoading(false);
-    };
-    load();
-  }, [user]);
+    const run = async () => { await load(); };
+    run();
+  }, [user, load]);
 
-  const mineIds = useMemo(() => new Set(mine.map((d) => d.id)), [mine]);
+  const mineById = useMemo(() => new Map(mine.map((d) => [d.id, d])), [mine]);
   const source: Demand[] = showMine ? mine : demands;
 
   // よく使われているタグ(絞り込みの候補)
@@ -105,12 +114,12 @@ function DemandsContent() {
     .sort((a, b) => {
       if (sort === "deadline") return a.deadline.localeCompare(b.deadline);
       if (sort === "budget") return b.budget - a.budget;
-      if (sort === "wanted") return (votes[b.id]?.votes ?? 0) - (votes[a.id]?.votes ?? 0);
+      if (sort === "wanted") return wantCount(votes[b.id]) - wantCount(votes[a.id]);
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-  const detail = detailId ? mine.find((d) => d.id === detailId) ?? demands.find((d) => d.id === detailId) ?? null : null;
-  const detailIsMine = !!detail && mineIds.has(detail.id);
+  const detail: Demand | null = detailId ? mineById.get(detailId) ?? demands.find((d) => d.id === detailId) ?? null : null;
+  const myDetail = detail ? mineById.get(detail.id) ?? null : null;
 
   const openDetail = (id: number | null) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -126,11 +135,10 @@ function DemandsContent() {
 
   const toggleVote = async (id: number) => {
     setVotingId(id);
-    const { data, error } = await supabase.rpc("toggle_demand_vote", { p_demand_id: id });
+    const { error } = await supabase.rpc("toggle_demand_vote", { p_demand_id: id });
+    if (error) { setVotingId(null); alert(`僕も！に失敗しました: ${error.message}`); return; }
+    await load(); // 自分の欲しい！にも出入りするので取り直す
     setVotingId(null);
-    if (error) { alert(`僕も！に失敗しました: ${error.message}`); return; }
-    const row = (data as { votes: number; voted: boolean }[] | null)?.[0];
-    if (row) setVotes((prev) => ({ ...prev, [id]: { demand_id: id, ...row } }));
   };
 
   const handleReport = async () => {
@@ -145,31 +153,38 @@ function DemandsContent() {
     setReportReason("");
   };
 
-  const closeDemand = async (status: "fulfilled" | "withdrawn") => {
-    if (!detail) return;
-    const message = status === "fulfilled"
-      ? `「${detail.title}」を買えた！にしますか？みんなの欲しい！には表示されなくなります。`
-      : `「${detail.title}」を取り下げますか？みんなの欲しい！には表示されなくなります。`;
+  const closeDemand = async (d: MyDemand, status: "fulfilled" | "withdrawn") => {
+    const others = d.wanters - 1;
+    const message = status === "withdrawn"
+      ? `「${d.title}」を取り下げますか？みんなの欲しい！には表示されなくなります。${others > 0 ? `僕も！を押した${others}人にもお知らせします。` : ""}`
+      : others > 0
+        ? `「${d.title}」を買えた！にしますか？まだ欲しい人が${others}人いるので、その人たちが買えるまで一覧には残ります。`
+        : `「${d.title}」を買えた！にしますか？みんなの欲しい！には表示されなくなります。`;
     if (!confirm(message)) return;
-    setClosing(true);
-    const { error } = await supabase.rpc("close_my_demand", { p_demand_id: detail.id, p_status: status });
-    setClosing(false);
-    if (error) { alert(`変更に失敗しました: ${error.message}`); return; }
-    setMine((prev) => prev.map((d) => (d.id === detail.id ? { ...d, status } : d)));
-    setDemands((prev) => prev.filter((d) => d.id !== detail.id));
-    openDetail(null);
+    setBusy(true);
+    const { error } = await supabase.rpc("close_my_demand", { p_demand_id: d.id, p_status: status });
+    if (error) { setBusy(false); alert(`変更に失敗しました: ${error.message}`); return; }
+    await load();
+    setBusy(false);
   };
 
   const renderVoteButton = (id: number, large = false) => {
-    const voted = votes[id]?.voted ?? false;
+    const v = votes[id];
+    const size = large ? "flex-1 text-sm py-2.5" : "text-xs px-3 py-1";
+    if (v?.my_done) {
+      return (
+        <span className={`font-bold rounded-full border text-center bg-stone-100 text-stone-500 border-stone-200 ${size}`}>買えた！</span>
+      );
+    }
+    const voted = v?.voted ?? false;
     return (
       <button
         onClick={() => toggleVote(id)}
         disabled={votingId === id}
         aria-pressed={voted}
-        className={`font-bold rounded-full border transition-colors disabled:opacity-50 ${
-          large ? "flex-1 text-sm py-2.5" : "text-xs px-3 py-1"
-        } ${voted ? "bg-orange-100 text-orange-800 border-orange-300" : "bg-white text-orange-700 border-orange-200 hover:bg-orange-50"}`}
+        className={`font-bold rounded-full border transition-colors disabled:opacity-50 ${size} ${
+          voted ? "bg-orange-100 text-orange-800 border-orange-300" : "bg-white text-orange-700 border-orange-200 hover:bg-orange-50"
+        }`}
       >
         {voted ? "僕も！済み" : "僕も！"}
       </button>
@@ -249,7 +264,7 @@ function DemandsContent() {
               showMine ? "bg-orange-700 text-white border-orange-700" : "bg-white text-orange-700 border-orange-200 hover:bg-orange-100"
             }`}
           >
-            {showMine ? "自分の欲しい！（過去のものも表示中）" : "自分の欲しい！"}
+            {showMine ? "自分の欲しい！（僕も！・過去のものも表示中）" : "自分の欲しい！"}
           </button>
           {popularTags.map((tag) => (
             <button
@@ -284,25 +299,29 @@ function DemandsContent() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {visible.map((d) => {
               const active = isActiveDemand(d);
+              const my = mineById.get(d.id);
+              const own = my?.is_owner ?? false;
+              const dimmed = showMine && my && (!active || my.my_done);
               return (
                 <div
                   key={d.id}
-                  className={`relative flex flex-col border rounded-2xl bg-white p-3.5 shadow-sm ${active ? "border-stone-200" : "border-stone-200 opacity-60"}`}
+                  className={`relative flex flex-col border border-stone-200 rounded-2xl bg-white p-3.5 shadow-sm ${dimmed ? "opacity-60" : ""}`}
                 >
                   <div className="flex items-center gap-1.5 mb-1.5 min-h-[18px]">
-                    {mineIds.has(d.id) && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700">自分</span>
+                    {own && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700">自分</span>}
+                    {showMine && my && !own && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700">僕も！</span>
                     )}
-                    {showMine && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">
-                        {d.status === "open" && !active ? "期限切れ" : STATUS_LABEL[d.status]}
-                      </span>
+                    {showMine && my && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{myStatusLabel(my)}</span>
                     )}
                   </div>
                   <p className="font-bold text-sm text-stone-800 break-all line-clamp-2 mb-1">{d.title}</p>
                   <p className="text-orange-700 font-extrabold text-base tracking-tight">{formatBudget(d.budget)}</p>
                   <p className="text-[11px] text-stone-400 mt-0.5">{formatDeadline(d.deadline)}</p>
-                  <p className="text-[11px] font-bold text-stone-500 mt-1">{wantCount(votes[d.id]?.votes ?? 0)}人が欲しい</p>
+                  {d.status === "open" && (
+                    <p className="text-[11px] font-bold text-stone-500 mt-1">{wantCount(votes[d.id])}人が欲しい</p>
+                  )}
                   <div className="mt-auto pt-2 flex flex-wrap gap-1.5">
                     <button
                       onClick={() => openDetail(d.id)}
@@ -310,7 +329,7 @@ function DemandsContent() {
                     >
                       詳細
                     </button>
-                    {active && !mineIds.has(d.id) && (
+                    {active && !own && (
                       <>
                         {renderVoteButton(d.id)}
                         <Link
@@ -348,7 +367,9 @@ function DemandsContent() {
               <p className="text-center text-stone-500 text-sm py-6">この欲しい！は期限が切れたか、受付が終わりました。</p>
             ) : (
               <>
-                <p className="text-xs font-bold text-orange-700 mb-1">欲しい！{detailIsMine && "（自分）"}</p>
+                <p className="text-xs font-bold text-orange-700 mb-1">
+                  欲しい！{myDetail?.is_owner ? "（自分）" : myDetail ? "（僕も！）" : ""}
+                </p>
                 <p className="text-lg font-extrabold text-stone-800 break-all mb-2">{detail.title}</p>
                 <dl className="text-sm flex flex-col gap-2 mb-3">
                   <div className="flex gap-3">
@@ -359,14 +380,16 @@ function DemandsContent() {
                     <dt className="w-24 shrink-0 text-stone-500">いつまでに</dt>
                     <dd>{formatDeadline(detail.deadline)}</dd>
                   </div>
-                  <div className="flex gap-3">
-                    <dt className="w-24 shrink-0 text-stone-500">欲しい人</dt>
-                    <dd>{wantCount(votes[detail.id]?.votes ?? 0)}人</dd>
-                  </div>
-                  {detailIsMine && (
+                  {detail.status === "open" && (
+                    <div className="flex gap-3">
+                      <dt className="w-24 shrink-0 text-stone-500">欲しい人</dt>
+                      <dd>{wantCount(votes[detail.id])}人</dd>
+                    </div>
+                  )}
+                  {myDetail && (
                     <div className="flex gap-3">
                       <dt className="w-24 shrink-0 text-stone-500">状態</dt>
-                      <dd>{detail.status === "open" && !isActiveDemand(detail) ? "期限切れ" : STATUS_LABEL[detail.status]}</dd>
+                      <dd>{myStatusLabel(myDetail)}</dd>
                     </div>
                   )}
                 </dl>
@@ -381,42 +404,63 @@ function DemandsContent() {
                   {detail.note || <span className="text-stone-400">備考はありません</span>}
                 </div>
 
-                {detailIsMine ? (
-                  isActiveDemand(detail) && (
-                    <div className="flex gap-2 mt-5">
-                      <button
-                        onClick={() => closeDemand("withdrawn")}
-                        disabled={closing}
-                        className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
+                {myDetail?.is_owner ? (
+                  myDetail.status === "open" && !myDetail.my_done && (
+                    <div className="flex flex-col gap-2 mt-5">
+                      <Link
+                        href={`/demands/${myDetail.id}/edit`}
+                        className="text-center border border-orange-200 text-orange-700 py-2.5 rounded-full text-sm font-bold hover:bg-orange-100 transition-colors"
                       >
-                        取り下げる
-                      </button>
-                      <button
-                        onClick={() => closeDemand("fulfilled")}
-                        disabled={closing}
-                        className="flex-1 bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors disabled:opacity-50"
-                      >
-                        買えた！にする
-                      </button>
+                        {isActiveDemand(myDetail) ? "編集する（期限の延長もここから）" : "期限を延ばして再開する"}
+                      </Link>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => closeDemand(myDetail, "withdrawn")}
+                          disabled={busy}
+                          className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
+                        >
+                          取り下げる
+                        </button>
+                        <button
+                          onClick={() => closeDemand(myDetail, "fulfilled")}
+                          disabled={busy}
+                          className="flex-1 bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors disabled:opacity-50"
+                        >
+                          買えた！にする
+                        </button>
+                      </div>
                     </div>
                   )
                 ) : (
                   <>
-                    <div className="flex gap-2 mt-5">
-                      {renderVoteButton(detail.id, true)}
-                      <Link
-                        href={`/sell?demand=${detail.id}`}
-                        className="flex-1 text-center bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors"
+                    {isActiveDemand(detail) && (
+                      <div className="flex gap-2 mt-5">
+                        {renderVoteButton(detail.id, true)}
+                        <Link
+                          href={`/sell?demand=${detail.id}`}
+                          className="flex-1 text-center bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors"
+                        >
+                          この欲しい！に応える
+                        </Link>
+                      </div>
+                    )}
+                    {myDetail && myDetail.status === "open" && !myDetail.my_done && (
+                      <button
+                        onClick={() => closeDemand(myDetail, "fulfilled")}
+                        disabled={busy}
+                        className="w-full mt-2 border border-orange-200 text-orange-700 py-2.5 rounded-full text-sm font-bold hover:bg-orange-100 transition-colors disabled:opacity-50"
                       >
-                        この欲しい！に応える
-                      </Link>
-                    </div>
-                    <button
-                      onClick={() => { setReportTarget(detail); setReportReason(""); }}
-                      className="block mx-auto mt-4 text-xs text-stone-400 underline hover:text-red-500 transition-colors"
-                    >
-                      この欲しい！を通報する
-                    </button>
+                        自分も買えた！にする
+                      </button>
+                    )}
+                    {isActiveDemand(detail) && (
+                      <button
+                        onClick={() => { setReportTarget(detail); setReportReason(""); }}
+                        className="block mx-auto mt-4 text-xs text-stone-400 underline hover:text-red-500 transition-colors"
+                      >
+                        この欲しい！を通報する
+                      </button>
+                    )}
                   </>
                 )}
               </>

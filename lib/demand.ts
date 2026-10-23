@@ -16,18 +16,21 @@ export type Demand = {
   created_at: string;
 };
 
-// my_demands() の戻り値
+// my_demands() の戻り値。自分が登録したもの(is_owner)と、僕も！を押したものの両方が入る。
 export type MyDemand = Demand & {
   fulfilled_item_id: number | null;
   offered: boolean;
+  is_owner: boolean;
+  my_done: boolean; // 自分の分は買えた！にしたか
+  wanters: number; // まだ買えていない人数(登録者 + 僕も！)
 };
 
-// demand_vote_summary() の戻り値(僕も！の人数と、自分が押したか)
-export type DemandVote = { demand_id: number; votes: number; voted: boolean };
+// demand_vote_summary() の戻り値。votes はまだ買えていない僕も！の人数。
+export type DemandVote = { demand_id: number; votes: number; voted: boolean; my_done: boolean; owner_done: boolean };
 
-// 欲しがっている人数 = 登録した本人 + 僕も！の人数
-export function wantCount(votes: number) {
-  return votes + 1;
+// まだ欲しがっている人数 = 登録した本人(買えた！にしていなければ) + 買えていない僕も！の人数
+export function wantCount(vote: Pick<DemandVote, "votes" | "owner_done"> | undefined) {
+  return (vote?.votes ?? 0) + (vote?.owner_done ? 0 : 1);
 }
 
 // 日本時間の今日を YYYY-MM-DD で返す(DB の jst_today() と合わせる)
