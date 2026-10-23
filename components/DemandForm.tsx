@@ -14,6 +14,24 @@ import {
 import Header from "@/components/Header";
 import { IconX } from "@/components/icons";
 
+// 編集のとき、期限がこれより先なら「ずっと」として表示する
+const FOREVER_THRESHOLD_DAYS = 330;
+
+// 月・日の数字から、今日以降でいちばん近いその日付を YYYY-MM-DD で返す(無い日付なら null)
+function dateFromMonthDay(month: string, day: string, today: string) {
+  const m = Number(month);
+  const d = Number(day);
+  if (!Number.isInteger(m) || !Number.isInteger(d) || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  let year = Number(today.slice(0, 4));
+  for (let i = 0; i < 2; i++, year++) {
+    const ymd = `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const check = new Date(`${ymd}T00:00:00Z`);
+    if (check.getUTCMonth() + 1 !== m || check.getUTCDate() !== d) continue; // 2/30 など無い日付
+    if (ymd >= today) return ymd;
+  }
+  return null;
+}
+
 export type DemandFormValues = {
   title: string;
   budget: number;
@@ -42,7 +60,12 @@ export default function DemandForm({
   const { user } = useAuth();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [budget, setBudget] = useState(initial ? String(initial.budget) : "");
-  const [deadline, setDeadline] = useState(initial?.deadline ?? "");
+  // 期限は「ずっと(1年以内)」か、月・日の数字で指定する
+  const [deadlineMode, setDeadlineMode] = useState<"forever" | "date">(
+    initial && initial.deadline > addDays(jstToday(), FOREVER_THRESHOLD_DAYS) ? "forever" : "date",
+  );
+  const [month, setMonth] = useState(initial ? String(Number(initial.deadline.slice(5, 7))) : "");
+  const [day, setDay] = useState(initial ? String(Number(initial.deadline.slice(8, 10))) : "");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
   const [note, setNote] = useState(initial?.note ?? "");
@@ -51,6 +74,7 @@ export default function DemandForm({
 
   const today = jstToday();
   const maxDeadline = addDays(today, 365);
+  const deadline = deadlineMode === "forever" ? maxDeadline : dateFromMonthDay(month, day, today);
 
   const addTag = () => {
     const tag = tagInput.trim().replace(/^#+/, "").slice(0, 20);
@@ -66,12 +90,13 @@ export default function DemandForm({
     if (budget === "") { alert("いくらまで出せるかを入力してください"); return; }
     const n = Number(budget);
     if (!Number.isInteger(n) || n < 0 || n > 50000) { alert("金額は0円〜50,000円の範囲で入力してください"); return; }
-    if (!deadline) { alert("いつまでに欲しいかを選んでください"); return; }
+    if (!deadline) { alert("いつまでに欲しいかを、月と日の数字で入力してください"); return; }
     if (deadline < today || deadline > maxDeadline) { alert("期限は今日から1年以内の日付にしてください"); return; }
     setShowConfirm(true);
   };
 
   const handleSubmit = async () => {
+    if (!deadline) return;
     setSaving(true);
     const error = await onSave({ title: title.trim(), budget: Number(budget), deadline, tags, note: note.trim() || null });
     setSaving(false);
@@ -124,15 +149,57 @@ export default function DemandForm({
 
           <div>
             <label className="block text-sm font-bold mb-2">いつまでに欲しい？ <span className="text-red-500">*</span></label>
-            <input
-              type="date"
-              min={today}
-              max={maxDeadline}
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm bg-white"
-            />
-            <p className="text-xs text-stone-400 mt-1">この日を過ぎると、みんなの欲しい！に表示されなくなります</p>
+            <div className="flex bg-stone-100 rounded-full p-1 mb-3" role="tablist">
+              {([["date", "日付を指定"], ["forever", "ずっと（1年以内）"]] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="tab"
+                  aria-selected={deadlineMode === mode}
+                  onClick={() => setDeadlineMode(mode)}
+                  className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors ${
+                    deadlineMode === mode ? "bg-white text-orange-700 shadow-sm" : "text-stone-500 hover:text-stone-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {deadlineMode === "date" ? (
+              <div className="flex items-center gap-2 text-sm">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={2}
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value.replace(/\D/g, ""))}
+                  placeholder="12"
+                  aria-label="月"
+                  className="w-16 border border-stone-200 rounded-xl px-3 py-3 outline-none focus:border-orange-600 transition-colors text-center"
+                />
+                <span>月</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={2}
+                  value={day}
+                  onChange={(e) => setDay(e.target.value.replace(/\D/g, ""))}
+                  placeholder="25"
+                  aria-label="日"
+                  className="w-16 border border-stone-200 rounded-xl px-3 py-3 outline-none focus:border-orange-600 transition-colors text-center"
+                />
+                <span>日まで</span>
+              </div>
+            ) : (
+              <p className="text-sm text-stone-600">期限を決めずに、1年間載せておきます。</p>
+            )}
+            <p className={`text-xs mt-2 ${deadline || deadlineMode === "forever" ? "text-stone-500" : "text-stone-400"}`}>
+              {deadline
+                ? `${deadline.replaceAll("-", "/")}まで（${formatDeadline(deadline).replace(/^.*（|）$/g, "")}）。この日を過ぎると表示されなくなります`
+                : month && day
+                  ? "その日付はありません"
+                  : "今日以降の日付を入れてください。過ぎた日付は来年になります"}
+            </p>
           </div>
 
           <div>
@@ -190,7 +257,7 @@ export default function DemandForm({
             <p className="text-xs font-bold text-orange-700 mb-4 text-center">{confirmMessage}</p>
             <p className="text-lg font-extrabold text-stone-800 break-all mb-1">{title.trim()}</p>
             <p className="text-orange-700 font-extrabold">{formatBudget(Number(budget))}</p>
-            <p className="text-xs text-stone-500 mb-2">{formatDeadline(deadline)}</p>
+            <p className="text-xs text-stone-500 mb-2">{deadline && formatDeadline(deadline)}</p>
             {tags.length > 0 && (
               <div className="flex gap-1.5 flex-wrap mb-2">
                 {tags.map((tag) => (
