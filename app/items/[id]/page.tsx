@@ -8,6 +8,7 @@ import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
+import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/components/icons";
 
 type Item = {
   id: number;
@@ -42,6 +43,7 @@ export default function ItemDetail() {
   const { user } = useAuth();
   const [item, setItem] = useState<Item | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>({});
   const [input, setInput] = useState("");
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -66,6 +68,29 @@ export default function ItemDetail() {
   const [buying, setBuying] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
+
+  useEffect(() => {
+    const ids = Array.from(new Set(messages.map((m) => m.user_id))).filter((id) => !(id in avatarMap));
+    if (ids.length === 0) return;
+    const fetchAvatars = async () => {
+      const { data } = await supabase.from("profile").select("user_id,avatar_url").in("user_id", ids);
+      setAvatarMap((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = null;
+        for (const row of data || []) next[row.user_id] = row.avatar_url;
+        return next;
+      });
+    };
+    fetchAvatars();
+  }, [messages, avatarMap]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -326,7 +351,7 @@ export default function ItemDetail() {
                 <img src={gallery[activeImage]} alt={item.title} className={`w-full h-80 sm:h-96 object-cover ${item.sold ? "opacity-50" : ""}`} />
               </button>
             ) : (
-              <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 text-4xl ${item.sold ? "opacity-50" : ""}`}>📦</div>
+              <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 ${item.sold ? "opacity-50" : ""}`}><IconPackage size={40} /></div>
             )}
             {item.sold && (
               <div className="absolute top-4 -right-10 w-40 rotate-45 bg-red-600 text-white text-sm font-extrabold text-center py-1 shadow-md tracking-wider">
@@ -353,7 +378,7 @@ export default function ItemDetail() {
               disabled={togglingLike || item.sold}
               className="flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 disabled:opacity-50 disabled:hover:bg-orange-50 rounded-full pl-2 pr-3.5 py-1.5 transition-colors"
             >
-              <span className="text-lg">{likedByMe ? "❤️" : "🤍"}</span>
+              <IconHeart size={18} filled={likedByMe} className={likedByMe ? "text-orange-600" : "text-orange-300"} />
               <span className="text-sm font-bold text-orange-700">{likeCount}件のいいね</span>
             </button>
           </div>
@@ -366,10 +391,10 @@ export default function ItemDetail() {
           >
             <button
               onClick={() => setShowLightbox(false)}
-              className="absolute top-4 right-4 text-white text-3xl leading-none"
+              className="absolute top-4 right-4 text-white"
               aria-label="閉じる"
             >
-              ✕
+              <IconX size={28} />
             </button>
             <img
               src={gallery[activeImage]}
@@ -392,8 +417,9 @@ export default function ItemDetail() {
             {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
           </p>
           {item.category === "自転車" && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-              ⚠ 自転車の譲渡には防犯登録の名義変更が必要です。取引の際はお忘れなく。
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 flex items-center gap-1.5">
+              <IconWarning size={14} className="shrink-0" />
+              自転車の譲渡には防犯登録の名義変更が必要です。取引の際はお忘れなく。
             </p>
           )}
           <p className="text-stone-600 mb-2 whitespace-pre-wrap">{item.detail}</p>
@@ -445,8 +471,8 @@ export default function ItemDetail() {
         </div>
 
         {canReview && !showReviewForm && (
-          <button onClick={() => setShowReviewForm(true)} className="text-orange-700 text-xs font-bold mb-2 block hover:text-orange-800 transition-colors">
-            ★ 出品者を評価する
+          <button onClick={() => setShowReviewForm(true)} className="text-orange-700 text-xs font-bold mb-2 flex items-center gap-1 hover:text-orange-800 transition-colors">
+            <IconStar size={12} /> 出品者を評価する
           </button>
         )}
         {alreadyReviewed && (
@@ -478,8 +504,8 @@ export default function ItemDetail() {
           </div>
         )}
 
-        <button onClick={() => setShowReport(!showReport)} className="text-red-400 text-xs mb-4 block hover:text-red-500 transition-colors">
-          ⚠ この商品を通報する
+        <button onClick={() => setShowReport(!showReport)} className="text-red-400 text-xs mb-4 flex items-center gap-1 hover:text-red-500 transition-colors">
+          <IconWarning size={12} /> この商品を通報する
         </button>
 
         {showReport && (
@@ -519,17 +545,23 @@ export default function ItemDetail() {
             ) : null}
             {user && messages.map((msg) => (
               <div key={msg.id} className={`flex gap-2 ${msg.user_id === user?.id ? "flex-row-reverse" : "flex-row"}`}>
-                <div className="w-8 h-8 bg-orange-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {msg.nickname?.[0] || "?"}
-                </div>
+                <Link href={`/users/${msg.user_id}`} className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden block">
+                  {avatarMap[msg.user_id] ? (
+                    <img src={avatarMap[msg.user_id]!} alt={msg.nickname} className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 bg-orange-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {msg.nickname?.[0] || "?"}
+                    </div>
+                  )}
+                </Link>
                 <div className={`max-w-xs ${msg.user_id === user?.id ? "items-end" : "items-start"} flex flex-col`}>
                   <p className="text-xs text-stone-500 mb-1 flex items-center gap-1">
-                    {msg.nickname}
+                    <Link href={`/users/${msg.user_id}`} className="hover:underline">{msg.nickname}</Link>
                     {msg.user_id === item.user_id && (
                       <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">出品者</span>
                     )}
                   </p>
-                  <div className={`px-4 py-2 rounded-2xl text-sm ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
+                  <div className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
                     {msg.content}
                   </div>
                   {user && msg.user_id !== user.id && (
@@ -546,14 +578,20 @@ export default function ItemDetail() {
             <div ref={bottomRef} />
           </div>
           <div className="flex border-t border-stone-200">
-            <input
-              type="text"
+            <textarea
+              ref={inputRef}
+              rows={1}
               maxLength={500}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={!TELECOM_SAFE_MODE && item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力..." : "ログインするとメッセージを送れます"}
-              className="flex-1 px-4 py-3 outline-none text-sm disabled:bg-stone-100"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder={!TELECOM_SAFE_MODE && item.sold ? "質問チャットは終了しました" : user ? "メッセージを入力...(Shift+Enterで改行)" : "ログインするとメッセージを送れます"}
+              className="flex-1 px-4 py-3 outline-none text-sm disabled:bg-stone-100 resize-none overflow-hidden"
               disabled={!user || (!TELECOM_SAFE_MODE && item.sold)}
             />
             <button onClick={sendMessage} disabled={!user || (!TELECOM_SAFE_MODE && item.sold)} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">

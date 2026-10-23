@@ -1,6 +1,6 @@
 // 商品が購入されたら、出品者の登録メールアドレスにお知らせメールを送る Edge Function。
 //
-// 呼び出し元は DB のトリガー notify_sold_email()(migration PART AA)だけ。
+// 呼び出し元は DB のトリガー notify_sold_email()(migration PART AD)だけ。
 // - 合言葉(x-hook-secret)が一致しない呼び出しは拒否する
 // - 受け取るのは item_id だけ。送り先と文面は呼び出し側に決めさせず、
 //   DB で「本当に売れた商品」かを確かめてから、その出品者に決まった文面で送る

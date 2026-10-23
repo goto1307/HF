@@ -2416,7 +2416,73 @@ for each row execute function public.notify_wish_match();
 
 
 -- ============================================================
--- PART AA: 商品が購入されたら、出品者にお知らせメールを送る
+-- PART AA: チャット等に表示するアイコン画像を他の利用者にも公開する
+-- ============================================================
+--
+-- 背景: マイページのアイコンは auth.users.raw_user_meta_data(avatar_url)に
+--   しか保存しておらず、他人からは読めなかった(admin_list_users 経由の
+--   管理者しか見られない)。そのため公開Q&A・個別チャット・ユーザーページで
+--   相手のアイコンを表示できず、頭文字の丸アイコンで代用していた。
+--   bio/gender/age と同じく public.profile に avatar_url を持たせ、
+--   既存の profile_select_all(ログインユーザーなら誰でも閲覧可)に
+--   乗せることで、他人のアイコンも表示できるようにする。
+
+alter table public.profile add column if not exists avatar_url text;
+
+
+-- ============================================================
+-- PART AB: 出品したことが無い利用者のページで、ニックネームが
+--          「ユーザー」のままになる不具合を修正
+-- ============================================================
+--
+-- 背景: app/users/[id] のニックネームは items[0]?.nickname(その人の出品の
+--   1件目に保存されたニックネーム)から取っていた。出品したことが一度も
+--   無い、または出品をすべて削除した利用者は items が空になるため、
+--   正式なニックネームを登録していても画面側の初期値「ユーザー」のまま
+--   表示されていた。
+--   正式なニックネームは user_nickname テーブルにあるが、なりすまし防止の
+--   ため一般ユーザー向けの SELECT ポリシーを意図的に作っていない。
+--   → SECURITY DEFINER 関数で、本人かどうかに関わらず読めるようにする
+--   (ニックネームは item/message に既に公開されている情報であり、
+--   新たに非公開情報を公開するものではない)。
+
+create or replace function public.get_nickname(p_user_id uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select nickname from public.user_nickname where user_id = p_user_id;
+$$;
+grant execute on function public.get_nickname(uuid) to authenticated;
+
+
+-- ============================================================
+-- PART AC: ポスターのQRコード読み込み回数を記録する
+-- ============================================================
+--
+-- 背景: ポスターに貼るQRコード(/qr へのリンク)が何回読み込まれたかを
+--   知りたい。読み込む人はまだ未登録(未ログイン)の場合がほとんどなので、
+--   anon からも INSERT できるようにする。件数の確認は画面を作らず、
+--   運営がSupabaseのSQL Editorで次を実行する想定:
+--     select count(*) from public.qr_scan;
+
+create table if not exists public.qr_scan (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now()
+);
+alter table public.qr_scan enable row level security;
+
+drop policy if exists "qr_scan_insert_anyone" on public.qr_scan;
+create policy "qr_scan_insert_anyone"
+on public.qr_scan for insert
+to anon, authenticated
+with check (true);
+
+
+-- ============================================================
+-- PART AD: 商品が購入されたら、出品者にお知らせメールを送る
 -- ============================================================
 --
 -- 仕組み: item.sold が false → true になったら、pg_net で Edge Function

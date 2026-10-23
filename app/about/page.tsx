@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import HokkumaMascot from "@/components/HokkumaMascot";
+import { IconCamera, IconMessage, IconCheckCircle } from "@/components/icons";
 
 export const metadata: Metadata = {
   title: "HOKUMA | 北海道大学の学生専用フリマアプリ",
@@ -96,13 +97,13 @@ export default function About() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-0 relative">
             <div className="hidden sm:block absolute top-[34px] left-[12%] right-[12%] h-px bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.25)_0_8px,transparent_8px_16px)]" aria-hidden />
             {[
-              { icon: "📷", title: "出品する", desc: "写真を撮って、タイトルと価格を入れるだけ。最短1分で出品できます。" },
-              { icon: "💬", title: "やりとりする", desc: "チャットで質問し、購入後は待ち合わせ場所と日時をその場で相談します。" },
-              { icon: "🤝", title: "受け渡し・評価", desc: "人通りの多い場所で直接受け渡し。取引完了後にお互いを評価できます。" },
+              { icon: IconCamera, title: "出品する", desc: "写真を撮って、タイトルと価格を入れるだけ。最短1分で出品できます。" },
+              { icon: IconMessage, title: "やりとりする", desc: "チャットで質問し、購入後は待ち合わせ場所と日時をその場で相談します。" },
+              { icon: IconCheckCircle, title: "受け渡し・評価", desc: "人通りの多い場所で直接受け渡し。取引完了後にお互いを評価できます。" },
             ].map((s) => (
               <div key={s.title} className="relative text-center px-4">
-                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-3xl mx-auto mb-4">
-                  {s.icon}
+                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/15 flex items-center justify-center mx-auto mb-4">
+                  <s.icon size={28} />
                 </div>
                 <h3 className="font-extrabold text-sm mb-2">{s.title}</h3>
                 <p className="text-xs leading-relaxed text-[#d9c9b8] max-w-[30ch] mx-auto">{s.desc}</p>

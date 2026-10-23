@@ -8,6 +8,7 @@ import { validateImageFile } from "@/lib/resizeImage";
 import { makeImagePath } from "@/lib/uploadPath";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
+import { IconX } from "@/components/icons";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -200,9 +201,9 @@ export default function EditItem() {
                   )}
                   <button
                     onClick={() => removeExistingImage(i)}
-                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow"
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
                   >
-                    ×
+                    <IconX size={11} />
                   </button>
                 </div>
               ))}
@@ -211,9 +212,9 @@ export default function EditItem() {
                   <img src={preview} className="w-20 h-20 object-cover rounded-lg" alt="" />
                   <button
                     onClick={() => removeNewImage(i)}
-                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow"
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
                   >
-                    ×
+                    <IconX size={11} />
                   </button>
                 </div>
               ))}
@@ -305,7 +306,7 @@ export default function EditItem() {
                 {hashtags.map((tag) => (
                   <span key={tag} className="flex items-center gap-1 bg-orange-50 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">
                     #{tag}
-                    <button type="button" onClick={() => removeHashtag(tag)} className="text-orange-400 hover:text-orange-700">×</button>
+                    <button type="button" onClick={() => removeHashtag(tag)} className="text-orange-400 hover:text-orange-700"><IconX size={10} /></button>
                   </span>
                 ))}
               </div>

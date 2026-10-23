@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
+import { IconPackage } from "@/components/icons";
 
 type Item = {
   id: number;
@@ -21,6 +22,7 @@ type Profile = {
   bio: string | null;
   gender: string | null;
   age: number | null;
+  avatar_url: string | null;
 };
 
 export default function SellerProfile() {
@@ -28,6 +30,7 @@ export default function SellerProfile() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
+  const [nickname, setNickname] = useState("ユーザー");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ratingStats, setRatingStats] = useState<{ avg: number; count: number } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +71,11 @@ export default function SellerProfile() {
         .order("created_at", { ascending: false });
       if (itemData) setItems(itemData);
 
+      // 出品したことが無い利用者でも正しいニックネームを表示するため、
+      // items から推測せず正式なニックネームを取得する
+      const { data: nicknameData } = await supabase.rpc("get_nickname", { p_user_id: params.id });
+      if (nicknameData) setNickname(nicknameData);
+
       const { data: reviewData } = await supabase.from("review").select("rating").eq("seller_id", params.id);
       if (reviewData && reviewData.length > 0) {
         const total = reviewData.reduce((sum, r) => sum + r.rating, 0);
@@ -77,7 +85,7 @@ export default function SellerProfile() {
       }
 
       // profile テーブルは未作成の場合がある(移行未適用)ため、失敗しても無視する
-      const { data: profileData } = await supabase.from("profile").select("bio,gender,age").eq("user_id", params.id).maybeSingle();
+      const { data: profileData } = await supabase.from("profile").select("bio,gender,age,avatar_url").eq("user_id", params.id).maybeSingle();
       if (profileData) setProfile(profileData);
 
       setLoading(false);
@@ -85,7 +93,6 @@ export default function SellerProfile() {
     fetchData();
   }, [params.id, user, authLoading]);
 
-  const nickname = items[0]?.nickname || "ユーザー";
   const soldCount = items.filter((i) => i.sold).length;
   const activeItems = items.filter((i) => !i.sold);
 
@@ -169,9 +176,17 @@ export default function SellerProfile() {
       <main className="max-w-2xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 mb-6">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-orange-700 text-white flex items-center justify-center text-2xl font-bold shrink-0">
-              {nickname[0]}
-            </div>
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={nickname}
+                className="w-16 h-16 rounded-full object-cover border border-stone-200 shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-orange-700 text-white flex items-center justify-center text-2xl font-bold shrink-0">
+                {nickname[0]}
+              </div>
+            )}
             <div>
               <h2 className="text-xl font-bold">{nickname}</h2>
               {ratingStats && ratingStats.count > 0 ? (
@@ -244,7 +259,7 @@ export default function SellerProfile() {
                 {(item.image_urls?.[0] ?? item.image_url) ? (
                   <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
                 ) : (
-                  <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 text-3xl">📦</div>
+                  <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200"><IconPackage size={32} /></div>
                 )}
                 <div className="p-3">
                   <p className="font-bold mb-1 text-sm truncate">{item.title}</p>

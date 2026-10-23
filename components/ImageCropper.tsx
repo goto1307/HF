@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { IconSearch } from "@/components/icons";
 
 const CROP_SIZE = 280;
 const OUTPUT_SIZE = 1000;
@@ -136,7 +137,7 @@ export default function ImageCropper({ file, onConfirm, onCancel, title, round }
           )}
         </div>
         <div className="flex items-center gap-2 mt-4">
-          <span className="text-xs text-stone-400 shrink-0">🔍</span>
+          <IconSearch size={14} className="text-stone-400 shrink-0" />
           <input
             type="range"
             min={1}

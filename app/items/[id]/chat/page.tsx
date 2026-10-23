@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
+import { IconMapPin, IconCheck, IconWarning, IconStar } from "@/components/icons";
 
 type Item = {
   id: number;
@@ -56,6 +57,7 @@ export default function ItemChat() {
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>({});
   const [input, setInput] = useState("");
   const [meetupLocation, setMeetupLocation] = useState("");
   const [meetupAt, setMeetupAt] = useState("");
@@ -77,6 +79,29 @@ export default function ItemChat() {
   const [messageReportReason, setMessageReportReason] = useState("");
   const [reportingMessageBusy, setReportingMessageBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
+
+  useEffect(() => {
+    const ids = Array.from(new Set(messages.map((m) => m.user_id))).filter((id) => !(id in avatarMap));
+    if (ids.length === 0) return;
+    const fetchAvatars = async () => {
+      const { data } = await supabase.from("profile").select("user_id,avatar_url").in("user_id", ids);
+      setAvatarMap((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = null;
+        for (const row of data || []) next[row.user_id] = row.avatar_url;
+        return next;
+      });
+    };
+    fetchAvatars();
+  }, [messages, avatarMap]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -420,7 +445,7 @@ export default function ItemChat() {
         hasMeetup ? (
           <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-bold text-sm">📍 待ち合わせ</p>
+              <p className="font-bold text-sm flex items-center gap-1"><IconMapPin size={15} /> 待ち合わせ</p>
               <button onClick={() => setShowMeetupForm(true)} className="text-xs text-orange-700 font-bold hover:underline">
                 編集する
               </button>
@@ -430,7 +455,7 @@ export default function ItemChat() {
             {isMeetupProposer ? (
               <p className="text-xs text-stone-500">{meetupAgreed ? "相手が同意済みです" : "相手の確認をお待ちください"}</p>
             ) : meetupAgreed ? (
-              <p className="text-sm font-bold text-orange-700">✓ 同意済みです</p>
+              <p className="text-sm font-bold text-orange-700 flex items-center gap-1"><IconCheck size={15} /> 同意済みです</p>
             ) : (
               <button
                 onClick={handleAgreeMeetup}
@@ -446,20 +471,21 @@ export default function ItemChat() {
             onClick={() => setShowMeetupForm(true)}
             className="w-full flex items-center justify-between border border-orange-200 rounded-2xl px-4 py-3 bg-orange-50 hover:bg-orange-100 transition-colors text-left"
           >
-            <span className="text-sm font-bold text-orange-800">📍 待ち合わせを決める</span>
+            <span className="text-sm font-bold text-orange-800 flex items-center gap-1"><IconMapPin size={15} /> 待ち合わせを決める</span>
             <span className="text-xs text-orange-700 font-bold shrink-0 ml-2">決める</span>
           </button>
         )
       ) : (
         <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-bold text-sm">📍 待ち合わせを提案する</p>
+            <p className="font-bold text-sm flex items-center gap-1"><IconMapPin size={15} /> 待ち合わせを提案する</p>
             <button onClick={() => setShowMeetupForm(false)} className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               閉じる
             </button>
           </div>
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-            ⚠ 取引は、北大生の多いキャンパス内で、明るい時間帯（{LATEST_MEETUP_HOUR}時まで）に行うのがおすすめです。
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 flex items-center gap-1.5">
+            <IconWarning size={14} className="shrink-0" />
+            取引は、北大生の多いキャンパス内で、明るい時間帯（{LATEST_MEETUP_HOUR}時まで）に行うのがおすすめです。
           </p>
 
           <p className="text-xs text-stone-500 mb-1.5">{TELECOM_SAFE_MODE ? "場所（下から選択してください）" : "場所（ボタンを押すか、直接入力）"}</p>
@@ -530,17 +556,23 @@ export default function ItemChat() {
         ) : (
           messages.map((msg) => (
             <div key={msg.id} className={`flex gap-2 ${msg.user_id === user?.id ? "flex-row-reverse" : "flex-row"}`}>
-              <div className="w-8 h-8 bg-orange-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                {msg.nickname?.[0] || "?"}
-              </div>
+              <Link href={`/users/${msg.user_id}`} className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden block">
+                {avatarMap[msg.user_id] ? (
+                  <img src={avatarMap[msg.user_id]!} alt={msg.nickname} className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 bg-orange-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {msg.nickname?.[0] || "?"}
+                  </div>
+                )}
+              </Link>
               <div className={`max-w-xs ${msg.user_id === user?.id ? "items-end" : "items-start"} flex flex-col`}>
                 <p className="text-xs text-stone-500 mb-1 flex items-center gap-1">
-                  {msg.nickname}
+                  <Link href={`/users/${msg.user_id}`} className="hover:underline">{msg.nickname}</Link>
                   {msg.user_id === item.user_id && (
                     <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">出品者</span>
                   )}
                 </p>
-                <div className={`px-4 py-2 rounded-2xl text-sm ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
+                <div className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
                   {msg.content}
                 </div>
                 {user && msg.user_id !== user.id && (
@@ -558,20 +590,26 @@ export default function ItemChat() {
         <div ref={bottomRef} />
       </div>
       <div className="flex border-t border-stone-200">
-        <input
-          type="text"
+        <textarea
+          ref={inputRef}
+          rows={1}
           maxLength={500}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
           placeholder={
             !buyerId
               ? "会話を選んでください"
               : messages.length === 0
                 ? "例：明日12時、明後日16時、金曜15時はどうですか？"
-                : "メッセージを入力..."
+                : "メッセージを入力...(Shift+Enterで改行)"
           }
-          className="flex-1 px-4 py-3 outline-none text-sm"
+          className="flex-1 px-4 py-3 outline-none text-sm resize-none overflow-hidden"
           disabled={!buyerId}
         />
         <button onClick={sendMessage} disabled={!buyerId} className="bg-orange-700 text-white px-6 font-bold text-sm disabled:opacity-50 hover:bg-orange-800 transition-colors">
@@ -589,8 +627,9 @@ export default function ItemChat() {
           <span aria-hidden>←</span> 商品ページへ戻る
         </button>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-xs text-amber-900 leading-relaxed">
-          ⚠ チャットでは取引に必要なことだけをやりとりしてください。住所・電話番号・SNSアカウントなど、取引に不要な個人情報は送らないでください。受け渡し日はなるべく近い日に。当日は1時間前に確認の連絡をしましょう。「30分待って連絡がなければキャンセル」など、事前に決めておくと安心です。受け渡しは人目のある場所で。連絡なしで来なかった相手は通報でき、運営が確認のうえ利用停止とすることがあります。困ったときは公式Instagram（@hokuma.official）のDMへ。
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-xs text-amber-900 leading-relaxed flex items-start gap-2">
+          <IconWarning size={16} className="shrink-0 mt-0.5" />
+          <p>チャットでは取引に必要なことだけをやりとりしてください。住所・電話番号・SNSアカウントなど、取引に不要な個人情報は送らないでください。受け渡し日はなるべく近い日に。当日は1時間前に確認の連絡をしましょう。「30分待って連絡がなければキャンセル」など、事前に決めておくと安心です。受け渡しは人目のある場所で。連絡なしで来なかった相手は通報でき、運営が確認のうえ利用停止とすることがあります。困ったときは公式Instagram（@hokuma.official）のDMへ。</p>
         </div>
 
         <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
@@ -704,16 +743,16 @@ export default function ItemChat() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-center text-sm font-bold text-orange-700 py-2">✓ 取引完了しました</p>
+                    <p className="text-center text-sm font-bold text-orange-700 py-2 flex items-center justify-center gap-1"><IconCheck size={15} /> 取引完了しました</p>
 
                     {alreadyReviewed ? (
                       <p className="text-center text-xs text-stone-400">この出品者への評価は投稿済みです</p>
                     ) : !showReviewForm ? (
                       <button
                         onClick={() => setShowReviewForm(true)}
-                        className="w-full border border-orange-300 text-orange-700 py-2.5 rounded-full font-bold text-sm hover:bg-orange-100 transition-colors"
+                        className="w-full border border-orange-300 text-orange-700 py-2.5 rounded-full font-bold text-sm hover:bg-orange-100 transition-colors flex items-center justify-center gap-1"
                       >
-                        ★ 出品者を評価する
+                        <IconStar size={14} /> 出品者を評価する
                       </button>
                     ) : (
                       <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { IconX } from "@/components/icons";
 
 // 欲しいもの登録。キーワードとジャンルが一致する出品があると、DB 側
 // (migration PART Z の notify_wish_match)からアプリ内通知が届く。
@@ -83,7 +84,7 @@ export default function WishList() {
                 className="w-5 h-5 flex items-center justify-center rounded-full text-orange-700 hover:bg-orange-100 disabled:opacity-50"
                 aria-label={`「${w.keyword}」を削除`}
               >
-                ×
+                <IconX size={12} />
               </button>
             </span>
           ))}
