@@ -16,6 +16,20 @@ type AdminDemand = Demand & {
   reports: number;
 };
 
+// admin_list_demand_voters()(migration PART AK)の戻り値
+type Voter = {
+  demand_id: number;
+  user_id: string;
+  email: string | null;
+  nickname: string | null;
+  created_at: string;
+  fulfilled_at: string | null;
+};
+
+function describe(nickname: string | null, email: string | null, id: string) {
+  return nickname ? `${nickname}（${email ?? "不明"}）` : email ?? id;
+}
+
 const STATUS_FILTERS = [
   { key: "active", label: "受付中" },
   { key: "reported", label: "通報あり" },
@@ -38,6 +52,7 @@ export default function AdminDemands() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [demands, setDemands] = useState<AdminDemand[]>([]);
+  const [voters, setVoters] = useState<Record<number, Voter[]>>({});
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [query, setQuery] = useState("");
@@ -53,9 +68,17 @@ export default function AdminDemands() {
     if (!user) { router.push("/login"); return; }
     if (!isAdmin) return;
     const load = async () => {
-      const { data, error } = await supabase.rpc("admin_list_demands");
-      if (error) setErrorMsg(error.message);
-      else setDemands(data as AdminDemand[]);
+      const [{ data, error }, { data: voterData, error: voterError }] = await Promise.all([
+        supabase.rpc("admin_list_demands"),
+        supabase.rpc("admin_list_demand_voters"),
+      ]);
+      if (error || voterError) setErrorMsg((error ?? voterError)!.message);
+      else {
+        setDemands(data as AdminDemand[]);
+        const byDemand: Record<number, Voter[]> = {};
+        for (const v of voterData as Voter[]) (byDemand[v.demand_id] ??= []).push(v);
+        setVoters(byDemand);
+      }
       setLoading(false);
     };
     load();
@@ -66,7 +89,8 @@ export default function AdminDemands() {
     if (filter === "active" && !isActiveDemand(d)) return false;
     if (filter === "reported" && d.reports === 0) return false;
     if (!q) return true;
-    return [d.title, d.note ?? "", d.nickname ?? "", d.email ?? "", ...d.tags].some((s) => s.toLowerCase().includes(q));
+    const voterNames = (voters[d.id] ?? []).flatMap((v) => [v.nickname ?? "", v.email ?? ""]);
+    return [d.title, d.note ?? "", d.nickname ?? "", d.email ?? "", ...d.tags, ...voterNames].some((s) => s.toLowerCase().includes(q));
   });
 
   const handleDelete = async () => {
@@ -118,7 +142,7 @@ export default function AdminDemands() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="商品名・備考・タグ・ニックネーム・メールで検索"
+          placeholder="商品名・備考・タグ・登録者・僕も！した人で検索"
           className="w-full border border-stone-200 rounded-full px-4 py-2 text-sm outline-none focus:border-orange-600 bg-white mb-3"
         />
         <div className="flex gap-2 mb-5">
@@ -154,10 +178,28 @@ export default function AdminDemands() {
                 <p className="text-xs text-stone-400 mb-3">
                   登録者：
                   <Link href={`/users/${d.user_id}`} className="hover:underline">
-                    {d.nickname ? `${d.nickname}（${d.email ?? "不明"}）` : d.email ?? d.user_id}
+                    {describe(d.nickname, d.email, d.user_id)}
                   </Link>
                   ・{new Date(d.created_at).toLocaleString()}
                 </p>
+                {(voters[d.id]?.length ?? 0) > 0 && (
+                  <details className="mb-3 -mt-1">
+                    <summary className="text-xs font-bold text-stone-500 cursor-pointer hover:text-stone-700">
+                      僕も！した人（{voters[d.id].length}人）
+                    </summary>
+                    <ul className="mt-1.5 flex flex-col gap-1 bg-stone-50 rounded-lg px-3 py-2">
+                      {voters[d.id].map((v) => (
+                        <li key={v.user_id} className="text-xs text-stone-600 flex flex-wrap items-baseline gap-x-2">
+                          <Link href={`/users/${v.user_id}`} className="hover:underline">{describe(v.nickname, v.email, v.user_id)}</Link>
+                          <span className="text-[11px] text-stone-400">{new Date(v.created_at).toLocaleString()}</span>
+                          {v.fulfilled_at && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-500">買えた！</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
                 {d.status !== "removed" && (
                   <button
                     onClick={() => { setDeleteTarget(d); setDeleteReason(""); }}

@@ -4081,3 +4081,41 @@ end;
 $$;
 revoke execute on function public.admin_site_stats() from public, anon;
 grant execute on function public.admin_site_stats() to authenticated;
+
+
+-- ============================================================
+-- PART AK: 管理者が、欲しい！に僕も！した人を見られるようにする
+-- ============================================================
+--
+-- 背景: 運営のために、誰が僕も！を押しているかを管理者ページで確認したい。
+--   一般の利用者には引き続き見せない(demand_vote はポリシー無しの RLS のまま)。
+--   管理者だけが呼べる関数で、すべての僕も！を登録者の情報つきで返す。
+
+create or replace function public.admin_list_demand_voters()
+returns table (
+  demand_id bigint,
+  user_id uuid,
+  email text,
+  nickname text,
+  created_at timestamptz,
+  fulfilled_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  return query
+    select v.demand_id, v.user_id, u.email::text, (u.raw_user_meta_data ->> 'nickname')::text,
+           v.created_at, v.fulfilled_at
+    from public.demand_vote v
+    left join auth.users u on u.id = v.user_id
+    order by v.demand_id, v.created_at;
+end;
+$$;
+revoke execute on function public.admin_list_demand_voters() from public, anon;
+grant execute on function public.admin_list_demand_voters() to authenticated;
