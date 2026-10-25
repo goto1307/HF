@@ -3916,3 +3916,48 @@ end;
 $$;
 revoke execute on function public.admin_demand_stats() from public, anon;
 grant execute on function public.admin_demand_stats() to authenticated;
+
+
+-- ============================================================
+-- PART AI: 未ログインでも「みんなの欲しい！」を見られるようにする
+-- ============================================================
+--
+-- 背景: 告知を見た人が登録前にサイトを開いても、みんなの欲しい！が見られず
+--   「ログインすると見られます」になっていた。閲覧だけは未ログイン(anon)にも許可する。
+--   - 見られるのは受付中(期限内)のものだけ。誰が登録したか(user_id)は
+--     ログインしている人と同じく列ごと読めない
+--   - 僕も！の人数(demand_vote_summary)も見られるようにする。未ログインでは
+--     voted / my_done は常に false になる
+--   - 登録・僕も！・通報・出品はこれまでどおりログインが必要
+
+grant select (id, title, budget, deadline, tags, note, status, created_at) on public.demand to anon;
+
+drop policy if exists "demand_select_open_anon" on public.demand;
+create policy "demand_select_open_anon"
+on public.demand for select
+to anon
+using (
+  status = 'open'
+  and deadline >= public.jst_today()
+  and not public.is_deleted(user_id)
+);
+
+-- PART AH の demand_vote_summary から「ログインしていること」の条件を外す
+create or replace function public.demand_vote_summary()
+returns table (demand_id bigint, votes integer, voted boolean, my_done boolean, owner_done boolean)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select d.id,
+         (select count(*) from public.demand_vote v where v.demand_id = d.id and v.fulfilled_at is null)::integer,
+         mv.user_id is not null,
+         coalesce(mv.fulfilled_at is not null, false),
+         d.owner_fulfilled_at is not null
+  from public.demand d
+  left join public.demand_vote mv on mv.demand_id = d.id and mv.user_id = auth.uid()
+  where (auth.uid() is not null and (d.user_id = auth.uid() or mv.user_id is not null))
+     or (d.status = 'open' and d.deadline >= public.jst_today() and not public.is_deleted(d.user_id));
+$$;
+grant execute on function public.demand_vote_summary() to anon, authenticated;
