@@ -16,12 +16,24 @@ type Item = {
   created_at: string;
 };
 
+// 各商品のチャット(公開Q&A・個別チャット)の件数と、いちばん新しいメッセージの日時
+type ChatInfo = { count: number; latest: string };
+
+const SORTS = [
+  { key: "new", label: "出品が新しい順" },
+  { key: "sold", label: "購入済みを先に" },
+  { key: "chat", label: "チャットが新しい順" },
+] as const;
+type SortKey = (typeof SORTS)[number]["key"];
+
 export default function AdminItems() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SortKey>("new");
+  const [chatInfo, setChatInfo] = useState<Record<number, ChatInfo>>({});
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -39,16 +51,41 @@ export default function AdminItems() {
         .select("id, title, user_id, nickname, sold, created_at")
         .order("created_at", { ascending: false });
       if (data) setItems(data);
+
+      // 管理者は全メッセージを読める(message_select_admin)。新しい順に見て商品ごとにまとめる
+      const { data: messages } = await supabase
+        .from("message")
+        .select("item_id, created_at")
+        .order("created_at", { ascending: false });
+      const info: Record<number, ChatInfo> = {};
+      for (const m of messages ?? []) {
+        const cur = info[m.item_id];
+        if (cur) cur.count++;
+        else info[m.item_id] = { count: 1, latest: m.created_at };
+      }
+      setChatInfo(info);
       setLoading(false);
     };
     fetchItems();
   }, [authLoading, user, isAdmin, router]);
 
-  const filtered = items.filter((i) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return i.title.toLowerCase().includes(q) || i.nickname.toLowerCase().includes(q);
-  });
+  const byNewest = (a: Item, b: Item) => b.created_at.localeCompare(a.created_at);
+  const filtered = items
+    .filter((i) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      return i.title.toLowerCase().includes(q) || i.nickname.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sort === "sold") return Number(b.sold) - Number(a.sold) || byNewest(a, b);
+      if (sort === "chat") {
+        // チャットの無い商品は後ろに(その中は出品が新しい順)
+        const la = chatInfo[a.id]?.latest ?? "";
+        const lb = chatInfo[b.id]?.latest ?? "";
+        return lb.localeCompare(la) || byNewest(a, b);
+      }
+      return byNewest(a, b);
+    });
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
@@ -102,8 +139,21 @@ export default function AdminItems() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="商品名・出品者名で検索"
-          className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-6 outline-none bg-white"
+          className="w-full border border-stone-200 rounded-xl px-4 py-2 text-sm mb-3 outline-none bg-white"
         />
+        <div className="flex gap-2 flex-wrap mb-6">
+          {SORTS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSort(s.key)}
+              className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                sort === s.key ? "bg-orange-700 text-white border-orange-700" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-100"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
 
         <div className="flex flex-col gap-3">
           {filtered.map((i) => (
@@ -114,9 +164,14 @@ export default function AdminItems() {
                 </Link>
                 <p className="text-xs text-stone-500">
                   出品者：<Link href={`/users/${i.user_id}`} className="hover:underline">{i.nickname}</Link>
-                  {i.sold && <span className="ml-2 text-stone-400">売却済み</span>}
+                  {i.sold && <span className="ml-2 text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600">購入済み</span>}
                 </p>
-                <p className="text-[11px] text-stone-400">{new Date(i.created_at).toLocaleString()}</p>
+                <p className="text-[11px] text-stone-400">出品：{new Date(i.created_at).toLocaleString()}</p>
+                <p className="text-[11px] text-stone-400">
+                  {chatInfo[i.id]
+                    ? `チャット${chatInfo[i.id].count}件・最新：${new Date(chatInfo[i.id].latest).toLocaleString()}`
+                    : "チャットなし"}
+                </p>
               </div>
               <div className="flex flex-col gap-1.5 items-end shrink-0">
                 <Link
