@@ -8,6 +8,50 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import { formatBudget, formatDeadline } from "@/lib/demand";
 import Header from "@/components/Header";
 
+// admin_site_stats()(migration PART AJ)の戻り値。サイト全体の数字
+type SiteWeek = {
+  week_start: string;
+  new_users: number;
+  users_total: number;
+  new_items: number;
+  active_sellers: number;
+  new_sellers: number;
+  sellers_total: number;
+  sold: number;
+  messages: number;
+  qr_scans: number;
+};
+type SiteStats = {
+  totals: { users: number; sellers: number; items: number; listed: number; sold: number; received: number; qr_scans: number; messages: number };
+  weekly: SiteWeek[];
+};
+
+// 週ごとの表の列(CSV の列もこの順)
+const SITE_COLUMNS: { key: keyof SiteWeek; label: string }[] = [
+  { key: "new_users", label: "新規登録" },
+  { key: "users_total", label: "登録者(累計)" },
+  { key: "new_items", label: "出品数" },
+  { key: "active_sellers", label: "出品した人" },
+  { key: "new_sellers", label: "初出品の人" },
+  { key: "sellers_total", label: "出品者(累計)" },
+  { key: "sold", label: "取引成立" },
+  { key: "messages", label: "メッセージ" },
+  { key: "qr_scans", label: "QR読込" },
+];
+
+function downloadSiteCsv(weekly: SiteWeek[]) {
+  const header = ["週(月曜はじまり)", ...SITE_COLUMNS.map((c) => c.label)].join(",");
+  const rows = weekly.map((w) => [w.week_start, ...SITE_COLUMNS.map((c) => w[c.key])].join(","));
+  // Excel で文字化けしないよう、先頭に BOM を付ける
+  const blob = new Blob(["\ufeff" + [header, ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `hokuma-weekly-${weekly[weekly.length - 1]?.week_start ?? "stats"}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // admin_demand_stats()(migration PART AH)の戻り値
 type Stats = {
   counts: { active: number; expired: number; fulfilled: number; withdrawn: number; removed: number; total: number };
@@ -85,6 +129,7 @@ export default function AdminStats() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [site, setSite] = useState<SiteStats | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   const isAdmin = isAdminEmail(user?.email);
@@ -94,9 +139,12 @@ export default function AdminStats() {
     if (!user) { router.push("/login"); return; }
     if (!isAdmin) return;
     const load = async () => {
-      const { data, error } = await supabase.rpc("admin_demand_stats");
-      if (error) setErrorMsg(error.message);
-      else setStats(data as Stats);
+      const [{ data, error }, { data: siteData, error: siteError }] = await Promise.all([
+        supabase.rpc("admin_demand_stats"),
+        supabase.rpc("admin_site_stats"),
+      ]);
+      if (error || siteError) setErrorMsg((error ?? siteError)!.message);
+      else { setStats(data as Stats); setSite(siteData as SiteStats); }
     };
     load();
   }, [authLoading, user, isAdmin, router]);
@@ -110,7 +158,7 @@ export default function AdminStats() {
     );
   }
 
-  if (!stats) {
+  if (!stats || !site) {
     return (
       <div className="min-h-screen bg-stone-50">
         <Header />
@@ -127,13 +175,64 @@ export default function AdminStats() {
       <Header />
       <main className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between gap-3 mb-6">
-          <h2 className="text-2xl font-bold">欲しい！の集計</h2>
+          <h2 className="text-2xl font-bold">集計</h2>
           <div className="flex gap-3">
             <Link href="/admin/demands" className="text-sm font-bold text-orange-700 hover:underline">欲しい！一覧へ</Link>
             <Link href="/admin/reports" className="text-sm font-bold text-orange-700 hover:underline">通報一覧へ</Link>
           </div>
         </div>
 
+        {/* ---------- サイト全体 ---------- */}
+        <h3 className="text-lg font-extrabold text-stone-700 mb-3">サイト全体</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <Tile label="登録者" value={site.totals.users} note="退会した人を除く" />
+          <Tile label="出品したことがある人" value={site.totals.sellers} />
+          <Tile label="出品中の商品" value={site.totals.listed} note={`これまでの出品 ${site.totals.items}件`} />
+          <Tile label="取引成立" value={site.totals.sold} note={`受け取り完了 ${site.totals.received}件`} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <WeeklyBars title="週ごとの新規登録" data={site.weekly.map((w) => ({ week_start: w.week_start, value: w.new_users }))} />
+          <WeeklyBars title="週ごとの出品数" data={site.weekly.map((w) => ({ week_start: w.week_start, value: w.new_items }))} />
+        </div>
+        <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm mb-10">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <p className="text-sm font-bold text-stone-700">週ごとの数字（直近12週・月曜はじまり）</p>
+            <button
+              onClick={() => downloadSiteCsv(site.weekly)}
+              className="shrink-0 text-xs font-bold border border-orange-200 text-orange-700 px-3 py-1.5 rounded-full hover:bg-orange-100 transition-colors"
+            >
+              CSVで保存
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm whitespace-nowrap">
+              <thead>
+                <tr className="text-[11px] text-stone-400 text-right">
+                  <th className="font-normal pb-1 text-left pr-3">週</th>
+                  {SITE_COLUMNS.map((col) => (
+                    <th key={col.key} className="font-normal pb-1 px-2">{col.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...site.weekly].reverse().map((w) => (
+                  <tr key={w.week_start} className="border-t border-stone-100 text-right tabular-nums">
+                    <td className="py-1 text-left pr-3 text-stone-500">{weekLabel(w.week_start)}〜</td>
+                    {SITE_COLUMNS.map((col) => (
+                      <td key={col.key} className={`py-1 px-2 ${w[col.key] === 0 ? "text-stone-300" : "font-bold text-stone-700"}`}>{w[col.key]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-stone-400 mt-2">
+            取引成立は、売れた日時を記録し始める前のものは「売れました！」の通知の日時で数えています。管理者が削除した商品は含まれません。
+          </p>
+        </div>
+
+        {/* ---------- みんなの欲しい！ ---------- */}
+        <h3 className="text-lg font-extrabold text-stone-700 mb-3">みんなの欲しい！</h3>
         <h3 className="font-bold text-sm text-stone-600 mb-2">いまの需要</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <Tile label="受付中の欲しい！" value={c.active} />

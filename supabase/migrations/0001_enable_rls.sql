@@ -3961,3 +3961,123 @@ as $$
      or (d.status = 'open' and d.deadline >= public.jst_today() and not public.is_deleted(d.user_id));
 $$;
 grant execute on function public.demand_vote_summary() to anon, authenticated;
+
+
+-- ============================================================
+-- PART AJ: 管理者向けに、サイト全体の数字を週ごとに記録・集計する
+-- ============================================================
+--
+-- 背景: 登録者・出品者・出品・取引・QRコードの読み込みの数を週ごとに追いたい
+--   (施策の効果の確認や、発表の資料に使う)。
+--   これまで「いつ売れたか」の日時が無かったので item.sold_at を追加し、
+--   売れた(sold が false → true になった)ときに自動で記録する。
+--   取引がキャンセルされて sold が false に戻ったら sold_at も消す。
+--   既に売れている商品は、出品者に届いた「売れました！」の通知の日時で埋める。
+--   sold_at は一般ユーザーには公開しない(item の SELECT は列ごとの許可のため、
+--   新しい列はそのままでは読めない。管理者は下の関数経由で集計する)。
+--
+-- 注意: 管理者が削除した商品や退会した人の出品は数に含まれない(データが残らないため)。
+
+alter table public.item add column if not exists sold_at timestamptz;
+
+create or replace function public.set_item_sold_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.sold and not coalesce(old.sold, false) then
+    new.sold_at := now();
+  elsif not new.sold then
+    new.sold_at := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists set_item_sold_at_trigger on public.item;
+create trigger set_item_sold_at_trigger
+before update of sold on public.item
+for each row execute function public.set_item_sold_at();
+
+-- 既に売れている商品は、最後に届いた「売れました！」の通知の日時で埋める
+update public.item i
+set sold_at = n.at
+from (
+  select item_id, max(created_at) as at
+  from public.notification
+  where message like '%」が売れました！'
+  group by item_id
+) n
+where i.id = n.item_id and i.sold and i.sold_at is null;
+
+create or replace function public.admin_site_stats()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_week date := date_trunc('week', public.jst_today())::date;  -- 今週の月曜(日本時間)
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  with weeks as (
+    select (v_week - 7 * g)::date as week_start from generate_series(0, 11) as g
+  ),
+  first_listing as (
+    select user_id, min(created_at) as at from public.item group by user_id
+  )
+  select jsonb_build_object(
+    'totals', jsonb_build_object(
+      'users', (select count(*) from auth.users u where not exists (select 1 from public.deleted_users d where d.user_id = u.id)),
+      'sellers', (select count(distinct user_id) from public.item),
+      'items', (select count(*) from public.item),
+      'listed', (select count(*) from public.item where not sold),
+      'sold', (select count(*) from public.item where sold),
+      'received', (select count(*) from public.item where received),
+      'qr_scans', (select count(*) from public.qr_scan),
+      'messages', (select count(*) from public.message)
+    ),
+    'weekly', (
+      select jsonb_agg(jsonb_build_object(
+        'week_start', w.week_start,
+        'new_users', (select count(*) from auth.users u
+                      where (u.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (u.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'users_total', (select count(*) from auth.users u
+                        where (u.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'new_items', (select count(*) from public.item i
+                      where (i.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (i.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'active_sellers', (select count(distinct i.user_id) from public.item i
+                           where (i.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                             and (i.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'new_sellers', (select count(*) from first_listing f
+                        where (f.at at time zone 'Asia/Tokyo')::date >= w.week_start
+                          and (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'sellers_total', (select count(*) from first_listing f
+                          where (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'sold', (select count(*) from public.item i
+                 where i.sold_at is not null
+                   and (i.sold_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                   and (i.sold_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'messages', (select count(*) from public.message m
+                     where (m.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                       and (m.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'qr_scans', (select count(*) from public.qr_scan q
+                     where (q.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                       and (q.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7)
+      ) order by w.week_start)
+      from weeks w
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_site_stats() from public, anon;
+grant execute on function public.admin_site_stats() to authenticated;

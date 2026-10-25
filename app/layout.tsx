@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
@@ -15,6 +15,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "HOKUMA | 北大生のためのフリマ",
   description: "北海道大学の学生同士で教科書や自転車などを気軽に売り買いできるフリマアプリ",
+  // iPhone でホーム画面に追加したとき、アプリのように全画面で開く
+  appleWebApp: {
+    capable: true,
+    title: "HOKUMA",
+    statusBarStyle: "default",
+  },
+};
+
+// スマホのブラウザのバーや、ホーム画面から開いたときの上部の色(ヘッダーと同じオレンジ)
+export const viewport: Viewport = {
+  themeColor: "#c2410c",
 };
 
 export default function RootLayout({
