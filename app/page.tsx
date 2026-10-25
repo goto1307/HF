@@ -35,17 +35,6 @@ type Item = {
   created_at: string;
 };
 
-function timeAgo(iso: string) {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diffMs / 60000);
-  if (min < 1) return "たった今";
-  if (min < 60) return `${min}分前`;
-  const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour}時間前`;
-  const day = Math.floor(hour / 24);
-  return `${day}日前`;
-}
-
 function HomeContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
@@ -488,16 +477,9 @@ function HomeContent() {
 
         <main className="flex-1 pb-24">
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="border border-stone-200 rounded-2xl overflow-hidden bg-white animate-pulse">
-                  <div className="w-full h-32 bg-stone-100" />
-                  <div className="p-3 flex flex-col gap-2">
-                    <div className="h-2 w-10 bg-stone-100 rounded" />
-                    <div className="h-3 w-24 bg-stone-100 rounded" />
-                    <div className="h-3 w-14 bg-stone-100 rounded" />
-                  </div>
-                </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+              {Array.from({ length: 15 }).map((_, i) => (
+                <div key={i} className="aspect-square rounded-xl bg-stone-100 animate-pulse" />
               ))}
             </div>
           ) : sorted.length === 0 ? (
@@ -506,27 +488,32 @@ function HomeContent() {
               <p className="text-stone-400">条件に合う商品がありません</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-              {sorted.map((item) => (
-                <Link
-                  href={`/items/${item.id}`}
-                  key={item.id}
-                  className="group relative border border-stone-200/70 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-xl hover:border-orange-200 hover:-translate-y-1 transition-all duration-300 block"
-                >
-                  <div className="relative overflow-hidden">
-                    {(item.image_urls?.[0] ?? item.image_url) ? (
+            // 一覧性を上げるため、カードは商品画像と価格だけにする(商品名などは商品ページで見る)
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+              {sorted.map((item) => {
+                const image = item.image_urls?.[0] ?? item.image_url;
+                return (
+                  <Link
+                    href={`/items/${item.id}`}
+                    key={item.id}
+                    title={item.title}
+                    className="group relative block aspect-square rounded-xl overflow-hidden bg-white border border-stone-200/70 shadow-sm hover:shadow-lg transition-shadow"
+                  >
+                    {image ? (
                       <img
-                        src={item.image_urls?.[0] ?? item.image_url ?? undefined}
+                        src={image}
                         alt={item.title}
-                        className={`w-full h-32 object-cover transition-transform duration-500 group-hover:scale-110 ${item.sold ? "opacity-50" : ""}`}
+                        className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${item.sold ? "opacity-50" : ""}`}
                       />
                     ) : (
-                      <div className={`bg-gradient-to-br from-orange-50 to-amber-50 h-32 flex items-center justify-center text-orange-200 ${item.sold ? "opacity-50" : ""}`}>
-                        <IconPackage size={32} />
+                      // 写真が無い商品は何か分からないので、商品名だけ薄く出す
+                      <div className={`w-full h-full bg-gradient-to-br from-orange-50 to-amber-50 flex flex-col items-center justify-center gap-1 px-2 text-orange-300 ${item.sold ? "opacity-50" : ""}`}>
+                        <IconPackage size={28} />
+                        <span className="text-[11px] font-bold text-stone-500 text-center line-clamp-2 break-all">{item.title}</span>
                       </div>
                     )}
                     {item.sold && (
-                      <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-extrabold text-center px-2.5 py-1 rounded-full shadow-md tracking-wider">
+                      <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[10px] sm:text-xs font-extrabold px-2 py-0.5 rounded-full shadow-md tracking-wider">
                         SOLD OUT
                       </div>
                     )}
@@ -534,34 +521,17 @@ function HomeContent() {
                       <button
                         onClick={(e) => toggleLike(e, item.id)}
                         className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                        aria-label={likedByMe.has(item.id) ? "いいねを取り消す" : "いいね"}
                       >
                         <IconHeart size={15} filled={likedByMe.has(item.id)} className={likedByMe.has(item.id) ? "text-orange-600" : "text-orange-300"} />
                       </button>
                     )}
-                  </div>
-                  <div className="p-3.5">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <p className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">{item.category}</p>
-                      {item.condition && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{item.condition}</span>
-                      )}
-                    </div>
-                    <p className="font-bold mb-1.5 text-sm truncate text-blue-700 group-hover:text-blue-800">{item.title}</p>
-                    <p className="text-orange-700 font-extrabold text-base tracking-tight">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
-                    {item.hashtags && item.hashtags.length > 0 && (
-                      <div className="flex gap-1 flex-wrap mt-1">
-                        {item.hashtags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="text-[10px] text-orange-600 truncate">#{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-stone-100">
-                      <p className="text-xs text-stone-400 truncate">{item.area || ""}</p>
-                      <p className="text-xs text-stone-400 shrink-0 ml-1">{timeAgo(item.created_at)}</p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                    <span className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-0.75rem)] truncate bg-black/65 text-white text-xs sm:text-sm font-extrabold px-2 py-0.5 rounded-full tracking-tight">
+                      {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </main>
