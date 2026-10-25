@@ -4,6 +4,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 import PasswordInput from "@/components/PasswordInput";
+import { safeNext } from "@/lib/nav";
+
+// ?next= に入っている、ログイン後に戻るページ
+function nextPath() {
+  return safeNext(new URLSearchParams(window.location.search).get("next"));
+}
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,7 +21,7 @@ export default function Login() {
     let cancelled = false;
     supabase.auth.getSession().then(({ data }) => {
       if (!cancelled && data.session) {
-        router.push("/");
+        router.replace(nextPath());
       }
     });
     return () => { cancelled = true; };
@@ -45,7 +51,8 @@ export default function Login() {
         }
         return;
       }
-      router.push("/");
+      // ログインのきっかけになったページ(?next=)に戻す
+      router.replace(nextPath());
     } catch (err) {
       alert("ログイン中にエラーが発生しました。もう一度お試しください。");
     } finally {

@@ -9,6 +9,7 @@ import { makeImagePath } from "@/lib/uploadPath";
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 import { IconX } from "@/components/icons";
+import { loginPath, goBack } from "@/lib/nav";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -37,7 +38,7 @@ export default function EditItem() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
 
     const fetchItem = async () => {
       const { data, error } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).single();
@@ -182,7 +183,7 @@ export default function EditItem() {
       <Header />
 
       <main className="max-w-md mx-auto px-4 py-8">
-        <button onClick={() => router.back()} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
+        <button onClick={() => goBack(router)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 戻る
         </button>
         <h2 className="text-2xl font-bold mb-6">出品を編集</h2>
@@ -293,7 +294,7 @@ export default function EditItem() {
             {!isFree && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-stone-500">¥</span>
-                <input type="number" min="0" max="50000" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                <input type="number" inputMode="numeric" min="0" max="50000" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
               </div>
             )}
           </div>

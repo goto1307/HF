@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
+import { loginPath } from "@/lib/nav";
 
 type Review = {
   id: number;
@@ -34,7 +35,7 @@ export default function AdminReviews() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
     if (!isAdmin) return;
 
     const fetchReviews = async () => {

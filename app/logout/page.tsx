@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
+import { goBack } from "@/lib/nav";
 
 export default function Logout() {
   const [loggingOut, setLoggingOut] = useState(false);
@@ -36,7 +37,7 @@ export default function Logout() {
             {loggingOut ? "ログアウト中..." : "ログアウトする"}
           </button>
           <button
-            onClick={() => router.back()}
+            onClick={() => goBack(router)}
             className="w-full border border-stone-300 text-stone-600 py-3 rounded-full font-bold text-sm bg-white hover:bg-stone-100 transition-colors"
           >
             キャンセル

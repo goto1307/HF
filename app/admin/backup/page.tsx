@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
+import { loginPath } from "@/lib/nav";
 
 export default function AdminBackup() {
   const { user, loading: authLoading } = useAuth();
@@ -45,7 +46,7 @@ export default function AdminBackup() {
     );
   }
 
-  if (!user) { router.push("/login"); return null; }
+  if (!user) { router.push(loginPath()); return null; }
 
   if (!isAdmin) {
     return (

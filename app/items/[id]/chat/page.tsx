@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconMapPin, IconCheck, IconWarning, IconStar } from "@/components/icons";
+import { loginPath } from "@/lib/nav";
 
 type Item = {
   id: number;
@@ -105,7 +106,7 @@ export default function ItemChat() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
 
     const fetchItem = async () => {
       const { data } = await supabase.from("item").select("id,title,nickname,user_id,sold,received").eq("id", params.id).single();
@@ -248,6 +249,22 @@ export default function ItemChat() {
     };
     loadConversations();
   }, [item, isSeller]);
+
+  // このチャットを開いている間は、この商品の「取引相手からメッセージが届きました」の通知を既読にする
+  // (マイページの「新着メッセージあり」とヘッダーの通知の数を消すため。新しいメッセージが届いたときもやり直す)
+  useEffect(() => {
+    if (!item || !user) return;
+    const markRead = async () => {
+      await supabase
+        .from("notification")
+        .update({ read: true })
+        .eq("user_id", user.id)
+        .eq("item_id", item.id)
+        .eq("read", false)
+        .like("message", "%取引相手からメッセージが届きました%");
+    };
+    markRead();
+  }, [item, user, messages.length]);
 
   useEffect(() => {
     if (!item || !buyerId) { setMessages([]); return; }

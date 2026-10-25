@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
+import { loginPath } from "@/lib/nav";
 
 type AdminUser = {
   id: string;
@@ -45,7 +46,7 @@ export default function AdminUsers() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
     if (!isAdmin) return;
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps

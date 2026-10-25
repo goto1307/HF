@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { IconPackage } from "@/components/icons";
+import { loginPath } from "@/lib/nav";
 
 type Item = {
   id: number;
@@ -97,7 +98,7 @@ export default function SellerProfile() {
   const activeItems = items.filter((i) => !i.sold);
 
   const handleReport = async () => {
-    if (!user) { alert("通報にはログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("通報にはログインしてください"); router.push(loginPath()); return; }
     if (!reportReason) { alert("通報理由を選択してください"); return; }
     if (reportReason === "その他" && !reportDetail.trim()) { alert("詳細を入力してください"); return; }
     setReporting(true);
@@ -122,7 +123,7 @@ export default function SellerProfile() {
   };
 
   const handleToggleBlock = async () => {
-    if (!user) { alert("ブロックにはログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("ブロックにはログインしてください"); router.push(loginPath()); return; }
     setBlocking(true);
     if (blocked) {
       const { error } = await supabase.from("blocked_user").delete().eq("blocker_id", user.id).eq("blocked_id", params.id);
@@ -144,7 +145,7 @@ export default function SellerProfile() {
         <Header />
         <div className="max-w-md mx-auto px-4 py-16 text-center">
           <p className="text-stone-600 mb-6">ユーザーのプロフィールは、ログインすると見られます。</p>
-          <Link href="/login" className="inline-block bg-orange-700 text-white px-8 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors">
+          <Link href={loginPath(`/users/${params.id}`)} className="inline-block bg-orange-700 text-white px-8 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors">
             ログイン
           </Link>
         </div>

@@ -10,6 +10,7 @@ import { DEMAND_COLUMNS, DEMAND_MATCH_LIMIT, findMatchingDemands, formatBudget, 
 import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 import { IconWarning, IconPackage, IconX } from "@/components/icons";
+import { loginPath, goBack } from "@/lib/nav";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -111,7 +112,7 @@ function SellContent() {
   };
 
   const saveDraft = async () => {
-    if (!user) { alert("ログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
     if (!isFree && price && (!Number.isInteger(Number(price)) || Number(price) < 0 || Number(price) > 50000)) {
       alert("価格は0円〜50,000円の範囲で入力してください");
       return;
@@ -186,7 +187,7 @@ function SellContent() {
   };
 
   const handleReview = () => {
-    if (!user) { alert("ログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
     if (!title.trim()) { alert("タイトルを入力してください"); return; }
     if (!category) { alert("カテゴリを選択してください"); return; }
     if (!isFree && !price) { alert("価格を入力してください"); return; }
@@ -196,7 +197,7 @@ function SellContent() {
   };
 
   const handleSubmit = async () => {
-    if (!user) { alert("ログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
     setLoading(true);
 
     const imageUrls: string[] = [];
@@ -282,7 +283,7 @@ function SellContent() {
       <Header />
 
       <main className="max-w-md mx-auto px-4 py-8">
-        <button onClick={() => router.back()} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
+        <button onClick={() => goBack(router)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 戻る
         </button>
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -407,7 +408,7 @@ function SellContent() {
             {!isFree && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-stone-500">¥</span>
-                <input type="number" min="0" max="50000" autoComplete="off" value={price} onChange={(e) => setPrice(e.target.value.replace("-", ""))} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                <input type="number" inputMode="numeric" min="0" max="50000" autoComplete="off" value={price} onChange={(e) => setPrice(e.target.value.replace("-", ""))} placeholder="0" className="w-full border border-stone-200 rounded-xl px-4 py-3 outline-none focus:border-orange-600 transition-colors text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
               </div>
             )}
           </div>

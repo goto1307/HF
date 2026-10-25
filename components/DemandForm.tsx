@@ -13,6 +13,7 @@ import {
 } from "@/lib/demand";
 import Header from "@/components/Header";
 import { IconX } from "@/components/icons";
+import { loginPath, goBack } from "@/lib/nav";
 
 // 編集のとき、期限がこれより先なら「ずっと」として表示する
 const FOREVER_THRESHOLD_DAYS = 330;
@@ -85,7 +86,7 @@ export default function DemandForm({
   };
 
   const handleReview = () => {
-    if (!user) { alert("ログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
     if (!title.trim()) { alert("何が欲しいかを入力してください"); return; }
     if (budget === "") { alert("いくらまで出せるかを入力してください"); return; }
     const n = Number(budget);
@@ -108,7 +109,7 @@ export default function DemandForm({
       <Header />
 
       <main className="max-w-md mx-auto px-4 py-8">
-        <button onClick={() => router.back()} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
+        <button onClick={() => goBack(router, "/demands")} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 戻る
         </button>
         <h2 className="text-2xl font-bold mb-1">{heading}</h2>
@@ -134,7 +135,7 @@ export default function DemandForm({
             <div className="flex items-center gap-2">
               <span className="font-bold text-stone-500">¥</span>
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 min="0"
                 max="50000"
                 autoComplete="off"
