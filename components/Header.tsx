@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import DemandBubbles from "@/components/DemandBubbles";
+import InstallGuide from "@/components/InstallGuide";
 import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
 type Notification = {
@@ -36,6 +37,7 @@ export default function Header() {
   const { user } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
   const [showGuide, setShowGuide] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -259,7 +261,7 @@ export default function Header() {
                         欲しい！一覧
                       </Link>
                       <Link href="/admin/stats" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
-                        欲しい！の集計
+                        集計
                       </Link>
                       <Link href="/admin/log" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         操作ログ
@@ -274,6 +276,12 @@ export default function Header() {
                     className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
                     初めての方に
+                  </button>
+                  <button
+                    onClick={() => { setShowMenu(false); setShowInstall(true); }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
+                  >
+                    ホーム画面に追加
                   </button>
                   <a
                     href="https://www.instagram.com/hokuma.official/"
@@ -350,6 +358,8 @@ export default function Header() {
       </header>
 
       <DemandBubbles />
+
+      {showInstall && <InstallGuide onClose={() => setShowInstall(false)} />}
 
       {showGuide && (
         <div
