@@ -4119,3 +4119,24 @@ end;
 $$;
 revoke execute on function public.admin_list_demand_voters() from public, anon;
 grant execute on function public.admin_list_demand_voters() to authenticated;
+
+
+-- ============================================================
+-- PART AL: 通知をリアルタイムで受け取れるようにする
+-- ============================================================
+--
+-- 背景: ヘッダーの通知の数は、ページを開いたときにしか更新されなかった。
+--   notification を Supabase Realtime の配信対象(supabase_realtime)に加え、
+--   通知が増えたり既読になったりしたら、開いている画面の数をすぐ更新する。
+--   届くのは本人の通知だけ(Realtime にも notification_select_own の RLS が効く)。
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notification'
+  ) then
+    alter publication supabase_realtime add table public.notification;
+  end if;
+end;
+$$;

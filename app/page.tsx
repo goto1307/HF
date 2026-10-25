@@ -8,6 +8,7 @@ import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { IconPackage, IconHeart, IconX, IconMenu } from "@/components/icons";
+import { loginPath } from "@/lib/nav";
 
 const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["すべて", "北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -35,17 +36,29 @@ type Item = {
   created_at: string;
 };
 
+// URL の値が選択肢にあればそれを、無ければ既定値を使う
+function pickParam<T extends string>(value: string | null, options: readonly T[], fallback: T): T {
+  return value && (options as readonly string[]).includes(value) ? (value as T) : fallback;
+}
+
+function digitsParam(value: string | null) {
+  return value && /^\d{1,6}$/.test(value) ? value : "";
+}
+
 function HomeContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
 
-  const [selectedCategory, setSelectedCategory] = useState("すべて");
-  const [selectedArea, setSelectedArea] = useState("すべて");
-  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [sort, setSort] = useState<SortKey>("new");
-  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  // 絞り込みは URL にも残す(商品を開いて戻っても同じ一覧が出る・リンクで共有できる)
+  const [selectedCategory, setSelectedCategory] = useState(() => pickParam(searchParams.get("cat"), categories, "すべて"));
+  const [selectedArea, setSelectedArea] = useState(() => pickParam(searchParams.get("area"), AREAS, "すべて"));
+  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(
+    () => new Set((searchParams.get("cond") ?? "").split(",").filter((c) => CONDITIONS.includes(c))),
+  );
+  const [minPrice, setMinPrice] = useState(() => digitsParam(searchParams.get("min")));
+  const [maxPrice, setMaxPrice] = useState(() => digitsParam(searchParams.get("max")));
+  const [sort, setSort] = useState<SortKey>(() => pickParam(searchParams.get("sort"), SORTS.map((s) => s.key), "new"));
+  const [onlyAvailable, setOnlyAvailable] = useState(() => searchParams.get("avail") === "1");
   const [showFilters, setShowFilters] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -90,7 +103,7 @@ function HomeContent() {
   const toggleLike = async (e: React.MouseEvent, itemId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) { alert("いいねするにはログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("いいねするにはログインしてください"); router.push(loginPath()); return; }
 
     if (likedByMe.has(itemId)) {
       const { error } = await supabase.from("favorite").delete().eq("item_id", itemId).eq("user_id", user.id);
@@ -104,6 +117,22 @@ function HomeContent() {
       setLikeCounts((prev) => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
     }
   };
+
+  // 絞り込みが変わったら URL を書き換える(履歴は増やさない)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (selectedCategory !== "すべて") params.set("cat", selectedCategory);
+    if (selectedArea !== "すべて") params.set("area", selectedArea);
+    if (selectedConditions.size > 0) params.set("cond", [...selectedConditions].join(","));
+    if (minPrice) params.set("min", minPrice);
+    if (maxPrice) params.set("max", maxPrice);
+    if (sort !== "new") params.set("sort", sort);
+    if (onlyAvailable) params.set("avail", "1");
+    const qs = params.toString();
+    const next = qs ? `/?${qs}` : "/";
+    if (next !== window.location.pathname + window.location.search) window.history.replaceState(null, "", next);
+  }, [query, selectedCategory, selectedArea, selectedConditions, minPrice, maxPrice, sort, onlyAvailable]);
 
   const toggleCondition = (c: string) => {
     setSelectedConditions((prev) => {
@@ -130,6 +159,8 @@ function HomeContent() {
   });
 
   const sorted = [...filtered].sort((a, b) => {
+    // 売り切れはどの並び順でも後ろにまとめる(販売中の商品を先に見せる)
+    if (a.sold !== b.sold) return a.sold ? 1 : -1;
     if (sort === "cheap") return a.price - b.price;
     if (sort === "expensive") return b.price - a.price;
     if (sort === "like") return (likeCounts[b.id] || 0) - (likeCounts[a.id] || 0);
@@ -320,7 +351,7 @@ function HomeContent() {
               <p className="font-bold text-sm mb-2">価格</p>
               <div className="flex items-center gap-2">
                 <input
-                  type="number"
+                  type="number" inputMode="numeric"
                   min="0"
                   value={minPrice}
                   onChange={(e) => setMinPrice(e.target.value.replace("-", ""))}
@@ -329,7 +360,7 @@ function HomeContent() {
                 />
                 <span className="text-stone-400">-</span>
                 <input
-                  type="number"
+                  type="number" inputMode="numeric"
                   min="0"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value.replace("-", ""))}
@@ -403,7 +434,7 @@ function HomeContent() {
             <p className="font-bold text-sm mb-2">価格</p>
             <div className="flex items-center gap-2">
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 min="0"
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value.replace("-", ""))}
@@ -412,7 +443,7 @@ function HomeContent() {
               />
               <span className="text-stone-400">-</span>
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 min="0"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value.replace("-", ""))}

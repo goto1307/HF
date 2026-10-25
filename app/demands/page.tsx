@@ -18,6 +18,7 @@ import {
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { IconSearch, IconX } from "@/components/icons";
+import { loginPath } from "@/lib/nav";
 
 const SORTS = [
   { key: "new", label: "新着順" },
@@ -137,10 +138,10 @@ function DemandsContent() {
   // 未ログインで操作しようとしたらログインへ
   const requireLogin = () => {
     if (user) return false;
-    if (confirm("この操作にはログインが必要です。ログインページへ移動しますか？")) router.push("/login");
+    if (confirm("この操作にはログインが必要です。ログインページへ移動しますか？")) router.push(loginPath());
     return true;
   };
-  const loginOr = (href: string) => (user ? href : "/login");
+  const loginOr = (href: string) => (user ? href : loginPath(href));
 
   const toggleVote = async (id: number) => {
     if (requireLogin()) return;
@@ -212,7 +213,7 @@ function DemandsContent() {
         </p>
         {!authLoading && !user && (
           <p className="text-xs sm:text-sm text-orange-800 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 mb-4">
-            <Link href="/login" className="font-bold underline">ログイン</Link>
+            <Link href={loginPath("/demands")} className="font-bold underline">ログイン</Link>
             すると、欲しい！の登録・僕も！・応える（出品）ができます。まだの人は
             <Link href="/join" className="font-bold underline">新規登録</Link>
             へ。
@@ -234,7 +235,7 @@ function DemandsContent() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-stone-500 text-sm">¥</span>
             <input
-              type="number"
+              type="number" inputMode="numeric"
               min="0"
               value={minBudget}
               onChange={(e) => setMinBudget(e.target.value.replace("-", ""))}
@@ -243,7 +244,7 @@ function DemandsContent() {
             />
             <span className="text-stone-400">-</span>
             <input
-              type="number"
+              type="number" inputMode="numeric"
               min="0"
               value={maxBudget}
               onChange={(e) => setMaxBudget(e.target.value.replace("-", ""))}

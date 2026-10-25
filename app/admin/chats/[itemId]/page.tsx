@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
+import { loginPath } from "@/lib/nav";
 
 type Message = {
   id: number;
@@ -65,7 +66,7 @@ export default function AdminItemChats() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
     if (!isAdmin) return;
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps

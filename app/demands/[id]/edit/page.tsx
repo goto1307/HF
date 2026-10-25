@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import type { MyDemand } from "@/lib/demand";
 import DemandForm, { type DemandFormValues } from "@/components/DemandForm";
 import Header from "@/components/Header";
+import { loginPath } from "@/lib/nav";
 
 // 自分の欲しい！の編集。期限切れのものも、期限を延ばせば一覧に戻る。
 export default function EditDemand() {
@@ -18,7 +19,7 @@ export default function EditDemand() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
     const load = async () => {
       const { data } = await supabase.rpc("my_demands");
       const found = ((data ?? []) as MyDemand[]).find((d) => d.id === id && d.is_owner);

@@ -15,6 +15,7 @@ import ImageCropper from "@/components/ImageCropper";
 import MyDemandsCard from "@/components/MyDemandsCard";
 import { AVATAR_PRESETS } from "@/lib/avatarPresets";
 import { IconPencil, IconPackage } from "@/components/icons";
+import { loginPath, goBack } from "@/lib/nav";
 
 type Item = {
   id: number;
@@ -57,13 +58,14 @@ export default function MyPage() {
   const [savingNickname, setSavingNickname] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const [unreadChatItems, setUnreadChatItems] = useState<Set<number>>(new Set());
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.push("/login");
+      router.push(loginPath());
       return;
     }
 
@@ -88,6 +90,16 @@ export default function MyPage() {
       // buyer_id は一般ユーザーが直接読めないため、自分の購入分だけ返す関数を使う
       const { data: purchasedItems } = await supabase.rpc("my_purchased_items");
       if (purchasedItems) setPurchases(purchasedItems);
+
+      // 個別チャットの未読: 「取引相手からメッセージが届きました」の未読の通知がある取引
+      // (文言は DB の notify_on_new_message() が作るものと一致させること)
+      const { data: unreadRows } = await supabase
+        .from("notification")
+        .select("item_id")
+        .eq("user_id", user.id)
+        .eq("read", false)
+        .like("message", "%取引相手からメッセージが届きました%");
+      setUnreadChatItems(new Set((unreadRows ?? []).map((r) => r.item_id).filter((id): id is number => id !== null)));
 
       const { data: blockedRows } = await supabase
         .from("blocked_user")
@@ -289,7 +301,7 @@ export default function MyPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <button onClick={() => router.back()} className="text-orange-700 font-bold flex items-center gap-1 hover:text-orange-800 transition-colors">
+          <button onClick={() => goBack(router)} className="text-orange-700 font-bold flex items-center gap-1 hover:text-orange-800 transition-colors">
             <span aria-hidden>←</span> 戻る
           </button>
           <div className="flex items-center gap-3 text-xs font-bold text-stone-500">
@@ -390,7 +402,7 @@ export default function MyPage() {
               <div className="flex-1">
                 <label className="block text-xs font-bold text-stone-500 mb-1">年齢（任意）</label>
                 <input
-                  type="number"
+                  type="number" inputMode="numeric"
                   min="0"
                   max="120"
                   value={age}
@@ -482,9 +494,12 @@ export default function MyPage() {
                         <p className="text-xs text-stone-400 truncate mb-2">出品者：{item.nickname}</p>
                         <button
                           onClick={() => router.push(`/items/${item.id}/chat`)}
-                          className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
+                          className="relative w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
                         >
-                          個別チャットを見る
+                          {unreadChatItems.has(item.id) ? "新着メッセージあり" : "個別チャットを見る"}
+                          {unreadChatItems.has(item.id) && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -591,9 +606,12 @@ export default function MyPage() {
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <button
                           onClick={() => router.push(`/items/${item.id}/chat`)}
-                          className="w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
+                          className="relative w-full bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold hover:bg-orange-800 transition-colors"
                         >
-                          個別チャットを見る
+                          {unreadChatItems.has(item.id) ? "新着メッセージあり" : "個別チャットを見る"}
+                          {unreadChatItems.has(item.id) && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
+                          )}
                         </button>
                       </div>
                     </div>

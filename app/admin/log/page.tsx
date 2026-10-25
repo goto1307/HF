@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
+import { loginPath } from "@/lib/nav";
 
 type LogRow = {
   id: number;
@@ -43,7 +44,7 @@ export default function AdminLog() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
     if (!isAdmin) return;
 
     const fetchData = async () => {

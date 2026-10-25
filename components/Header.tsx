@@ -8,6 +8,7 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import DemandBubbles from "@/components/DemandBubbles";
 import InstallGuide from "@/components/InstallGuide";
+import { loginPath } from "@/lib/nav";
 import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
 type Notification = {
@@ -87,6 +88,28 @@ export default function Header() {
 
   useEffect(() => {
     fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // 通知が増えたり既読になったりしたら、開いたままでも数を更新する(migration PART AL)。
+  // スマホでアプリを切り替えて戻ってきたときも読み直す
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`notifications-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "notification",
+        filter: `user_id=eq.${user.id}`,
+      }, () => { fetchNotifications(); })
+      .subscribe();
+    const onVisible = () => { if (document.visibilityState === "visible") fetchNotifications(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -219,7 +242,7 @@ export default function Header() {
             ) : (
               <>
                 <Link
-                  href="/login"
+                  href={loginPath(pathname)}
                   className="bg-white text-orange-700 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs sm:text-sm hover:bg-orange-100 transition-colors whitespace-nowrap"
                 >
                   ログイン

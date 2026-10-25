@@ -7,10 +7,12 @@ import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
+import NotFoundView from "@/components/NotFoundView";
 import DemandFulfillModal from "@/components/DemandFulfillModal";
 import type { MyDemand } from "@/lib/demand";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/components/icons";
+import { loginPath, goBack } from "@/lib/nav";
 
 type Item = {
   id: number;
@@ -44,6 +46,7 @@ export default function ItemDetail() {
   const router = useRouter();
   const { user } = useAuth();
   const [item, setItem] = useState<Item | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>({});
   const [input, setInput] = useState("");
@@ -97,8 +100,9 @@ export default function ItemDetail() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: itemData } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).single();
-      if (!itemData) return;
+      const { data: itemData } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).maybeSingle();
+      // 削除された・URL が違うなどで見つからないときは、読み込み中のままにせず案内を出す
+      if (!itemData) { setNotFound(true); return; }
       // 購入者は本人・出品者にだけ返る(それ以外は null)
       let buyerId: string | null = null;
       if (user) {
@@ -187,7 +191,7 @@ export default function ItemDetail() {
   }, [params.id, user]);
 
   const toggleLike = async () => {
-    if (!user) { alert("いいねするにはログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("いいねするにはログインしてください"); router.push(loginPath()); return; }
     setTogglingLike(true);
     if (likedByMe) {
       const { error } = await supabase.from("favorite").delete().eq("item_id", params.id).eq("user_id", user.id);
@@ -210,7 +214,7 @@ export default function ItemDetail() {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    if (!user) { alert("メッセージを送るにはログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("メッセージを送るにはログインしてください"); router.push(loginPath()); return; }
     if (!TELECOM_SAFE_MODE && item?.sold) { alert("この商品は売却済みのため、質問チャットは終了しています"); return; }
 
     const content = input;
@@ -240,7 +244,7 @@ export default function ItemDetail() {
   };
 
   const handleReport = async () => {
-    if (!user) { alert("通報にはログインしてください"); router.push("/login"); return; }
+    if (!user) { alert("通報にはログインしてください"); router.push(loginPath()); return; }
     if (!reportReason) { alert("通報理由を選択してください"); return; }
     if (reportReason === "その他" && !reportDetail.trim()) { alert("詳細を入力してください"); return; }
     setReporting(true);
@@ -329,6 +333,15 @@ export default function ItemDetail() {
   const canReview = !!user && !!item && item.received && item.buyer_id === user.id && !isOwnItem && !alreadyReviewed;
   const gallery = item?.image_urls?.length ? item.image_urls : item?.image_url ? [item.image_url] : [];
 
+  if (!item && notFound) {
+    return (
+      <div className="min-h-screen bg-stone-50">
+        <Header />
+        <NotFoundView title="この商品は見つかりませんでした" message="出品が取り消されたか、削除された可能性があります。" />
+      </div>
+    );
+  }
+
   if (!item) {
     return (
       <div className="min-h-screen bg-stone-50">
@@ -343,7 +356,7 @@ export default function ItemDetail() {
       <Header />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        <button onClick={() => router.back()} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
+        <button onClick={() => goBack(router)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 戻る
         </button>
 
@@ -659,7 +672,7 @@ export default function ItemDetail() {
             )
           ) : (
             <button
-              onClick={() => router.push("/login")}
+              onClick={() => router.push(loginPath())}
               className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-100 transition-colors"
             >
               ログインして購入する

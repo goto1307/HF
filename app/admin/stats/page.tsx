@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import { formatBudget, formatDeadline } from "@/lib/demand";
 import Header from "@/components/Header";
+import { loginPath } from "@/lib/nav";
 
 // admin_site_stats()(migration PART AJ)の戻り値。サイト全体の数字
 type SiteWeek = {
@@ -136,7 +137,7 @@ export default function AdminStats() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
     if (!isAdmin) return;
     const load = async () => {
       const [{ data, error }, { data: siteData, error: siteError }] = await Promise.all([

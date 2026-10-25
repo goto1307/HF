@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import { formatBudget, formatDeadline, isActiveDemand, type Demand } from "@/lib/demand";
 import Header from "@/components/Header";
+import { loginPath } from "@/lib/nav";
 
 type AdminDemand = Demand & {
   user_id: string;
@@ -65,7 +66,7 @@ export default function AdminDemands() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(loginPath()); return; }
     if (!isAdmin) return;
     const load = async () => {
       const [{ data, error }, { data: voterData, error: voterError }] = await Promise.all([
