@@ -321,33 +321,32 @@ export default function Header() {
             </div>
           </div>
         )}
-        {user && (
-          <div className="border-t border-white/20">
-            <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
-              {[
-                { href: "/", label: "商品を探す" },
-                { href: "/mypage#purchased", label: "出品・購入商品" },
-                { href: "/demands", label: "みんなの欲しい！" },
-              ].map((tab) => {
-                const isActive =
-                  tab.href === "/" ? pathname === "/"
-                  : tab.href === "/demands" ? pathname.startsWith("/demands")
-                  : pathname === "/mypage";
-                return (
-                  <Link
-                    key={tab.label}
-                    href={tab.href}
-                    className={`shrink-0 px-3 py-2 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
-                      isActive ? "border-white text-white" : "border-transparent text-white/70 hover:text-white hover:border-white/50"
-                    }`}
-                  >
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </div>
+        {/* 未ログインでも「商品を探す」「みんなの欲しい！」は見られるのでタブを出す */}
+        <div className="border-t border-white/20">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
+            {[
+              { href: "/", label: "商品を探す" },
+              ...(user ? [{ href: "/mypage#purchased", label: "出品・購入商品" }] : []),
+              { href: "/demands", label: "みんなの欲しい！" },
+            ].map((tab) => {
+              const isActive =
+                tab.href === "/" ? pathname === "/"
+                : tab.href === "/demands" ? pathname.startsWith("/demands")
+                : pathname === "/mypage";
+              return (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  className={`shrink-0 px-3 py-2 text-xs sm:text-sm font-bold border-b-2 transition-colors ${
+                    isActive ? "border-white text-white" : "border-transparent text-white/70 hover:text-white hover:border-white/50"
+                  }`}
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
           </div>
-        )}
+        </div>
       </header>
 
       <DemandBubbles />

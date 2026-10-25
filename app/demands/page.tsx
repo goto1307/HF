@@ -65,7 +65,8 @@ function DemandsContent() {
   const [reportReason, setReportReason] = useState("");
   const [reporting, setReporting] = useState(false);
 
-  const load = useCallback(async () => {
+  // 一覧と僕も！の人数は未ログインでも読める(migration PART AI)。自分の欲しい！はログイン時のみ
+  const load = useCallback(async (loggedIn: boolean) => {
     const [{ data: openData }, { data: mineData }, { data: voteData }] = await Promise.all([
       supabase
         .from("demand")
@@ -73,7 +74,7 @@ function DemandsContent() {
         .eq("status", "open")
         .gte("deadline", jstToday())
         .order("created_at", { ascending: false }),
-      supabase.rpc("my_demands"),
+      loggedIn ? supabase.rpc("my_demands") : Promise.resolve({ data: [] }),
       supabase.rpc("demand_vote_summary"),
     ]);
     setDemands((openData ?? []) as Demand[]);
@@ -83,10 +84,10 @@ function DemandsContent() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const run = async () => { await load(); };
+    if (authLoading) return;
+    const run = async () => { await load(!!user); };
     run();
-  }, [user, load]);
+  }, [authLoading, user, load]);
 
   const mineById = useMemo(() => new Map(mine.map((d) => [d.id, d])), [mine]);
   const source: Demand[] = showMine ? mine : demands;
@@ -133,11 +134,20 @@ function DemandsContent() {
     setSelectedTag(null);
   };
 
+  // 未ログインで操作しようとしたらログインへ
+  const requireLogin = () => {
+    if (user) return false;
+    if (confirm("この操作にはログインが必要です。ログインページへ移動しますか？")) router.push("/login");
+    return true;
+  };
+  const loginOr = (href: string) => (user ? href : "/login");
+
   const toggleVote = async (id: number) => {
+    if (requireLogin()) return;
     setVotingId(id);
     const { error } = await supabase.rpc("toggle_demand_vote", { p_demand_id: id });
     if (error) { setVotingId(null); alert(`僕も！に失敗しました: ${error.message}`); return; }
-    await load(); // 自分の欲しい！にも出入りするので取り直す
+    await load(true); // 自分の欲しい！にも出入りするので取り直す
     setVotingId(null);
   };
 
@@ -164,7 +174,7 @@ function DemandsContent() {
     setBusy(true);
     const { error } = await supabase.rpc("close_my_demand", { p_demand_id: d.id, p_status: status });
     if (error) { setBusy(false); alert(`変更に失敗しました: ${error.message}`); return; }
-    await load();
+    await load(true);
     setBusy(false);
   };
 
@@ -191,21 +201,6 @@ function DemandsContent() {
     );
   };
 
-  if (!authLoading && !user) {
-    return (
-      <div className="min-h-screen bg-stone-50">
-        <Header />
-        <div className="max-w-md mx-auto px-4 py-20 text-center">
-          <HokkumaMascot size={88} className="mx-auto mb-3" />
-          <p className="text-stone-500 mb-4">みんなの欲しい！は、ログインすると見られます。</p>
-          <Link href="/login" className="inline-block bg-orange-700 text-white px-6 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors">
-            ログイン
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-stone-50">
       <Header />
@@ -215,6 +210,14 @@ function DemandsContent() {
         <p className="text-xs sm:text-sm text-stone-500 mb-4">
           北大生が今欲しがっているもの。手元にあれば出品してみよう。出品すると、欲しい！を登録した人に知らせることができます。
         </p>
+        {!authLoading && !user && (
+          <p className="text-xs sm:text-sm text-orange-800 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 mb-4">
+            <Link href="/login" className="font-bold underline">ログイン</Link>
+            すると、欲しい！の登録・僕も！・応える（出品）ができます。まだの人は
+            <Link href="/join" className="font-bold underline">新規登録</Link>
+            へ。
+          </p>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-2 mb-3">
           <div className="flex-1 flex items-center bg-white border border-stone-200 rounded-full px-4 py-2 focus-within:border-orange-600 transition-colors">
@@ -258,6 +261,7 @@ function DemandsContent() {
         </div>
 
         <div className="flex gap-2 flex-wrap items-center mb-2">
+          {user && (
           <button
             onClick={() => setShowMine(!showMine)}
             className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
@@ -266,6 +270,7 @@ function DemandsContent() {
           >
             {showMine ? "自分の欲しい！（僕も！・過去のものも表示中）" : "自分の欲しい！"}
           </button>
+          )}
           {popularTags.map((tag) => (
             <button
               key={tag}
@@ -291,7 +296,7 @@ function DemandsContent() {
           <div className="flex flex-col items-center py-20">
             <HokkumaMascot size={88} className="mb-3 opacity-90" />
             <p className="text-stone-400 mb-4">{showMine ? "まだ欲しい！を登録していません" : "条件に合う欲しい！がありません"}</p>
-            <Link href="/demands/new" className="bg-orange-700 text-white px-6 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors">
+            <Link href={loginOr("/demands/new")} className="bg-orange-700 text-white px-6 py-3 rounded-full font-bold hover:bg-orange-800 transition-colors">
               ＋ 欲しい！を登録する
             </Link>
           </div>
@@ -334,7 +339,7 @@ function DemandsContent() {
                       <div className="flex gap-1.5">
                         {renderVoteButton(d.id)}
                         <Link
-                          href={`/sell?demand=${d.id}`}
+                          href={loginOr(`/sell?demand=${d.id}`)}
                           className="flex-1 text-center text-xs font-bold text-white bg-orange-700 rounded-full py-2 hover:bg-orange-800 transition-colors"
                         >
                           応える
@@ -350,7 +355,7 @@ function DemandsContent() {
       </main>
 
       <Link
-        href="/demands/new"
+        href={loginOr("/demands/new")}
         className="fixed bottom-6 left-6 z-10 bg-gradient-to-br from-orange-600 to-orange-700 text-white px-6 py-4 rounded-full font-bold shadow-xl ring-1 ring-white/20 text-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
       >
         ＋ 欲しい！
@@ -438,7 +443,7 @@ function DemandsContent() {
                       <div className="flex gap-2 mt-5">
                         {renderVoteButton(detail.id, true)}
                         <Link
-                          href={`/sell?demand=${detail.id}`}
+                          href={loginOr(`/sell?demand=${detail.id}`)}
                           className="flex-1 text-center bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors"
                         >
                           この欲しい！に応える
@@ -456,7 +461,7 @@ function DemandsContent() {
                     )}
                     {isActiveDemand(detail) && (
                       <button
-                        onClick={() => { setReportTarget(detail); setReportReason(""); }}
+                        onClick={() => { if (requireLogin()) return; setReportTarget(detail); setReportReason(""); }}
                         className="block mx-auto mt-4 text-xs text-stone-400 underline hover:text-red-500 transition-colors"
                       >
                         この欲しい！を通報する
