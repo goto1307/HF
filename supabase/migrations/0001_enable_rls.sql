@@ -4526,3 +4526,103 @@ revoke execute on function public.send_chat_digests(timestamptz) from public, an
 -- 毎時0分に動かす(同じ名前で登録し直すと上書きされる)
 create extension if not exists pg_cron;
 select cron.schedule('hokuma-chat-digest', '0 * * * *', $$select public.send_chat_digests()$$);
+
+
+-- ============================================================
+-- PART AP: インスタなど、どこから来て登録した人かを数えられるようにする
+-- ============================================================
+--
+-- 背景: PART AN で「リンクが開かれた回数」は目印ごとに数えられるようになったが、
+--   そのうち何人が登録まで進んだかは分からなかった。
+-- 仕組み:
+--   - /qr?from=insta などから来ると、ブラウザがその目印を最長30日覚えておく
+--     (lib/visitSource.ts。目印なしのポスターのQRは "poster")
+--   - 登録するとき、目印を user_metadata.source として一緒に送る
+--   - 登録した瞬間に、トリガーで signup_source 表へ写しておく。
+--     user_metadata は本人があとから書き換えられるので、集計には写した方を使う
+--   - admin_signup_sources() で、目印ごとの登録者数(退会した人を除く)を管理者だけが見られる
+--   ※ 違う端末・違うブラウザ(インスタのアプリ内ブラウザ → Safari など)で登録すると
+--     目印が引き継がれず「記録なし」になる。数字は少なめに出ることに注意。
+
+create table if not exists public.signup_source (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  source text not null check (source ~ '^[a-z0-9_-]{1,32}$'),
+  created_at timestamptz not null default now()
+);
+alter table public.signup_source enable row level security;
+revoke all on public.signup_source from anon, authenticated;
+-- 一般ユーザー向けのポリシーは作らない(トリガーと管理者用の関数からだけ使う)
+
+create or replace function public.record_signup_source()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_source text := lower(trim(new.raw_user_meta_data ->> 'source'));
+begin
+  if v_source ~ '^[a-z0-9_-]{1,32}$' then
+    insert into public.signup_source (user_id, source) values (new.id, v_source)
+    on conflict (user_id) do nothing;
+  end if;
+  return new;
+exception when others then
+  -- 集計のための記録なので、失敗しても登録は止めない
+  return new;
+end;
+$$;
+
+drop trigger if exists record_signup_source_trigger on auth.users;
+create trigger record_signup_source_trigger
+after insert on auth.users
+for each row
+execute function public.record_signup_source();
+
+create or replace function public.admin_signup_sources()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  with users as (
+    select u.id, u.created_at, s.source
+    from auth.users u
+    left join public.signup_source s on s.user_id = u.id
+    where not exists (select 1 from public.deleted_users d where d.user_id = u.id)
+  )
+  select jsonb_build_object(
+    'sources', coalesce((
+      select jsonb_agg(jsonb_build_object('source', x.source, 'total', x.total, 'last7', x.last7)
+                       order by x.total desc, x.source)
+      from (
+        select source,
+               count(*) as total,
+               count(*) filter (where created_at >= now() - interval '7 days') as last7
+        from users
+        where source is not null
+        group by source
+      ) x
+    ), '[]'::jsonb),
+    'insta', (select count(*) from users where source like 'insta%'),
+    'none', (select count(*) from users where source is null),
+    -- この仕組みを入れてから(最初の記録以降)に登録した人のうち、目印の無かった人
+    'none_since', (select count(*) from users
+                   where source is null
+                     and created_at >= (select min(created_at) from public.signup_source)),
+    'since', (select min(created_at) from public.signup_source)
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_signup_sources() from public, anon;
+grant execute on function public.admin_signup_sources() to authenticated;
