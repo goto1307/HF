@@ -662,19 +662,18 @@ export default function ItemChat() {
           {isSeller ? (
             item.sold && item.buyer_id ? (
               <>
-                購入者とのチャット（購入者：
                 <Link href={`/users/${item.buyer_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
-                  {buyerNickname === undefined ? "読み込み中..." : buyerNickname || "購入者のページ"}
+                  {buyerNickname === undefined ? "読み込み中..." : buyerNickname || "購入者"}
                 </Link>
-                ）
+                さんとのチャット
               </>
             ) : "問い合わせ一覧"
           ) : (
             <>
-              出品者：
               <Link href={`/users/${item.user_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
                 {item.nickname}
               </Link>
+              さんとのチャット
             </>
           )}
         </p>
