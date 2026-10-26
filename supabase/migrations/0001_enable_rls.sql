@@ -4222,3 +4222,116 @@ drop trigger if exists notify_demand_offer_email_trigger on public.demand_offer;
 create trigger notify_demand_offer_email_trigger
 after insert on public.demand_offer
 for each row execute function public.notify_demand_offer_email();
+
+
+-- ============================================================
+-- PART AN: インスタなど、どこから来た人かを数えられるようにする
+-- ============================================================
+--
+-- 背景: /qr の読み込み回数(PART AC)はポスターのQRからしか数えられず、
+--   インスタからどれだけ来ているか分からなかった。
+--   /qr?from=insta のように目印を付けたリンクを使うと、その目印(source)を
+--   いっしょに記録する。目印なし(これまでのポスターのQR)は source が空のまま。
+--   目印は英小文字・数字・_・- の32文字までに限る(誰でも記録できる表なので、
+--   長い文や変な文字を入れられないようにする)。
+--   admin_site_stats()(PART AJ)は「QR読込」をポスター(目印なし)だけに直し、
+--   インスタ(insta で始まる目印)の数と、目印ごとの数も返すようにする。
+--   ※ 数えているのは「リンクが開かれた回数」で、同じ人が2回開けば2回になる。
+
+alter table public.qr_scan add column if not exists source text;
+
+alter table public.qr_scan drop constraint if exists qr_scan_source_format;
+alter table public.qr_scan add constraint qr_scan_source_format
+  check (source is null or source ~ '^[a-z0-9_-]{1,32}$');
+
+create or replace function public.admin_site_stats()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_week date := date_trunc('week', public.jst_today())::date;  -- 今週の月曜(日本時間)
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  with weeks as (
+    select (v_week - 7 * g)::date as week_start from generate_series(0, 11) as g
+  ),
+  first_listing as (
+    select user_id, min(created_at) as at from public.item group by user_id
+  )
+  select jsonb_build_object(
+    'totals', jsonb_build_object(
+      'users', (select count(*) from auth.users u where not exists (select 1 from public.deleted_users d where d.user_id = u.id)),
+      'sellers', (select count(distinct user_id) from public.item),
+      'items', (select count(*) from public.item),
+      'listed', (select count(*) from public.item where not sold),
+      'sold', (select count(*) from public.item where sold),
+      'received', (select count(*) from public.item where received),
+      'qr_scans', (select count(*) from public.qr_scan where source is null),
+      'insta', (select count(*) from public.qr_scan where source like 'insta%'),
+      'messages', (select count(*) from public.message)
+    ),
+    'weekly', (
+      select jsonb_agg(jsonb_build_object(
+        'week_start', w.week_start,
+        'new_users', (select count(*) from auth.users u
+                      where (u.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (u.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'users_total', (select count(*) from auth.users u
+                        where (u.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'new_items', (select count(*) from public.item i
+                      where (i.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (i.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'active_sellers', (select count(distinct i.user_id) from public.item i
+                           where (i.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                             and (i.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'new_sellers', (select count(*) from first_listing f
+                        where (f.at at time zone 'Asia/Tokyo')::date >= w.week_start
+                          and (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'sellers_total', (select count(*) from first_listing f
+                          where (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'sold', (select count(*) from public.item i
+                 where i.sold_at is not null
+                   and (i.sold_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                   and (i.sold_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'messages', (select count(*) from public.message m
+                     where (m.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                       and (m.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'qr_scans', (select count(*) from public.qr_scan q
+                     where q.source is null
+                       and (q.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                       and (q.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'insta', (select count(*) from public.qr_scan q
+                  where q.source like 'insta%'
+                    and (q.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                    and (q.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7)
+      ) order by w.week_start)
+      from weeks w
+    ),
+    'sources', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'source', x.source, 'total', x.total, 'last7', x.last7, 'first_at', x.first_at
+      ) order by x.total desc, x.source), '[]'::jsonb)
+      from (
+        select q.source,
+               count(*) as total,
+               count(*) filter (where q.created_at >= now() - interval '7 days') as last7,
+               min(q.created_at) as first_at
+        from public.qr_scan q
+        where q.source is not null
+        group by q.source
+      ) x
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_site_stats() from public, anon;
+grant execute on function public.admin_site_stats() to authenticated;

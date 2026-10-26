@@ -9,7 +9,7 @@ import { formatBudget, formatDeadline } from "@/lib/demand";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
 
-// admin_site_stats()(migration PART AJ)の戻り値。サイト全体の数字
+// admin_site_stats()(migration PART AJ・AN)の戻り値。サイト全体の数字
 type SiteWeek = {
   week_start: string;
   new_users: number;
@@ -21,10 +21,14 @@ type SiteWeek = {
   sold: number;
   messages: number;
   qr_scans: number;
+  insta: number;
 };
+// /qr?from=… の目印ごとの開かれた回数(migration PART AN)
+type VisitSource = { source: string; total: number; last7: number; first_at: string };
 type SiteStats = {
-  totals: { users: number; sellers: number; items: number; listed: number; sold: number; received: number; qr_scans: number; messages: number };
+  totals: { users: number; sellers: number; items: number; listed: number; sold: number; received: number; qr_scans: number; insta: number; messages: number };
   weekly: SiteWeek[];
+  sources: VisitSource[];
 };
 
 // 週ごとの表の列(CSV の列もこの順)
@@ -38,11 +42,12 @@ const SITE_COLUMNS: { key: keyof SiteWeek; label: string }[] = [
   { key: "sold", label: "取引成立" },
   { key: "messages", label: "メッセージ" },
   { key: "qr_scans", label: "QR読込" },
+  { key: "insta", label: "インスタ" },
 ];
 
 function downloadSiteCsv(weekly: SiteWeek[]) {
   const header = ["週(月曜はじまり)", ...SITE_COLUMNS.map((c) => c.label)].join(",");
-  const rows = weekly.map((w) => [w.week_start, ...SITE_COLUMNS.map((c) => w[c.key])].join(","));
+  const rows = weekly.map((w) => [w.week_start, ...SITE_COLUMNS.map((c) => w[c.key] ?? 0)].join(","));
   // Excel で文字化けしないよう、先頭に BOM を付ける
   const blob = new Blob(["\ufeff" + [header, ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -195,7 +200,7 @@ export default function AdminStats() {
           <WeeklyBars title="週ごとの新規登録" data={site.weekly.map((w) => ({ week_start: w.week_start, value: w.new_users }))} />
           <WeeklyBars title="週ごとの出品数" data={site.weekly.map((w) => ({ week_start: w.week_start, value: w.new_items }))} />
         </div>
-        <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm mb-10">
+        <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm mb-4">
           <div className="flex items-center justify-between gap-2 mb-2">
             <p className="text-sm font-bold text-stone-700">週ごとの数字（直近12週・月曜はじまり）</p>
             <button
@@ -220,7 +225,7 @@ export default function AdminStats() {
                   <tr key={w.week_start} className="border-t border-stone-100 text-right tabular-nums">
                     <td className="py-1 text-left pr-3 text-stone-500">{weekLabel(w.week_start)}〜</td>
                     {SITE_COLUMNS.map((col) => (
-                      <td key={col.key} className={`py-1 px-2 ${w[col.key] === 0 ? "text-stone-300" : "font-bold text-stone-700"}`}>{w[col.key]}</td>
+                      <td key={col.key} className={`py-1 px-2 ${(w[col.key] ?? 0) === 0 ? "text-stone-300" : "font-bold text-stone-700"}`}>{w[col.key] ?? 0}</td>
                     ))}
                   </tr>
                 ))}
@@ -230,6 +235,45 @@ export default function AdminStats() {
           <p className="text-[11px] text-stone-400 mt-2">
             取引成立は、売れた日時を記録し始める前のものは「売れました！」の通知の日時で数えています。管理者が削除した商品は含まれません。
           </p>
+        </div>
+
+        <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm mb-10">
+          <p className="text-sm font-bold text-stone-700 mb-1">どこから来たか</p>
+          <p className="text-[11px] text-stone-500 mb-3">
+            ポスターのQRは <span className="font-mono">/qr</span>、インスタなどは <span className="font-mono">/qr?from=insta</span> のように目印を付けたリンクで数えます。
+            目印は英小文字・数字・_・- で32文字まで。insta で始まる目印は「インスタ」の列にまとめて数えます。リンクが開かれた回数なので、同じ人が2回開くと2回になります。
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm whitespace-nowrap">
+              <thead>
+                <tr className="text-[11px] text-stone-400 text-right">
+                  <th className="font-normal pb-1 text-left pr-3">目印</th>
+                  <th className="font-normal pb-1 px-2">合計</th>
+                  <th className="font-normal pb-1 px-2">直近7日</th>
+                  <th className="font-normal pb-1 pl-2">最初の記録</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-stone-100 text-right tabular-nums">
+                  <td className="py-1 text-left pr-3 text-stone-500">ポスターのQR（目印なし）</td>
+                  <td className="py-1 px-2 font-bold text-stone-700">{site.totals.qr_scans}</td>
+                  <td className="py-1 px-2 text-stone-300">-</td>
+                  <td className="py-1 pl-2 text-stone-300">-</td>
+                </tr>
+                {(site.sources ?? []).map((src) => (
+                  <tr key={src.source} className="border-t border-stone-100 text-right tabular-nums">
+                    <td className="py-1 text-left pr-3 font-mono text-stone-600">{src.source}</td>
+                    <td className="py-1 px-2 font-bold text-stone-700">{src.total}</td>
+                    <td className={`py-1 px-2 ${src.last7 === 0 ? "text-stone-300" : "font-bold text-stone-700"}`}>{src.last7}</td>
+                    <td className="py-1 pl-2 text-stone-500">{new Date(src.first_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {(site.sources ?? []).length === 0 && (
+            <p className="text-xs text-stone-400 mt-2">目印付きのリンクから来た記録はまだありません。</p>
+          )}
         </div>
 
         {/* ---------- みんなの欲しい！ ---------- */}
