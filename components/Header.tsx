@@ -113,6 +113,23 @@ export default function Header() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // サイトを見ている間は、1分ごとに「見ている」ことを記録する。見ている人には、
+  // チャットのまとめメール(1時間おき)を送らないため(migration PART AO)
+  useEffect(() => {
+    if (!user) return;
+    const touch = () => {
+      if (document.visibilityState !== "visible") return;
+      supabase.rpc("touch_site_presence").then(() => {});
+    };
+    touch();
+    const timer = setInterval(touch, 60000);
+    document.addEventListener("visibilitychange", touch);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", touch);
+    };
+  }, [user]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleOpenNotifications = () => {

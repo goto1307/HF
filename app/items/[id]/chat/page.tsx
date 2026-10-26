@@ -217,6 +217,24 @@ export default function ItemChat() {
   const isSeller = !!item && !!user && item.user_id === user.id;
   const buyerId = isSeller ? selectedBuyerId : user?.id ?? null;
 
+  // このチャットを見ている間は、30秒ごとに「見ている」ことを記録する。
+  // 見たあとのメッセージは、1時間おきのまとめメールに載せない(migration PART AO)
+  const itemId = item?.id;
+  useEffect(() => {
+    if (!itemId || !buyerId || !user) return;
+    const touch = () => {
+      if (document.visibilityState !== "visible") return;
+      supabase.rpc("touch_chat_presence", { p_item_id: itemId, p_buyer_id: buyerId }).then(() => {});
+    };
+    touch();
+    const timer = setInterval(touch, 30000);
+    document.addEventListener("visibilitychange", touch);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", touch);
+    };
+  }, [itemId, buyerId, user]);
+
   useEffect(() => {
     if (isSeller && item?.sold && item.buyer_id && !selectedBuyerId) {
       setSelectedBuyerId(item.buyer_id);
