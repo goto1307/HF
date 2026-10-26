@@ -218,7 +218,7 @@ export default function ItemChat() {
   const buyerId = isSeller ? selectedBuyerId : user?.id ?? null;
 
   // このチャットを見ている間は、30秒ごとに「見ている」ことを記録する。
-  // 相手からメッセージが届いたとき、見ている最中ならメールのお知らせを送らない(migration PART AO)
+  // 見たあとのメッセージは、1時間おきのまとめメールに載せない(migration PART AO)
   const itemId = item?.id;
   useEffect(() => {
     if (!itemId || !buyerId || !user) return;

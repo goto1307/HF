@@ -4338,25 +4338,52 @@ grant execute on function public.admin_site_stats() to authenticated;
 
 
 -- ============================================================
--- PART AO: 個別チャットのメッセージが届いたら、見ていない相手にお知らせメールを送る
+-- PART AO: 見ていない間に届いたチャットのメッセージを、1時間おきにメールで知らせる
 -- ============================================================
 --
 -- 背景: メッセージが届くとサイト内の通知(notification)は作られるが、サイトを
 --   開かないと気づけず、待ち合わせの連絡を見逃して取引が流れるおそれがあった。
 -- 仕組み:
---   - チャット画面を開いている間、画面が30秒ごとに touch_chat_presence() で
---     「このチャットを見ている」時刻を chat_presence に記録する
---   - 個別チャット(buyer_id がある message)が追加されたとき、相手が
---     直近1分以内にそのチャットを見ていればメールは送らない(見ている最中なので)
---   - 見ていなければ、pg_net で Edge Function notify-chat-message を呼び、
---     Edge Function が DB でメッセージを読み直して相手に Resend で送る
---   - 一度送ったら、相手がそのチャットを開くまでは同じチャットのメールを送らない
---     (何通も続けて届いても、メールは1通だけ。開いて閉じたあとに届けばまた1通)
+--   - サイトを開いている間、画面(ヘッダー)が1分ごとに touch_site_presence() で
+--     「サイトを見ている」時刻を site_presence に記録する
+--   - チャット画面を開いている間、30秒ごとに touch_chat_presence() で
+--     「そのチャットを見ている」時刻を chat_presence に記録する
+--   - pg_cron で毎時0分に send_chat_digests() を動かす。直前の1時間に届いた
+--     個別チャット(buyer_id がある message)のうち、次のものを受け取った人ごとに
+--     まとめて、Edge Function notify-chat-digest に渡してメールを送る
+--       ・受け取った人が、届いたあとにそのチャットを開いていない
+--       ・受け取った人が、届いたあとにそのチャットで返信していない
+--     ただし、その時点で受け取った人がサイトを見ている(直近2分以内)なら送らない
 --   - 出品者→購入者、購入者→出品者のどちらの向きも同じ
---   - 1人が受け取るチャットのメールは24時間に10通まで(Resend の無料枠を守るため)
---   - 公開Q&A(buyer_id が無いもの)は対象外。メッセージの中身はメールに載せない
+--   - 公開Q&A(buyer_id が無いもの)・退会済みの人は対象外。メッセージの中身は載せない
 --   - 合言葉は購入メール(PART AD)と同じ Vault の sold_email_hook_secret を使う
---   - メール送信で何が起きても、メッセージの送信は止めない
+--   - 事前に Supabase の Database → Extensions で pg_cron を有効にしておくこと
+
+-- ---------- サイトを見ている時刻 ----------
+create table if not exists public.site_presence (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  last_seen_at timestamptz not null default now()
+);
+alter table public.site_presence enable row level security;
+revoke all on public.site_presence from anon, authenticated;
+-- 一般ユーザー向けのポリシーは作らない。下の SECURITY DEFINER 関数経由でのみ使う。
+
+create or replace function public.touch_site_presence()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    return;
+  end if;
+  insert into public.site_presence (user_id, last_seen_at) values (auth.uid(), now())
+  on conflict (user_id) do update set last_seen_at = excluded.last_seen_at;
+end;
+$$;
+revoke execute on function public.touch_site_presence() from public, anon;
+grant execute on function public.touch_site_presence() to authenticated;
 
 -- ---------- チャットを見ている時刻 ----------
 create table if not exists public.chat_presence (
@@ -4368,7 +4395,6 @@ create table if not exists public.chat_presence (
 );
 alter table public.chat_presence enable row level security;
 revoke all on public.chat_presence from anon, authenticated;
--- 一般ユーザー向けのポリシーは作らない。下の SECURITY DEFINER 関数経由でのみ使う。
 
 -- 自分が当事者のチャット(出品者として購入者 p_buyer_id とのチャット、
 -- または購入者として自分のチャット)だけ記録できる
@@ -4401,86 +4427,102 @@ $$;
 revoke execute on function public.touch_chat_presence(bigint, uuid) from public, anon;
 grant execute on function public.touch_chat_presence(bigint, uuid) to authenticated;
 
--- ---------- 送ったメールの記録 ----------
-create table if not exists public.chat_email_log (
-  id bigint generated always as identity primary key,
+-- ---------- 1時間ごとのまとめメール ----------
+-- 同じ時間帯に二重に送らないための記録
+create table if not exists public.chat_digest_log (
   recipient_id uuid not null,
-  item_id bigint not null,
-  buyer_id uuid not null,
-  created_at timestamptz not null default now()
+  window_start timestamptz not null,
+  created_at timestamptz not null default now(),
+  primary key (recipient_id, window_start)
 );
-alter table public.chat_email_log enable row level security;
-revoke all on public.chat_email_log from anon, authenticated;
-create index if not exists chat_email_log_thread_idx on public.chat_email_log (recipient_id, item_id, buyer_id, created_at);
-create index if not exists chat_email_log_recipient_idx on public.chat_email_log (recipient_id, created_at);
+alter table public.chat_digest_log enable row level security;
+revoke all on public.chat_digest_log from anon, authenticated;
 
-create or replace function public.notify_chat_message_email()
-returns trigger
+create index if not exists message_thread_created_idx on public.message (item_id, buyer_id, created_at);
+
+-- 直前の1時間(p_window_start から1時間)に届いて、まだ見ても返信してもいないメッセージを、
+-- 受け取った人ごとにまとめて Edge Function に渡す。送った人数を返す。
+create or replace function public.send_chat_digests(p_window_start timestamptz default null)
+returns integer
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_recipient uuid;
-  v_last_seen timestamptz;
+  v_to timestamptz;
+  v_from timestamptz;
   v_secret text;
+  v_count integer := 0;
+  r record;
 begin
-  if new.buyer_id is null or new.seller_id is null then
-    return new;
+  v_to := coalesce(p_window_start + interval '1 hour', date_trunc('hour', now()));
+  v_from := v_to - interval '1 hour';
+
+  select decrypted_secret into v_secret
+  from vault.decrypted_secrets
+  where name = 'sold_email_hook_secret'
+  limit 1;
+  if v_secret is null then
+    return 0;
   end if;
 
-  begin
-    v_recipient := case when new.user_id = new.buyer_id then new.seller_id else new.buyer_id end;
-    if v_recipient is null or v_recipient = new.user_id or public.is_deleted(v_recipient) then
-      return new;
-    end if;
-
-    select last_seen_at into v_last_seen
-    from public.chat_presence
-    where user_id = v_recipient and item_id = new.item_id and buyer_id = new.buyer_id;
-
-    -- 相手が今このチャットを見ている(直近1分以内)なら送らない
-    if v_last_seen is not null and v_last_seen > now() - interval '1 minute' then
-      return new;
-    end if;
-    -- 前回このチャットを見たあとに、もうメールを送っていれば送らない
-    if exists (
-      select 1 from public.chat_email_log
-      where recipient_id = v_recipient and item_id = new.item_id and buyer_id = new.buyer_id
-        and created_at > coalesce(v_last_seen, '-infinity'::timestamptz)
-    ) then
-      return new;
-    end if;
-    -- 1人が受け取るのは24時間に10通まで
-    if (select count(*) from public.chat_email_log
-        where recipient_id = v_recipient and created_at > now() - interval '24 hours') >= 10 then
-      return new;
-    end if;
-
-    select decrypted_secret into v_secret
-    from vault.decrypted_secrets
-    where name = 'sold_email_hook_secret'
-    limit 1;
-
-    if v_secret is not null then
-      insert into public.chat_email_log (recipient_id, item_id, buyer_id)
-      values (v_recipient, new.item_id, new.buyer_id);
-      delete from public.chat_email_log where created_at < now() - interval '7 days';
+  for r in
+    with incoming as (
+      select m.id, m.item_id, m.buyer_id, m.created_at,
+             case when m.user_id = m.buyer_id then m.seller_id else m.buyer_id end as recipient_id
+      from public.message m
+      where m.buyer_id is not null
+        and m.seller_id is not null
+        and m.created_at > v_from
+        and m.created_at <= v_to
+    )
+    select i.recipient_id, array_agg(i.id order by i.created_at) as message_ids
+    from incoming i
+    where i.recipient_id is not null
+      and not public.is_deleted(i.recipient_id)
+      -- 届いたあとに、そのチャットを開いていない
+      and not exists (
+        select 1 from public.chat_presence cp
+        where cp.user_id = i.recipient_id and cp.item_id = i.item_id and cp.buyer_id = i.buyer_id
+          and cp.last_seen_at >= i.created_at
+      )
+      -- 届いたあとに、そのチャットで返信していない
+      and not exists (
+        select 1 from public.message rep
+        where rep.item_id = i.item_id and rep.buyer_id = i.buyer_id
+          and rep.user_id = i.recipient_id and rep.created_at > i.created_at
+      )
+      -- 今サイトを見ていない(直近2分以内に見ていない)
+      and not exists (
+        select 1 from public.site_presence sp
+        where sp.user_id = i.recipient_id and sp.last_seen_at > now() - interval '2 minutes'
+      )
+      -- この時間帯のまとめメールをまだ送っていない
+      and not exists (
+        select 1 from public.chat_digest_log l
+        where l.recipient_id = i.recipient_id and l.window_start = v_from
+      )
+    group by i.recipient_id
+  loop
+    begin
+      insert into public.chat_digest_log (recipient_id, window_start) values (r.recipient_id, v_from);
       perform net.http_post(
-        url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-chat-message',
-        body := jsonb_build_object('message_id', new.id),
+        url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-chat-digest',
+        body := jsonb_build_object('recipient_id', r.recipient_id, 'message_ids', to_jsonb(r.message_ids[1:50])),
         headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
       );
-    end if;
-  exception when others then
-    raise warning 'notify_chat_message_email failed: %', sqlerrm;
-  end;
-  return new;
+      v_count := v_count + 1;
+    exception when others then
+      raise warning 'send_chat_digests failed for %: %', r.recipient_id, sqlerrm;
+    end;
+  end loop;
+
+  delete from public.chat_digest_log where window_start < now() - interval '7 days';
+  return v_count;
 end;
 $$;
-revoke execute on function public.notify_chat_message_email() from public, anon, authenticated;
+revoke execute on function public.send_chat_digests(timestamptz) from public, anon, authenticated;
 
-drop trigger if exists notify_chat_message_email_trigger on public.message;
-create trigger notify_chat_message_email_trigger
-after insert on public.message
-for each row execute function public.notify_chat_message_email();
+-- 毎時0分に動かす(同じ名前で登録し直すと上書きされる)
+create extension if not exists pg_cron;
+select cron.schedule('hokuma-chat-digest', '0 * * * *', $$select public.send_chat_digests()$$);
