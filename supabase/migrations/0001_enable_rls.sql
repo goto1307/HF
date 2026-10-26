@@ -4335,3 +4335,96 @@ end;
 $$;
 revoke execute on function public.admin_site_stats() from public, anon;
 grant execute on function public.admin_site_stats() to authenticated;
+
+
+-- ============================================================
+-- PART AO: 個別チャットのメッセージが届いたら、相手にお知らせメールを送る
+-- ============================================================
+--
+-- 背景: メッセージが届くとサイト内の通知(notification)は作られるが、サイトを
+--   開かないと気づけず、待ち合わせの連絡を見逃して取引が流れるおそれがあった。
+-- 仕組み: 個別チャット(buyer_id がある message)が追加されたら、pg_net で
+--   Edge Function notify-chat-message(supabase/functions/notify-chat-message)を
+--   呼ぶ。Edge Function が DB でメッセージを読み直し、送った人の取引相手に
+--   Resend で送る。出品者→購入者、購入者→出品者のどちらの向きも送る。
+--   - 合言葉は購入メール(PART AD)と同じ Vault の sold_email_hook_secret を使う
+--   - 公開Q&A(buyer_id が無いもの)は対象外
+--   - 同じ相手・同じ取引(商品と購入者の組)へのメールは2時間に1通まで
+--     (やりとりが続いている間は、最初の1通だけになる)
+--   - 1人が受け取るチャットのメールは24時間に10通まで(Resend の無料枠を守るため)
+--   - メッセージの中身はメールに載せない
+--   - メール送信で何が起きても、メッセージの送信は止めない
+
+create table if not exists public.chat_email_log (
+  id bigint generated always as identity primary key,
+  recipient_id uuid not null,
+  item_id bigint not null,
+  buyer_id uuid not null,
+  created_at timestamptz not null default now()
+);
+alter table public.chat_email_log enable row level security;
+revoke all on public.chat_email_log from anon, authenticated;
+create index if not exists chat_email_log_thread_idx on public.chat_email_log (recipient_id, item_id, buyer_id, created_at);
+create index if not exists chat_email_log_recipient_idx on public.chat_email_log (recipient_id, created_at);
+
+create or replace function public.notify_chat_message_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_recipient uuid;
+  v_secret text;
+begin
+  if new.buyer_id is null or new.seller_id is null then
+    return new;
+  end if;
+
+  begin
+    v_recipient := case when new.user_id = new.buyer_id then new.seller_id else new.buyer_id end;
+    if v_recipient is null or v_recipient = new.user_id or public.is_deleted(v_recipient) then
+      return new;
+    end if;
+
+    -- 同じ相手・同じ取引へは2時間に1通まで
+    if exists (
+      select 1 from public.chat_email_log
+      where recipient_id = v_recipient and item_id = new.item_id and buyer_id = new.buyer_id
+        and created_at > now() - interval '2 hours'
+    ) then
+      return new;
+    end if;
+    -- 1人が受け取るのは24時間に10通まで
+    if (select count(*) from public.chat_email_log
+        where recipient_id = v_recipient and created_at > now() - interval '24 hours') >= 10 then
+      return new;
+    end if;
+
+    select decrypted_secret into v_secret
+    from vault.decrypted_secrets
+    where name = 'sold_email_hook_secret'
+    limit 1;
+
+    if v_secret is not null then
+      insert into public.chat_email_log (recipient_id, item_id, buyer_id)
+      values (v_recipient, new.item_id, new.buyer_id);
+      delete from public.chat_email_log where created_at < now() - interval '7 days';
+      perform net.http_post(
+        url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-chat-message',
+        body := jsonb_build_object('message_id', new.id),
+        headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
+      );
+    end if;
+  exception when others then
+    raise warning 'notify_chat_message_email failed: %', sqlerrm;
+  end;
+  return new;
+end;
+$$;
+revoke execute on function public.notify_chat_message_email() from public, anon, authenticated;
+
+drop trigger if exists notify_chat_message_email_trigger on public.message;
+create trigger notify_chat_message_email_trigger
+after insert on public.message
+for each row execute function public.notify_chat_message_email();
