@@ -4338,23 +4338,70 @@ grant execute on function public.admin_site_stats() to authenticated;
 
 
 -- ============================================================
--- PART AO: 個別チャットのメッセージが届いたら、相手にお知らせメールを送る
+-- PART AO: 個別チャットのメッセージが届いたら、見ていない相手にお知らせメールを送る
 -- ============================================================
 --
 -- 背景: メッセージが届くとサイト内の通知(notification)は作られるが、サイトを
 --   開かないと気づけず、待ち合わせの連絡を見逃して取引が流れるおそれがあった。
--- 仕組み: 個別チャット(buyer_id がある message)が追加されたら、pg_net で
---   Edge Function notify-chat-message(supabase/functions/notify-chat-message)を
---   呼ぶ。Edge Function が DB でメッセージを読み直し、送った人の取引相手に
---   Resend で送る。出品者→購入者、購入者→出品者のどちらの向きも送る。
---   - 合言葉は購入メール(PART AD)と同じ Vault の sold_email_hook_secret を使う
---   - 公開Q&A(buyer_id が無いもの)は対象外
---   - 同じ相手・同じ取引(商品と購入者の組)へのメールは2時間に1通まで
---     (やりとりが続いている間は、最初の1通だけになる)
+-- 仕組み:
+--   - チャット画面を開いている間、画面が30秒ごとに touch_chat_presence() で
+--     「このチャットを見ている」時刻を chat_presence に記録する
+--   - 個別チャット(buyer_id がある message)が追加されたとき、相手が
+--     直近1分以内にそのチャットを見ていればメールは送らない(見ている最中なので)
+--   - 見ていなければ、pg_net で Edge Function notify-chat-message を呼び、
+--     Edge Function が DB でメッセージを読み直して相手に Resend で送る
+--   - 一度送ったら、相手がそのチャットを開くまでは同じチャットのメールを送らない
+--     (何通も続けて届いても、メールは1通だけ。開いて閉じたあとに届けばまた1通)
+--   - 出品者→購入者、購入者→出品者のどちらの向きも同じ
 --   - 1人が受け取るチャットのメールは24時間に10通まで(Resend の無料枠を守るため)
---   - メッセージの中身はメールに載せない
+--   - 公開Q&A(buyer_id が無いもの)は対象外。メッセージの中身はメールに載せない
+--   - 合言葉は購入メール(PART AD)と同じ Vault の sold_email_hook_secret を使う
 --   - メール送信で何が起きても、メッセージの送信は止めない
 
+-- ---------- チャットを見ている時刻 ----------
+create table if not exists public.chat_presence (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  item_id bigint not null references public.item(id) on delete cascade,
+  buyer_id uuid not null,
+  last_seen_at timestamptz not null default now(),
+  primary key (user_id, item_id, buyer_id)
+);
+alter table public.chat_presence enable row level security;
+revoke all on public.chat_presence from anon, authenticated;
+-- 一般ユーザー向けのポリシーは作らない。下の SECURITY DEFINER 関数経由でのみ使う。
+
+-- 自分が当事者のチャット(出品者として購入者 p_buyer_id とのチャット、
+-- または購入者として自分のチャット)だけ記録できる
+create or replace function public.touch_chat_presence(p_item_id bigint, p_buyer_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or p_buyer_id is null then
+    return;
+  end if;
+  if not exists (
+    select 1 from public.item i
+    where i.id = p_item_id
+      and (
+        (i.user_id = auth.uid() and p_buyer_id <> auth.uid())
+        or (p_buyer_id = auth.uid() and i.user_id <> auth.uid())
+      )
+  ) then
+    return;
+  end if;
+
+  insert into public.chat_presence (user_id, item_id, buyer_id, last_seen_at)
+  values (auth.uid(), p_item_id, p_buyer_id, now())
+  on conflict (user_id, item_id, buyer_id) do update set last_seen_at = excluded.last_seen_at;
+end;
+$$;
+revoke execute on function public.touch_chat_presence(bigint, uuid) from public, anon;
+grant execute on function public.touch_chat_presence(bigint, uuid) to authenticated;
+
+-- ---------- 送ったメールの記録 ----------
 create table if not exists public.chat_email_log (
   id bigint generated always as identity primary key,
   recipient_id uuid not null,
@@ -4375,6 +4422,7 @@ set search_path = public
 as $$
 declare
   v_recipient uuid;
+  v_last_seen timestamptz;
   v_secret text;
 begin
   if new.buyer_id is null or new.seller_id is null then
@@ -4387,11 +4435,19 @@ begin
       return new;
     end if;
 
-    -- 同じ相手・同じ取引へは2時間に1通まで
+    select last_seen_at into v_last_seen
+    from public.chat_presence
+    where user_id = v_recipient and item_id = new.item_id and buyer_id = new.buyer_id;
+
+    -- 相手が今このチャットを見ている(直近1分以内)なら送らない
+    if v_last_seen is not null and v_last_seen > now() - interval '1 minute' then
+      return new;
+    end if;
+    -- 前回このチャットを見たあとに、もうメールを送っていれば送らない
     if exists (
       select 1 from public.chat_email_log
       where recipient_id = v_recipient and item_id = new.item_id and buyer_id = new.buyer_id
-        and created_at > now() - interval '2 hours'
+        and created_at > coalesce(v_last_seen, '-infinity'::timestamptz)
     ) then
       return new;
     end if;
