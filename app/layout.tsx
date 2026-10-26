@@ -4,6 +4,7 @@ import { M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthProvider";
 import NavTracker from "@/components/NavTracker";
+import Toaster from "@/components/Toaster";
 import { SITE_URL } from "@/lib/siteUrl";
 
 const mplusRounded = M_PLUS_Rounded_1c({
@@ -41,6 +42,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <NavTracker />
+        <Toaster />
         <AuthProvider>{children}</AuthProvider>
         <footer className="text-center text-xs text-stone-400 py-6 px-4 border-t border-stone-200 bg-stone-50">
           <p className="mb-2">HOKUMAは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。</p>

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type AdminUser = {
   id: string;
@@ -58,7 +59,7 @@ export default function AdminUsers() {
     setProcessingId(target.id);
     const { error } = await supabase.rpc("admin_set_ban", { target_id: target.id, should_ban: willBan });
     setProcessingId(null);
-    if (error) { alert(`操作に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`操作に失敗しました: ${error.message}`); return; }
     setUsers((prev) => prev.map((u) => (u.id === target.id ? { ...u, banned_until: willBan ? "2999-12-31T00:00:00Z" : null } : u)));
   };
 

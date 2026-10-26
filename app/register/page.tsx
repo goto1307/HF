@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import PasswordInput from "@/components/PasswordInput";
 import { isReservedNickname } from "@/lib/nickname";
 import { TERMS_TEXT } from "@/lib/terms";
+import { toast } from "@/lib/toast";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -25,11 +26,11 @@ export default function Register() {
   };
 
   const handleRegister = async () => {
-    if (!isValidEmail(email)) { alert("北大のメールアドレスを入力してください"); return; }
-    if (!nickname.trim()) { alert("ニックネームを入力してください"); return; }
-    if (isReservedNickname(nickname)) { alert("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
-    if (!isValidPassword(password)) { alert("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
-    if (!agreed) { alert("利用規約への同意が必要です"); return; }
+    if (!isValidEmail(email)) { toast("北大のメールアドレスを入力してください"); return; }
+    if (!nickname.trim()) { toast("ニックネームを入力してください"); return; }
+    if (isReservedNickname(nickname)) { toast("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
+    if (!isValidPassword(password)) { toast("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
+    if (!agreed) { toast("利用規約への同意が必要です"); return; }
     setLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.signUp({
@@ -43,13 +44,13 @@ export default function Register() {
     setLoading(false);
     if (error) {
       if (error.code === "over_request_rate_limit" || error.status === 429) {
-        alert("試行回数が多すぎます。しばらく待ってから再度お試しください。");
+        toast("試行回数が多すぎます。しばらく待ってから再度お試しください。");
       } else {
-        alert("登録に失敗しました。入力内容をご確認のうえ、もう一度お試しください。");
+        toast("登録に失敗しました。入力内容をご確認のうえ、もう一度お試しください。");
       }
       return;
     }
-    alert("確認メールを送りました！メール内のリンクを開いて確認を完了してから、ログインしてください。");
+    toast("確認メールを送りました！メール内のリンクを開いて確認を完了してから、ログインしてください。");
     router.push("/login");
   };
 

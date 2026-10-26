@@ -14,6 +14,7 @@ import {
 import Header from "@/components/Header";
 import { IconX } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 // 編集のとき、期限がこれより先なら「ずっと」として表示する
 const FOREVER_THRESHOLD_DAYS = 330;
@@ -80,19 +81,19 @@ export default function DemandForm({
   const addTag = () => {
     const tag = tagInput.trim().replace(/^#+/, "").slice(0, 20);
     if (!tag) return;
-    if (tags.length >= DEMAND_TAG_MAX) { alert(`タグは${DEMAND_TAG_MAX}個までです`); return; }
+    if (tags.length >= DEMAND_TAG_MAX) { toast(`タグは${DEMAND_TAG_MAX}個までです`); return; }
     if (!tags.includes(tag)) setTags([...tags, tag]);
     setTagInput("");
   };
 
   const handleReview = () => {
-    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
-    if (!title.trim()) { alert("何が欲しいかを入力してください"); return; }
-    if (budget === "") { alert("いくらまで出せるかを入力してください"); return; }
+    if (!user) { toast("ログインしてください"); router.push(loginPath()); return; }
+    if (!title.trim()) { toast("何が欲しいかを入力してください"); return; }
+    if (budget === "") { toast("いくらまで出せるかを入力してください"); return; }
     const n = Number(budget);
-    if (!Number.isInteger(n) || n < 0 || n > 50000) { alert("金額は0円〜50,000円の範囲で入力してください"); return; }
-    if (!deadline) { alert("いつまでに欲しいかを、月と日の数字で入力してください"); return; }
-    if (deadline < today || deadline > maxDeadline) { alert("期限は今日から1年以内の日付にしてください"); return; }
+    if (!Number.isInteger(n) || n < 0 || n > 50000) { toast("金額は0円〜50,000円の範囲で入力してください"); return; }
+    if (!deadline) { toast("いつまでに欲しいかを、月と日の数字で入力してください"); return; }
+    if (deadline < today || deadline > maxDeadline) { toast("期限は今日から1年以内の日付にしてください"); return; }
     setShowConfirm(true);
   };
 
@@ -101,7 +102,7 @@ export default function DemandForm({
     setSaving(true);
     const error = await onSave({ title: title.trim(), budget: Number(budget), deadline, tags, note: note.trim() || null });
     setSaving(false);
-    if (error) alert(error);
+    if (error) toast(error);
   };
 
   return (

@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import DemandForm, { type DemandFormValues } from "@/components/DemandForm";
+import { toast } from "@/lib/toast";
 
 export default function NewDemand() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function NewDemand() {
       // DB 側のチェック(件数・期限・タグ)のメッセージはそのまま見せる
       return /件まで|期限|タグ/.test(error.message) ? error.message : "登録に失敗しました";
     }
-    alert("欲しい！を登録しました！");
+    toast("欲しい！を登録しました！");
     router.push("/demands");
     return null;
   };

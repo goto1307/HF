@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { formatBudget, formatDeadline, isActiveDemand, type MyDemand } from "@/lib/demand";
+import { toast } from "@/lib/toast";
 
 // 購入した直後に「今買った商品は、過去の欲しい！の中にありましたか？」と聞く。
 // 選んだ欲しい！は「買えた！」になり、出品者にありがとうの通知が届く。
@@ -31,7 +32,7 @@ export default function DemandFulfillModal({
     setSaving(true);
     const { error } = await supabase.rpc("fulfill_my_demands", { p_item_id: itemId, p_demand_ids: [...selected] });
     setSaving(false);
-    if (error) { alert(`変更に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`変更に失敗しました: ${error.message}`); return; }
     onDone();
   };
 

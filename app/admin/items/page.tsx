@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Item = {
   id: number;
@@ -90,14 +91,14 @@ export default function AdminItems() {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    if (!deleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    if (!deleteReason.trim()) { toast("削除理由を入力してください"); return; }
     setDeleting(true);
     const { error } = await supabase.rpc("admin_delete_item", {
       p_item_id: deleteTarget.id,
       p_reason: deleteReason.trim(),
     });
     setDeleting(false);
-    if (error) { alert(`商品の削除に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`商品の削除に失敗しました: ${error.message}`); return; }
     setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
     setDeleteTarget(null);
     setDeleteReason("");

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 export default function AdminBackup() {
   const { user, loading: authLoading } = useAuth();
@@ -20,7 +21,7 @@ export default function AdminBackup() {
     setDownloading(true);
     const { data, error } = await supabase.rpc("admin_export_all");
     setDownloading(false);
-    if (error) { alert(`バックアップの取得に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`バックアップの取得に失敗しました: ${error.message}`); return; }
 
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });

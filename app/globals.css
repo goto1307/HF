@@ -57,9 +57,20 @@ a {
   animation: bubble-float 3.2s ease-in-out infinite;
 }
 
+/* 画面内のお知らせが上からすっと出てくる動き(components/Toaster.tsx) */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast-in {
+  animation: toast-in 0.2s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-bubble-pop,
-  .animate-bubble-float {
+  .animate-bubble-float,
+  .toast-in {
     animation: none;
   }
 }

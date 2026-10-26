@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { IconPackage } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Item = {
   id: number;
@@ -98,9 +99,9 @@ export default function SellerProfile() {
   const activeItems = items.filter((i) => !i.sold);
 
   const handleReport = async () => {
-    if (!user) { alert("通報にはログインしてください"); router.push(loginPath()); return; }
-    if (!reportReason) { alert("通報理由を選択してください"); return; }
-    if (reportReason === "その他" && !reportDetail.trim()) { alert("詳細を入力してください"); return; }
+    if (!user) { toast("通報にはログインしてください"); router.push(loginPath()); return; }
+    if (!reportReason) { toast("通報理由を選択してください"); return; }
+    if (reportReason === "その他" && !reportDetail.trim()) { toast("詳細を入力してください"); return; }
     setReporting(true);
     const { error } = await supabase.from("report").insert({
       reported_user_id: params.id,
@@ -110,31 +111,31 @@ export default function SellerProfile() {
     setReporting(false);
     if (error) {
       if (error.code === "42501" || error.message?.includes("row-level security")) {
-        alert("通報は1分に1回までです。しばらく待ってから再度お試しください。");
+        toast("通報は1分に1回までです。しばらく待ってから再度お試しください。");
       } else {
-        alert("通報に失敗しました");
+        toast("通報に失敗しました");
       }
       return;
     }
-    alert("通報を受け付けました");
+    toast("通報を受け付けました");
     setShowReport(false);
     setReportReason("");
     setReportDetail("");
   };
 
   const handleToggleBlock = async () => {
-    if (!user) { alert("ブロックにはログインしてください"); router.push(loginPath()); return; }
+    if (!user) { toast("ブロックにはログインしてください"); router.push(loginPath()); return; }
     setBlocking(true);
     if (blocked) {
       const { error } = await supabase.from("blocked_user").delete().eq("blocker_id", user.id).eq("blocked_id", params.id);
       setBlocking(false);
-      if (error) { alert("ブロック解除に失敗しました"); return; }
+      if (error) { toast("ブロック解除に失敗しました"); return; }
       setBlocked(false);
     } else {
       if (!confirm(`${nickname}さんをブロックしますか？以後、このユーザーからメッセージを受け取らなくなります。`)) { setBlocking(false); return; }
       const { error } = await supabase.from("blocked_user").insert({ blocker_id: user.id, blocked_id: params.id });
       setBlocking(false);
-      if (error) { alert("ブロックに失敗しました"); return; }
+      if (error) { toast("ブロックに失敗しました"); return; }
       setBlocked(true);
     }
   };

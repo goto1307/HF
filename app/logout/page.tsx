@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { goBack } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 export default function Logout() {
   const [loggingOut, setLoggingOut] = useState(false);
@@ -15,7 +16,7 @@ export default function Logout() {
     const { error } = await supabase.auth.signOut();
     if (error) {
       setLoggingOut(false);
-      alert("ログアウトに失敗しました。もう一度お試しください。");
+      toast("ログアウトに失敗しました。もう一度お試しください。");
       return;
     }
     router.push("/");

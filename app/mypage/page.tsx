@@ -16,6 +16,7 @@ import MyDemandsCard from "@/components/MyDemandsCard";
 import { AVATAR_PRESETS } from "@/lib/avatarPresets";
 import { IconPencil, IconPackage } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Item = {
   id: number;
@@ -149,7 +150,7 @@ export default function MyPage() {
     if (!file || !user) return;
 
     const validationError = validateImageFile(file);
-    if (validationError) { alert(validationError); return; }
+    if (validationError) { toast(validationError); return; }
     setAvatarCropFile(file);
   };
 
@@ -158,14 +159,14 @@ export default function MyPage() {
     const { error: updateError } = await supabase.auth.updateUser({
       data: { avatar_url: url },
     });
-    if (updateError) { alert("アイコンの更新に失敗しました"); return false; }
+    if (updateError) { toast("アイコンの更新に失敗しました"); return false; }
     // プロフィールテーブルにも保存し、チャットなど他の利用者からもアイコンが見えるようにする
     const { error: profileError } = await supabase.from("profile").upsert({
       user_id: user.id,
       avatar_url: url,
       updated_at: new Date().toISOString(),
     });
-    if (profileError) { alert("アイコンの公開設定に失敗しました"); return false; }
+    if (profileError) { toast("アイコンの公開設定に失敗しました"); return false; }
     return true;
   };
 
@@ -176,7 +177,7 @@ export default function MyPage() {
     const fileName = makeImagePath(`avatars/${user.id}_`);
     const { error: uploadError } = await supabase.storage.from("images").upload(fileName, cropped);
     if (uploadError) {
-      alert(`アイコンのアップロードに失敗しました: ${uploadError.message}`);
+      toast(`アイコンのアップロードに失敗しました: ${uploadError.message}`);
       setUploadingAvatar(false);
       return;
     }
@@ -197,9 +198,9 @@ export default function MyPage() {
   const handleSaveNickname = async () => {
     if (!user) return;
     const next = nicknameInput.trim();
-    if (!next) { alert("ニックネームを入力してください"); return; }
+    if (!next) { toast("ニックネームを入力してください"); return; }
     if (next === currentNickname) return;
-    if (isReservedNickname(next)) { alert("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
+    if (isReservedNickname(next)) { toast("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
     if (!confirm(`ニックネームを「${next}」に変更しますか？\n次に変更できるのは1週間後です。`)) return;
     setSavingNickname(true);
     // 出品・メッセージ・評価に保存されている名前もまとめて書き換える
@@ -207,21 +208,21 @@ export default function MyPage() {
     if (error) {
       setSavingNickname(false);
       // 1週間の制限などは DB 側の文言(次に変更できる日時を含む)をそのまま出す
-      alert(error.message || "ニックネームの変更に失敗しました");
+      toast(error.message || "ニックネームの変更に失敗しました");
       return;
     }
     const { error: updateError } = await supabase.auth.updateUser({ data: { nickname: next } });
     setSavingNickname(false);
-    if (updateError) { alert("ニックネームの変更に失敗しました"); return; }
+    if (updateError) { toast("ニックネームの変更に失敗しました"); return; }
     setNicknameDraft(null);
     setItems((prev) => prev.map((i) => ({ ...i, nickname: next })));
-    alert("ニックネームを変更しました");
+    toast("ニックネームを変更しました");
   };
 
   const handleSaveProfile = async () => {
     if (!user) return;
     if (age && (!Number.isFinite(Number(age)) || Number(age) < 0 || Number(age) > 120)) {
-      alert("年齢には0〜120の数値を入力してください");
+      toast("年齢には0〜120の数値を入力してください");
       return;
     }
     setSavingProfile(true);
@@ -235,10 +236,10 @@ export default function MyPage() {
     setSavingProfile(false);
     if (error) {
       setProfileAvailable(false);
-      alert("プロフィールの保存に失敗しました。この機能は準備中の可能性があります。");
+      toast("プロフィールの保存に失敗しました。この機能は準備中の可能性があります。");
       return;
     }
-    alert("プロフィールを保存しました");
+    toast("プロフィールを保存しました");
   };
 
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
@@ -251,7 +252,7 @@ export default function MyPage() {
     setUnblockingId(blockedId);
     const { error } = await supabase.from("blocked_user").delete().eq("blocker_id", user.id).eq("blocked_id", blockedId);
     setUnblockingId(null);
-    if (error) { alert("ブロック解除に失敗しました"); return; }
+    if (error) { toast("ブロック解除に失敗しました"); return; }
     setBlockedUsers((prev) => prev.filter((b) => b.blocked_id !== blockedId));
   };
 
@@ -260,7 +261,7 @@ export default function MyPage() {
     const { error } = await supabase.rpc("delete_own_account");
     if (error) {
       setDeletingAccount(false);
-      alert(`退会処理に失敗しました: ${error.message}`);
+      toast(`退会処理に失敗しました: ${error.message}`);
       return;
     }
     await supabase.auth.signOut();
@@ -277,9 +278,9 @@ export default function MyPage() {
       .eq("user_id", user.id)
       .select("id");
     setDeleting(false);
-    if (error) { alert("削除に失敗しました"); return; }
+    if (error) { toast("削除に失敗しました"); return; }
     if (!data || data.length === 0) {
-      alert("取引が成立した商品や、通報を受けている商品は削除できません。運営にお問い合わせください。");
+      toast("取引が成立した商品や、通報を受けている商品は削除できません。運営にお問い合わせください。");
       setDeleteTarget(null);
       return;
     }
