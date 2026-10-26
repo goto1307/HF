@@ -4140,3 +4140,85 @@ begin
   end if;
 end;
 $$;
+
+
+-- ============================================================
+-- PART AM: 欲しい！に商品が知らされたら、登録した人にお知らせメールを送る
+-- ============================================================
+--
+-- 仕組み: demand_offer に行が追加されたら(出品者が offer_item_to_demands で
+--   自分の商品を欲しい！に知らせたら)、pg_net で Edge Function
+--   notify-demand-offer(supabase/functions/notify-demand-offer)を呼ぶ。
+--   Edge Function が DB で状態を確かめ直し、欲しい！を登録した人に Resend で送る。
+--   - 合言葉は購入メール(PART AD)と同じ Vault の sold_email_hook_secret を使う
+--   - 送るのは欲しい！を登録した本人だけ(僕も！を押した人にはサイト内の通知のみ)
+--   - 欲しい！が募集中で、本人がまだ買えていないときだけ送る
+--   - 同じ人へのメールは24時間に5通まで。超えた分はサイト内の通知だけになる
+--     (Resend の無料枠を購入メール・登録メールと分け合うため)
+--   - メール送信で何が起きても、知らせる操作は止めない
+
+create table if not exists public.demand_email_log (
+  id bigint generated always as identity primary key,
+  user_id uuid not null,
+  demand_id bigint not null,
+  item_id bigint not null,
+  created_at timestamptz not null default now()
+);
+alter table public.demand_email_log enable row level security;
+revoke all on public.demand_email_log from anon, authenticated;
+create index if not exists demand_email_log_user_idx on public.demand_email_log (user_id, created_at);
+
+create or replace function public.notify_demand_offer_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
+  v_secret text;
+begin
+  begin
+    select d.user_id into v_owner
+    from public.demand d
+    where d.id = new.demand_id
+      and d.status = 'open'
+      and d.owner_fulfilled_at is null
+      and not public.is_deleted(d.user_id);
+    if v_owner is null then
+      return new;
+    end if;
+
+    -- 同じ人へのメールは24時間に5通まで
+    if (select count(*) from public.demand_email_log
+        where user_id = v_owner and created_at > now() - interval '24 hours') >= 5 then
+      return new;
+    end if;
+
+    select decrypted_secret into v_secret
+    from vault.decrypted_secrets
+    where name = 'sold_email_hook_secret'
+    limit 1;
+
+    if v_secret is not null then
+      insert into public.demand_email_log (user_id, demand_id, item_id)
+      values (v_owner, new.demand_id, new.item_id);
+      delete from public.demand_email_log where created_at < now() - interval '7 days';
+      perform net.http_post(
+        url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-demand-offer',
+        body := jsonb_build_object('demand_id', new.demand_id, 'item_id', new.item_id),
+        headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
+      );
+    end if;
+  exception when others then
+    raise warning 'notify_demand_offer_email failed: %', sqlerrm;
+  end;
+  return new;
+end;
+$$;
+revoke execute on function public.notify_demand_offer_email() from public, anon, authenticated;
+
+drop trigger if exists notify_demand_offer_email_trigger on public.demand_offer;
+create trigger notify_demand_offer_email_trigger
+after insert on public.demand_offer
+for each row execute function public.notify_demand_offer_email();
