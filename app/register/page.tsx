@@ -8,6 +8,7 @@ import PasswordInput from "@/components/PasswordInput";
 import { isReservedNickname } from "@/lib/nickname";
 import { TERMS_TEXT } from "@/lib/terms";
 import { toast } from "@/lib/toast";
+import { getSource } from "@/lib/visitSource";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -37,7 +38,8 @@ export default function Register() {
       email: normalizedEmail,
       password,
       options: {
-        data: { nickname },
+        // source: 最初に来たときのリンクの目印(lib/visitSource.ts)。管理者の集計にだけ使う
+        data: { nickname, source: getSource() },
         emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
       },
     });

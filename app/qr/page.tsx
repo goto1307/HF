@@ -3,9 +3,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import HokkumaMascot from "@/components/HokkumaMascot";
-
-// 「どこから来たか」の目印。DB 側(migration PART AN)と同じ決まり
-const SOURCE_PATTERN = /^[a-z0-9_-]{1,32}$/;
+import { rememberSource, SOURCE_PATTERN } from "@/lib/visitSource";
 
 // ポスターのQRコードやインスタのリンクの飛び先。開かれた回数を記録してからトップへ移動する。
 // ポスターは /qr(目印なし)、インスタは /qr?from=insta のように目印を付ける。
@@ -17,6 +15,8 @@ export default function QrLanding() {
     const from = new URLSearchParams(window.location.search).get("from")?.trim().toLowerCase();
     // 目印が付いているのに決まりに合わないときは、ポスターと混ざらないよう "other" として数える
     const source = from ? (SOURCE_PATTERN.test(from) ? from : "other") : null;
+    // 登録したときに「どこから来た人か」を数えられるよう、目印を覚えておく(目印なしはポスター)
+    rememberSource(source ?? "poster");
     supabase.from("qr_scan").insert(source ? { source } : {}).then(goHome, goHome);
   }, [router]);
 

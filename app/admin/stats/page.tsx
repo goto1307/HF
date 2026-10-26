@@ -25,6 +25,14 @@ type SiteWeek = {
 };
 // /qr?from=… の目印ごとの開かれた回数(migration PART AN)
 type VisitSource = { source: string; total: number; last7: number; first_at: string };
+// admin_signup_sources()(migration PART AP)の戻り値。目印ごとの登録者数
+type SignupSources = {
+  sources: { source: string; total: number; last7: number }[];
+  insta: number;
+  none: number;
+  none_since: number;
+  since: string | null;
+};
 type SiteStats = {
   totals: { users: number; sellers: number; items: number; listed: number; sold: number; received: number; qr_scans: number; insta: number; messages: number };
   weekly: SiteWeek[];
@@ -131,11 +139,33 @@ function WeeklyBars({ title, data }: { title: string; data: { week_start: string
   );
 }
 
+type SourceRow = { key: string; label: string; mono: boolean; opened: number | null; last7: number | null; signups: number; firstAt: string | null };
+
+// 「どこから来たか」の表の行。開かれた回数(PART AN)と登録した人数(PART AP)を目印ごとに並べる
+function sourceRows(site: SiteStats, signups: SignupSources | null): SourceRow[] {
+  const signupOf = (source: string) => signups?.sources.find((x) => x.source === source)?.total ?? 0;
+  const rows: SourceRow[] = [
+    { key: "poster", label: "ポスターのQR（目印なし）", mono: false, opened: site.totals.qr_scans, last7: null, signups: signupOf("poster"), firstAt: null },
+    ...(site.sources ?? []).map((src) => ({
+      key: src.source, label: src.source, mono: true, opened: src.total, last7: src.last7, signups: signupOf(src.source), firstAt: src.first_at,
+    })),
+  ];
+  // 開かれた記録はないが、登録の記録だけある目印(念のため)
+  for (const x of signups?.sources ?? []) {
+    if (!rows.some((row) => row.key === x.source)) {
+      rows.push({ key: x.source, label: x.source, mono: true, opened: null, last7: null, signups: x.total, firstAt: null });
+    }
+  }
+  if (signups) rows.push({ key: "(none)", label: "記録なし", mono: false, opened: null, last7: null, signups: signups.none, firstAt: null });
+  return rows;
+}
+
 export default function AdminStats() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [site, setSite] = useState<SiteStats | null>(null);
+  const [signups, setSignups] = useState<SignupSources | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   const isAdmin = isAdminEmail(user?.email);
@@ -151,6 +181,9 @@ export default function AdminStats() {
       ]);
       if (error || siteError) setErrorMsg((error ?? siteError)!.message);
       else { setStats(data as Stats); setSite(siteData as SiteStats); }
+      // 登録者の目印は、PART AP を実行するまでは取れないので、失敗しても表示だけ省く
+      const { data: signupData } = await supabase.rpc("admin_signup_sources");
+      if (signupData) setSignups(signupData as SignupSources);
     };
     load();
   }, [authLoading, user, isAdmin, router]);
@@ -241,38 +274,49 @@ export default function AdminStats() {
           <p className="text-sm font-bold text-stone-700 mb-1">どこから来たか</p>
           <p className="text-[11px] text-stone-500 mb-3">
             ポスターのQRは <span className="font-mono">/qr</span>、インスタなどは <span className="font-mono">/qr?from=insta</span> のように目印を付けたリンクで数えます。
-            目印は英小文字・数字・_・- で32文字まで。insta で始まる目印は「インスタ」の列にまとめて数えます。リンクが開かれた回数なので、同じ人が2回開くと2回になります。
+            目印は英小文字・数字・_・- で32文字まで。insta で始まる目印は「インスタ」の列にまとめて数えます。
+            「開かれた」はリンクが開かれた回数（同じ人が2回開くと2回）、「登録した人」はそのリンクから来て登録まで進んだ人数（退会した人を除く）です。
           </p>
+          {signups && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <Tile label="インスタから来て登録した人" value={signups.insta} note={`インスタのリンクが開かれた回数 ${site.totals.insta ?? 0}回`} />
+              <Tile
+                label="ポスターから来て登録した人"
+                value={signups.sources.find((x) => x.source === "poster")?.total ?? 0}
+                note={`ポスターのQRが読まれた回数 ${site.totals.qr_scans}回`}
+              />
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr className="text-[11px] text-stone-400 text-right">
                   <th className="font-normal pb-1 text-left pr-3">目印</th>
-                  <th className="font-normal pb-1 px-2">合計</th>
+                  <th className="font-normal pb-1 px-2">開かれた</th>
                   <th className="font-normal pb-1 px-2">直近7日</th>
+                  {signups && <th className="font-normal pb-1 px-2">登録した人</th>}
                   <th className="font-normal pb-1 pl-2">最初の記録</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-t border-stone-100 text-right tabular-nums">
-                  <td className="py-1 text-left pr-3 text-stone-500">ポスターのQR（目印なし）</td>
-                  <td className="py-1 px-2 font-bold text-stone-700">{site.totals.qr_scans}</td>
-                  <td className="py-1 px-2 text-stone-300">-</td>
-                  <td className="py-1 pl-2 text-stone-300">-</td>
-                </tr>
-                {(site.sources ?? []).map((src) => (
-                  <tr key={src.source} className="border-t border-stone-100 text-right tabular-nums">
-                    <td className="py-1 text-left pr-3 font-mono text-stone-600">{src.source}</td>
-                    <td className="py-1 px-2 font-bold text-stone-700">{src.total}</td>
-                    <td className={`py-1 px-2 ${src.last7 === 0 ? "text-stone-300" : "font-bold text-stone-700"}`}>{src.last7}</td>
-                    <td className="py-1 pl-2 text-stone-500">{new Date(src.first_at).toLocaleDateString()}</td>
+                {sourceRows(site, signups).map((row) => (
+                  <tr key={row.key} className="border-t border-stone-100 text-right tabular-nums">
+                    <td className={`py-1 text-left pr-3 ${row.mono ? "font-mono text-stone-600" : "text-stone-500"}`}>{row.label}</td>
+                    <td className={`py-1 px-2 ${row.opened === null ? "text-stone-300" : "font-bold text-stone-700"}`}>{row.opened ?? "-"}</td>
+                    <td className={`py-1 px-2 ${!row.last7 ? "text-stone-300" : "font-bold text-stone-700"}`}>{row.last7 ?? "-"}</td>
+                    {signups && <td className={`py-1 px-2 ${!row.signups ? "text-stone-300" : "font-bold text-orange-700"}`}>{row.signups}</td>}
+                    <td className={`py-1 pl-2 ${row.firstAt ? "text-stone-500" : "text-stone-300"}`}>{row.firstAt ? new Date(row.firstAt).toLocaleDateString() : "-"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {(site.sources ?? []).length === 0 && (
-            <p className="text-xs text-stone-400 mt-2">目印付きのリンクから来た記録はまだありません。</p>
+          {signups && (
+            <p className="text-[11px] text-stone-400 mt-2">
+              「記録なし」は、目印のないリンクから来た人や、登録人数を数え始める前に登録した人です
+              {signups.since && `（数え始めた ${new Date(signups.since).toLocaleDateString()} 以降の記録なし：${signups.none_since}人）`}。
+              インスタのアプリ内で開いたあと Safari などで登録すると目印が引き継がれないため、実際より少なめに出ます。
+            </p>
           )}
         </div>
 
