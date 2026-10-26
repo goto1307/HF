@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 import { IconX } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -44,7 +45,7 @@ export default function EditItem() {
       const { data, error } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).single();
       if (error || !data) { setNotFound(true); setLoadingItem(false); return; }
       if (data.user_id !== user.id) { setNotFound(true); setLoadingItem(false); return; }
-      if (data.sold) { alert("売却済みの商品は編集できません"); router.push("/mypage"); return; }
+      if (data.sold) { toast("売却済みの商品は編集できません"); router.push("/mypage"); return; }
 
       setTitle(data.title);
       setPrice(data.price ? String(data.price) : "");
@@ -82,10 +83,10 @@ export default function EditItem() {
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (totalImageCount + cropQueue.length + files.length > 5) { alert("写真は最大5枚までです"); e.target.value = ""; return; }
+    if (totalImageCount + cropQueue.length + files.length > 5) { toast("写真は最大5枚までです"); e.target.value = ""; return; }
     for (const file of files) {
       const error = validateImageFile(file);
-      if (error) { alert(error); e.target.value = ""; return; }
+      if (error) { toast(error); e.target.value = ""; return; }
     }
     setCropQueue([...cropQueue, ...files]);
     e.target.value = "";
@@ -113,10 +114,10 @@ export default function EditItem() {
 
   const handleSubmit = async () => {
     if (!user) return;
-    if (!title.trim()) { alert("タイトルを入力してください"); return; }
-    if (!category) { alert("カテゴリを選択してください"); return; }
-    if (!isFree && !price) { alert("価格を入力してください"); return; }
-    if (!isFree && (!Number.isFinite(Number(price)) || Number(price) < 0 || Number(price) > 50000)) { alert("価格は0円〜50,000円の範囲で入力してください"); return; }
+    if (!title.trim()) { toast("タイトルを入力してください"); return; }
+    if (!category) { toast("カテゴリを選択してください"); return; }
+    if (!isFree && !price) { toast("価格を入力してください"); return; }
+    if (!isFree && (!Number.isFinite(Number(price)) || Number(price) < 0 || Number(price) > 50000)) { toast("価格は0円〜50,000円の範囲で入力してください"); return; }
 
     setSaving(true);
 
@@ -125,7 +126,7 @@ export default function EditItem() {
       const fileName = makeImagePath();
       const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
       if (uploadError) {
-        alert("画像のアップロードに失敗しました");
+        toast("画像のアップロードに失敗しました");
         setSaving(false);
         return;
       }
@@ -155,8 +156,8 @@ export default function EditItem() {
 
     setSaving(false);
 
-    if (error) { alert(`更新に失敗しました: ${error.message}`); return; }
-    alert("更新しました！");
+    if (error) { toast(`更新に失敗しました: ${error.message}`); return; }
+    toast("更新しました！");
     router.push(`/items/${params.id}`);
   };
 

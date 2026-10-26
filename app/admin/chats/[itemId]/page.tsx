@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Message = {
   id: number;
@@ -74,14 +75,14 @@ export default function AdminItemChats() {
 
   const handleConfirmDeleteMessage = async () => {
     if (!deleteMessageTarget) return;
-    if (!messageReason.trim()) { alert("削除理由を入力してください"); return; }
+    if (!messageReason.trim()) { toast("削除理由を入力してください"); return; }
     setDeletingMessage(true);
     const { error } = await supabase.rpc("admin_delete_message", {
       p_message_id: deleteMessageTarget.id,
       p_reason: messageReason.trim(),
     });
     setDeletingMessage(false);
-    if (error) { alert(`削除に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`削除に失敗しました: ${error.message}`); return; }
     setMessages((prev) => prev.filter((m) => m.id !== deleteMessageTarget.id));
     setDeleteMessageTarget(null);
     setMessageReason("");
@@ -89,15 +90,15 @@ export default function AdminItemChats() {
 
   const handleConfirmCancel = async () => {
     if (!item) return;
-    if (!cancelReason.trim()) { alert("理由を入力してください"); return; }
+    if (!cancelReason.trim()) { toast("理由を入力してください"); return; }
     setCancelling(true);
     const { error } = await supabase.rpc("admin_cancel_purchase", {
       p_item_id: item.id,
       p_reason: cancelReason.trim(),
     });
     setCancelling(false);
-    if (error) { alert(`キャンセルに失敗しました: ${error.message}`); return; }
-    alert("取引をキャンセルしました");
+    if (error) { toast(`キャンセルに失敗しました: ${error.message}`); return; }
+    toast("取引をキャンセルしました");
     setShowCancelForm(false);
     setCancelReason("");
     fetchData();

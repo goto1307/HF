@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
 import PasswordInput from "@/components/PasswordInput";
+import { toast } from "@/lib/toast";
 
 export default function UpdatePassword() {
   const { user, loading: authLoading } = useAuth();
@@ -18,13 +19,13 @@ export default function UpdatePassword() {
   };
 
   const handleUpdate = async () => {
-    if (!isValidPassword(password)) { alert("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
-    if (password !== confirm) { alert("パスワードが一致しません"); return; }
+    if (!isValidPassword(password)) { toast("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
+    if (password !== confirm) { toast("パスワードが一致しません"); return; }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
-    if (error) { alert(`更新に失敗しました: ${error.message}`); return; }
-    alert("パスワードを更新しました！");
+    if (error) { toast(`更新に失敗しました: ${error.message}`); return; }
+    toast("パスワードを更新しました！");
     router.push("/");
   };
 

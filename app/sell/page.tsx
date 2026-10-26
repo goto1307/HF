@@ -11,6 +11,7 @@ import Header from "@/components/Header";
 import ImageCropper from "@/components/ImageCropper";
 import { IconWarning, IconPackage, IconX } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -85,7 +86,7 @@ function SellContent() {
   const openDrafts = async () => {
     setShowDrafts(true);
     const { data, error } = await supabase.from("item_draft").select(DRAFT_COLUMNS).order("updated_at", { ascending: false });
-    if (error) { alert("下書きの読み込みに失敗しました"); setShowDrafts(false); return; }
+    if (error) { toast("下書きの読み込みに失敗しました"); setShowDrafts(false); return; }
     setDrafts((data ?? []) as Draft[]);
   };
 
@@ -106,15 +107,15 @@ function SellContent() {
   const deleteDraft = async (d: Draft) => {
     if (!confirm(`下書き「${d.title || "（タイトルなし）"}」を削除しますか？`)) return;
     const { error } = await supabase.from("item_draft").delete().eq("id", d.id);
-    if (error) { alert("削除に失敗しました"); return; }
+    if (error) { toast("削除に失敗しました"); return; }
     setDrafts((prev) => (prev ?? []).filter((x) => x.id !== d.id));
     if (draftId === d.id) setDraftId(null);
   };
 
   const saveDraft = async () => {
-    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
+    if (!user) { toast("ログインしてください"); router.push(loginPath()); return; }
     if (!isFree && price && (!Number.isInteger(Number(price)) || Number(price) < 0 || Number(price) > 50000)) {
-      alert("価格は0円〜50,000円の範囲で入力してください");
+      toast("価格は0円〜50,000円の範囲で入力してください");
       return;
     }
     const values = {
@@ -134,11 +135,11 @@ function SellContent() {
       : await supabase.from("item_draft").insert(values).select("id").single();
     setSavingDraft(false);
     if (error || !data) {
-      alert(error?.message.includes("件まで") ? error.message : "下書きの保存に失敗しました");
+      toast(error?.message.includes("件まで") ? error.message : "下書きの保存に失敗しました");
       return;
     }
     setDraftId(data.id);
-    alert("下書きに保存しました。写真は下書きに保存されないので、出品するときに追加してください。");
+    toast("下書きに保存しました。写真は下書きに保存されないので、出品するときに追加してください。");
   };
 
   const addHashtag = () => {
@@ -161,10 +162,10 @@ function SellContent() {
 
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (images.length + cropQueue.length + files.length > 5) { alert("写真は最大5枚までです"); e.target.value = ""; return; }
+    if (images.length + cropQueue.length + files.length > 5) { toast("写真は最大5枚までです"); e.target.value = ""; return; }
     for (const file of files) {
       const error = validateImageFile(file);
-      if (error) { alert(error); e.target.value = ""; return; }
+      if (error) { toast(error); e.target.value = ""; return; }
     }
     setCropQueue([...cropQueue, ...files]);
     e.target.value = "";
@@ -187,17 +188,17 @@ function SellContent() {
   };
 
   const handleReview = () => {
-    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
-    if (!title.trim()) { alert("タイトルを入力してください"); return; }
-    if (!category) { alert("カテゴリを選択してください"); return; }
-    if (!isFree && !price) { alert("価格を入力してください"); return; }
-    if (!isFree && (!Number.isFinite(Number(price)) || Number(price) < 0 || Number(price) > 50000)) { alert("価格は0円〜50,000円の範囲で入力してください"); return; }
-    if (!agreed) { alert("出品規約への同意が必要です"); return; }
+    if (!user) { toast("ログインしてください"); router.push(loginPath()); return; }
+    if (!title.trim()) { toast("タイトルを入力してください"); return; }
+    if (!category) { toast("カテゴリを選択してください"); return; }
+    if (!isFree && !price) { toast("価格を入力してください"); return; }
+    if (!isFree && (!Number.isFinite(Number(price)) || Number(price) < 0 || Number(price) > 50000)) { toast("価格は0円〜50,000円の範囲で入力してください"); return; }
+    if (!agreed) { toast("出品規約への同意が必要です"); return; }
     setShowConfirm(true);
   };
 
   const handleSubmit = async () => {
-    if (!user) { alert("ログインしてください"); router.push(loginPath()); return; }
+    if (!user) { toast("ログインしてください"); router.push(loginPath()); return; }
     setLoading(true);
 
     const imageUrls: string[] = [];
@@ -206,7 +207,7 @@ function SellContent() {
       const fileName = makeImagePath();
       const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
       if (uploadError) {
-        alert("画像のアップロードに失敗しました");
+        toast("画像のアップロードに失敗しました");
         setLoading(false);
         return;
       }
@@ -228,7 +229,7 @@ function SellContent() {
       hashtags: hashtags.length > 0 ? hashtags : null,
     }).select("id").single();
 
-    if (error || !inserted) { setLoading(false); alert("出品に失敗しました"); return; }
+    if (error || !inserted) { setLoading(false); toast("出品に失敗しました"); return; }
 
     // 出品できた下書きは消す(失敗しても出品自体には影響しないので結果は見ない)
     if (draftId) await supabase.from("item_draft").delete().eq("id", draftId);
@@ -236,7 +237,7 @@ function SellContent() {
     const candidates = await findDemandsForItem();
     setLoading(false);
     if (candidates.length === 0) {
-      alert("出品しました！");
+      toast("出品しました！");
       router.push("/");
       return;
     }
@@ -270,10 +271,10 @@ function SellContent() {
         p_demand_ids: [...offerSelected],
       });
       setOffering(false);
-      if (error) { alert(`通知の送信に失敗しました: ${error.message}`); return; }
-      alert(`出品しました！欲しい！を登録した${data ?? 0}人に知らせました。`);
+      if (error) { toast(`通知の送信に失敗しました: ${error.message}`); return; }
+      toast(`出品しました！欲しい！を登録した${data ?? 0}人に知らせました。`);
     } else {
-      alert("出品しました！");
+      toast("出品しました！");
     }
     router.push("/");
   };

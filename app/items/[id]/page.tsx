@@ -13,6 +13,7 @@ import type { MyDemand } from "@/lib/demand";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Item = {
   id: number;
@@ -191,18 +192,18 @@ export default function ItemDetail() {
   }, [params.id, user]);
 
   const toggleLike = async () => {
-    if (!user) { alert("いいねするにはログインしてください"); router.push(loginPath()); return; }
+    if (!user) { toast("いいねするにはログインしてください"); router.push(loginPath()); return; }
     setTogglingLike(true);
     if (likedByMe) {
       const { error } = await supabase.from("favorite").delete().eq("item_id", params.id).eq("user_id", user.id);
       setTogglingLike(false);
-      if (error) { alert(`いいねの取り消しに失敗しました: ${error.message}`); return; }
+      if (error) { toast(`いいねの取り消しに失敗しました: ${error.message}`); return; }
       setLikedByMe(false);
       setLikeCount((c) => Math.max(0, c - 1));
     } else {
       const { error } = await supabase.from("favorite").insert({ item_id: params.id, user_id: user.id });
       setTogglingLike(false);
-      if (error) { alert(`いいねに失敗しました: ${error.message}`); return; }
+      if (error) { toast(`いいねに失敗しました: ${error.message}`); return; }
       setLikedByMe(true);
       setLikeCount((c) => c + 1);
     }
@@ -214,8 +215,8 @@ export default function ItemDetail() {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    if (!user) { alert("メッセージを送るにはログインしてください"); router.push(loginPath()); return; }
-    if (!TELECOM_SAFE_MODE && item?.sold) { alert("この商品は売却済みのため、質問チャットは終了しています"); return; }
+    if (!user) { toast("メッセージを送るにはログインしてください"); router.push(loginPath()); return; }
+    if (!TELECOM_SAFE_MODE && item?.sold) { toast("この商品は売却済みのため、質問チャットは終了しています"); return; }
 
     const content = input;
     setInput("");
@@ -234,7 +235,7 @@ export default function ItemDetail() {
       .single();
 
     if (error) {
-      alert(error.message?.includes("多すぎます") ? error.message : "メッセージの送信に失敗しました");
+      toast(error.message?.includes("多すぎます") ? error.message : "メッセージの送信に失敗しました");
       setInput(content);
       return;
     }
@@ -244,9 +245,9 @@ export default function ItemDetail() {
   };
 
   const handleReport = async () => {
-    if (!user) { alert("通報にはログインしてください"); router.push(loginPath()); return; }
-    if (!reportReason) { alert("通報理由を選択してください"); return; }
-    if (reportReason === "その他" && !reportDetail.trim()) { alert("詳細を入力してください"); return; }
+    if (!user) { toast("通報にはログインしてください"); router.push(loginPath()); return; }
+    if (!reportReason) { toast("通報理由を選択してください"); return; }
+    if (reportReason === "その他" && !reportDetail.trim()) { toast("詳細を入力してください"); return; }
     setReporting(true);
     const { error } = await supabase.from("report").insert({
       item_id: item?.id,
@@ -256,13 +257,13 @@ export default function ItemDetail() {
     setReporting(false);
     if (error) {
       if (error.code === "42501" || error.message?.includes("row-level security")) {
-        alert("通報は1分に1回までです。しばらく待ってから再度お試しください。");
+        toast("通報は1分に1回までです。しばらく待ってから再度お試しください。");
       } else {
-        alert("通報に失敗しました");
+        toast("通報に失敗しました");
       }
       return;
     }
-    alert("通報しました。ご協力ありがとうございます。");
+    toast("通報しました。ご協力ありがとうございます。");
     setShowReport(false);
     setReportReason("");
     setReportDetail("");
@@ -270,7 +271,7 @@ export default function ItemDetail() {
 
   const handleReportMessage = async () => {
     if (!user || !reportingMessage) return;
-    if (!messageReportReason.trim()) { alert("通報理由を入力してください"); return; }
+    if (!messageReportReason.trim()) { toast("通報理由を入力してください"); return; }
     setReportingMessageBusy(true);
     const { error } = await supabase.from("report").insert({
       item_id: item?.id,
@@ -281,13 +282,13 @@ export default function ItemDetail() {
     setReportingMessageBusy(false);
     if (error) {
       if (error.code === "42501" || error.message?.includes("row-level security")) {
-        alert("通報は1分に1回までです。しばらく待ってから再度お試しください。");
+        toast("通報は1分に1回までです。しばらく待ってから再度お試しください。");
       } else {
-        alert("通報に失敗しました");
+        toast("通報に失敗しました");
       }
       return;
     }
-    alert("通報しました。ご協力ありがとうございます。");
+    toast("通報しました。ご協力ありがとうございます。");
     setReportingMessage(null);
     setMessageReportReason("");
   };
@@ -306,10 +307,10 @@ export default function ItemDetail() {
     setSubmittingReview(false);
     if (error) {
       console.error("review insert failed:", error);
-      alert(`評価の投稿に失敗しました: ${error.message}`);
+      toast(`評価の投稿に失敗しました: ${error.message}`);
       return;
     }
-    alert("評価を投稿しました！");
+    toast("評価を投稿しました！");
     setShowReviewForm(false);
     setAlreadyReviewed(true);
   };
@@ -319,7 +320,7 @@ export default function ItemDetail() {
     setBuying(true);
     const { error } = await supabase.rpc("mark_item_sold", { p_item_id: item.id });
     setBuying(false);
-    if (error) { alert(`購入処理に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`購入処理に失敗しました: ${error.message}`); return; }
     setItem({ ...item, sold: true, buyer_id: user.id });
 
     // まだ買えていない自分の欲しい！(登録したもの・僕も！を押したもの)があれば、この商品で満たされたか聞く

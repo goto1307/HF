@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
+import { toast } from "@/lib/toast";
 
 export default function Reset() {
   const [email, setEmail] = useState("");
@@ -11,7 +12,7 @@ export default function Reset() {
   const router = useRouter();
 
   const handleReset = async () => {
-    if (!email) { alert("メールアドレスを入力してください"); return; }
+    if (!email) { toast("メールアドレスを入力してください"); return; }
     setLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
@@ -20,9 +21,9 @@ export default function Reset() {
     setLoading(false);
     if (error) {
       if (error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit" || error.status === 429) {
-        alert("再設定メールの送信は一定時間おきにしか行えません。しばらく待ってから再度お試しください。");
+        toast("再設定メールの送信は一定時間おきにしか行えません。しばらく待ってから再度お試しください。");
       } else {
-        alert(`送信に失敗しました: ${error.message}`);
+        toast(`送信に失敗しました: ${error.message}`);
       }
       return;
     }

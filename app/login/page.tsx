@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 import PasswordInput from "@/components/PasswordInput";
 import { safeNext } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 // ?next= に入っている、ログイン後に戻るページ
 function nextPath() {
@@ -29,7 +30,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      alert("メールとパスワードを入力してください");
+      toast("メールとパスワードを入力してください");
       return;
     }
 
@@ -39,22 +40,22 @@ export default function Login() {
       const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (error) {
         if (error.code === "email_not_confirmed") {
-          alert("メールアドレスがまだ確認されていません。届いた確認メールのリンクを開いてください。");
+          toast("メールアドレスがまだ確認されていません。届いた確認メールのリンクを開いてください。");
         } else if (error.code === "over_request_rate_limit" || error.status === 429) {
-          alert("試行回数が多すぎます。しばらく待ってから再度お試しください。");
+          toast("試行回数が多すぎます。しばらく待ってから再度お試しください。");
         } else if (error.code === "invalid_credentials") {
-          alert("メールアドレスかパスワードが違います");
+          toast("メールアドレスかパスワードが違います");
         } else if (error.code === "user_banned") {
-          alert("このアカウントではログインできません");
+          toast("このアカウントではログインできません");
         } else {
-          alert(`ログインに失敗しました: ${error.message}`);
+          toast(`ログインに失敗しました: ${error.message}`);
         }
         return;
       }
       // ログインのきっかけになったページ(?next=)に戻す
       router.replace(nextPath());
     } catch (err) {
-      alert("ログイン中にエラーが発生しました。もう一度お試しください。");
+      toast("ログイン中にエラーが発生しました。もう一度お試しください。");
     } finally {
       setLoading(false);
     }

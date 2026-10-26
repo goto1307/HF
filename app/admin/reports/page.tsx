@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Report = {
   id: number;
@@ -92,20 +93,20 @@ export default function AdminReports() {
     setDeletingId(report.id);
     const { error } = await supabase.from("report").delete().eq("id", report.id);
     setDeletingId(null);
-    if (error) { alert("削除に失敗しました"); return; }
+    if (error) { toast("削除に失敗しました"); return; }
     setReports((prev) => prev.filter((r) => r.id !== report.id));
   };
 
   const handleConfirmDeleteItem = async () => {
     if (!deleteItemTarget?.item_id) return;
-    if (!deleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    if (!deleteReason.trim()) { toast("削除理由を入力してください"); return; }
     setDeletingItem(true);
     const { error } = await supabase.rpc("admin_delete_item", {
       p_item_id: deleteItemTarget.item_id,
       p_reason: deleteReason.trim(),
     });
     setDeletingItem(false);
-    if (error) { alert(`商品の削除に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`商品の削除に失敗しました: ${error.message}`); return; }
     setReports((prev) => prev.filter((r) => r.item_id !== deleteItemTarget.item_id));
     setDeleteItemTarget(null);
     setDeleteReason("");
@@ -113,14 +114,14 @@ export default function AdminReports() {
 
   const handleConfirmDeleteMessage = async () => {
     if (!deleteMessageTarget?.message_id) return;
-    if (!messageDeleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    if (!messageDeleteReason.trim()) { toast("削除理由を入力してください"); return; }
     setDeletingMessage(true);
     const { error } = await supabase.rpc("admin_delete_message", {
       p_message_id: deleteMessageTarget.message_id,
       p_reason: messageDeleteReason.trim(),
     });
     setDeletingMessage(false);
-    if (error) { alert(`削除に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`削除に失敗しました: ${error.message}`); return; }
     setReports((prev) => prev.map((r) => (r.id === deleteMessageTarget.id ? { ...r, message: null } : r)));
     setDeleteMessageTarget(null);
     setMessageDeleteReason("");
@@ -128,14 +129,14 @@ export default function AdminReports() {
 
   const handleConfirmDeleteDemand = async () => {
     if (!deleteDemandTarget?.demand_id) return;
-    if (!demandDeleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    if (!demandDeleteReason.trim()) { toast("削除理由を入力してください"); return; }
     setDeletingDemand(true);
     const { error } = await supabase.rpc("admin_delete_demand", {
       p_demand_id: deleteDemandTarget.demand_id,
       p_reason: demandDeleteReason.trim(),
     });
     setDeletingDemand(false);
-    if (error) { alert(`削除に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`削除に失敗しました: ${error.message}`); return; }
     const id = deleteDemandTarget.demand_id;
     setDemandMap((prev) => ({ ...prev, [id]: { ...prev[id], status: "removed" } }));
     setDeleteDemandTarget(null);

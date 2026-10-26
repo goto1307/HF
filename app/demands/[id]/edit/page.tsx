@@ -8,6 +8,7 @@ import type { MyDemand } from "@/lib/demand";
 import DemandForm, { type DemandFormValues } from "@/components/DemandForm";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 // 自分の欲しい！の編集。期限切れのものも、期限を延ばせば一覧に戻る。
 export default function EditDemand() {
@@ -38,7 +39,7 @@ export default function EditDemand() {
       p_note: values.note,
     });
     if (error) return /期限|タグ|編集/.test(error.message) ? error.message : "保存に失敗しました";
-    alert("欲しい！を保存しました！");
+    toast("欲しい！を保存しました！");
     router.push(`/demands?mine=1&id=${id}`);
     return null;
   };

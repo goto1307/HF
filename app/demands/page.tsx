@@ -19,6 +19,7 @@ import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { IconSearch, IconX } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 const SORTS = [
   { key: "new", label: "新着順" },
@@ -147,19 +148,19 @@ function DemandsContent() {
     if (requireLogin()) return;
     setVotingId(id);
     const { error } = await supabase.rpc("toggle_demand_vote", { p_demand_id: id });
-    if (error) { setVotingId(null); alert(`僕も！に失敗しました: ${error.message}`); return; }
+    if (error) { setVotingId(null); toast(`僕も！に失敗しました: ${error.message}`); return; }
     await load(true); // 自分の欲しい！にも出入りするので取り直す
     setVotingId(null);
   };
 
   const handleReport = async () => {
     if (!reportTarget) return;
-    if (!reportReason.trim()) { alert("通報理由を入力してください"); return; }
+    if (!reportReason.trim()) { toast("通報理由を入力してください"); return; }
     setReporting(true);
     const { error } = await supabase.rpc("report_demand", { p_demand_id: reportTarget.id, p_reason: reportReason.trim() });
     setReporting(false);
-    if (error) { alert(error.message.includes("1分に1回") ? error.message : `通報に失敗しました: ${error.message}`); return; }
-    alert("通報しました。ご協力ありがとうございます。");
+    if (error) { toast(error.message.includes("1分に1回") ? error.message : `通報に失敗しました: ${error.message}`); return; }
+    toast("通報しました。ご協力ありがとうございます。");
     setReportTarget(null);
     setReportReason("");
   };
@@ -174,7 +175,7 @@ function DemandsContent() {
     if (!confirm(message)) return;
     setBusy(true);
     const { error } = await supabase.rpc("close_my_demand", { p_demand_id: d.id, p_status: status });
-    if (error) { setBusy(false); alert(`変更に失敗しました: ${error.message}`); return; }
+    if (error) { setBusy(false); toast(`変更に失敗しました: ${error.message}`); return; }
     await load(true);
     setBusy(false);
   };

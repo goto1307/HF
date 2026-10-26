@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { IconPackage, IconHeart, IconX, IconMenu } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["すべて", "北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -103,16 +104,16 @@ function HomeContent() {
   const toggleLike = async (e: React.MouseEvent, itemId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) { alert("いいねするにはログインしてください"); router.push(loginPath()); return; }
+    if (!user) { toast("いいねするにはログインしてください"); router.push(loginPath()); return; }
 
     if (likedByMe.has(itemId)) {
       const { error } = await supabase.from("favorite").delete().eq("item_id", itemId).eq("user_id", user.id);
-      if (error) { alert(`いいねの取り消しに失敗しました: ${error.message}`); return; }
+      if (error) { toast(`いいねの取り消しに失敗しました: ${error.message}`); return; }
       setLikedByMe((prev) => { const next = new Set(prev); next.delete(itemId); return next; });
       setLikeCounts((prev) => ({ ...prev, [itemId]: Math.max(0, (prev[itemId] || 1) - 1) }));
     } else {
       const { error } = await supabase.from("favorite").insert({ item_id: itemId, user_id: user.id });
-      if (error) { alert(`いいねに失敗しました: ${error.message}`); return; }
+      if (error) { toast(`いいねに失敗しました: ${error.message}`); return; }
       setLikedByMe((prev) => new Set(prev).add(itemId));
       setLikeCounts((prev) => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
     }

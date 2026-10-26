@@ -8,6 +8,7 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import StarRating from "@/components/StarRating";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Review = {
   id: number;
@@ -57,14 +58,14 @@ export default function AdminReviews() {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    if (!deleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    if (!deleteReason.trim()) { toast("削除理由を入力してください"); return; }
     setDeleting(true);
     const { error } = await supabase.rpc("admin_delete_review", {
       p_review_id: deleteTarget.id,
       p_reason: deleteReason.trim(),
     });
     setDeleting(false);
-    if (error) { alert(`削除に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`削除に失敗しました: ${error.message}`); return; }
     setReviews((prev) => prev.filter((r) => r.id !== deleteTarget.id));
     setDeleteTarget(null);
     setDeleteReason("");

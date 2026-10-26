@@ -9,6 +9,7 @@ import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconMapPin, IconCheck, IconWarning, IconStar } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type Item = {
   id: number;
@@ -146,10 +147,10 @@ export default function ItemChat() {
     setSubmittingReview(false);
     if (error) {
       console.error("review insert failed:", error);
-      alert(`評価の投稿に失敗しました: ${error.message}`);
+      toast(`評価の投稿に失敗しました: ${error.message}`);
       return;
     }
-    alert("評価を投稿しました！");
+    toast("評価を投稿しました！");
     setShowReviewForm(false);
     setAlreadyReviewed(true);
   };
@@ -161,14 +162,14 @@ export default function ItemChat() {
     setReceiving(true);
     const { error } = await supabase.rpc("mark_item_received", { p_item_id: item.id });
     setReceiving(false);
-    if (error) { alert("受け取り確認に失敗しました"); return; }
+    if (error) { toast("受け取り確認に失敗しました"); return; }
     setItem({ ...item, received: true });
     await supabase.from("notification").insert({
       user_id: user.id,
       message: `「${item.title}」の取引が完了しました。出品者を評価しましょう。`,
       item_id: item.id,
     });
-    alert("取引完了を記録しました！");
+    toast("取引完了を記録しました！");
   };
 
   const handleCancel = async () => {
@@ -177,14 +178,14 @@ export default function ItemChat() {
     setCancelling(true);
     const { error } = await supabase.rpc("cancel_purchase", { p_item_id: item.id });
     setCancelling(false);
-    if (error) { alert(`キャンセルに失敗しました: ${error.message}`); return; }
-    alert("取引をキャンセルしました");
+    if (error) { toast(`キャンセルに失敗しました: ${error.message}`); return; }
+    toast("取引をキャンセルしました");
     router.push(`/items/${item.id}`);
   };
 
   const handleReportMessage = async () => {
     if (!user || !item || !reportingMessage) return;
-    if (!messageReportReason.trim()) { alert("通報理由を入力してください"); return; }
+    if (!messageReportReason.trim()) { toast("通報理由を入力してください"); return; }
     setReportingMessageBusy(true);
     const { error } = await supabase.from("report").insert({
       item_id: item.id,
@@ -195,13 +196,13 @@ export default function ItemChat() {
     setReportingMessageBusy(false);
     if (error) {
       if (error.code === "42501" || error.message?.includes("row-level security")) {
-        alert("通報は1分に1回までです。しばらく待ってから再度お試しください。");
+        toast("通報は1分に1回までです。しばらく待ってから再度お試しください。");
       } else {
-        alert("通報に失敗しました");
+        toast("通報に失敗しました");
       }
       return;
     }
-    alert("通報しました。ご協力ありがとうございます。");
+    toast("通報しました。ご協力ありがとうございます。");
     setReportingMessage(null);
     setMessageReportReason("");
   };
@@ -360,9 +361,9 @@ export default function ItemChat() {
     if (!item || !buyerId || !user) return;
     if (meetupAt) {
       const d = new Date(meetupAt);
-      if (d.getTime() < Date.now()) { alert("過去の日時は設定できません"); return; }
+      if (d.getTime() < Date.now()) { toast("過去の日時は設定できません"); return; }
       if (d.getHours() * 60 + d.getMinutes() > LATEST_MEETUP_HOUR * 60) {
-        alert(`取引は${LATEST_MEETUP_HOUR}時までの時間で設定してください`);
+        toast(`取引は${LATEST_MEETUP_HOUR}時までの時間で設定してください`);
         return;
       }
     }
@@ -383,7 +384,7 @@ export default function ItemChat() {
     setSavingMeetup(false);
     if (error) {
       console.error("meetup upsert failed:", error);
-      alert(`待ち合わせ情報の保存に失敗しました: ${error.message}`);
+      toast(`待ち合わせ情報の保存に失敗しました: ${error.message}`);
       return;
     }
     setMeetupUpdatedAt(nowIso);
@@ -401,7 +402,7 @@ export default function ItemChat() {
       .eq("item_id", item.id)
       .eq("buyer_id", buyerId);
     setAgreeingMeetup(false);
-    if (error) { alert("同意の送信に失敗しました"); return; }
+    if (error) { toast("同意の送信に失敗しました"); return; }
     setMeetupAgreed(true);
   };
 
@@ -425,7 +426,7 @@ export default function ItemChat() {
       .single();
 
     if (error) {
-      alert(error.message?.includes("多すぎます") ? error.message : "メッセージの送信に失敗しました");
+      toast(error.message?.includes("多すぎます") ? error.message : "メッセージの送信に失敗しました");
       setInput(content);
       return;
     }

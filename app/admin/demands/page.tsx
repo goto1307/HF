@@ -8,6 +8,7 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import { formatBudget, formatDeadline, isActiveDemand, type Demand } from "@/lib/demand";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
+import { toast } from "@/lib/toast";
 
 type AdminDemand = Demand & {
   user_id: string;
@@ -96,11 +97,11 @@ export default function AdminDemands() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    if (!deleteReason.trim()) { alert("削除理由を入力してください"); return; }
+    if (!deleteReason.trim()) { toast("削除理由を入力してください"); return; }
     setDeleting(true);
     const { error } = await supabase.rpc("admin_delete_demand", { p_demand_id: deleteTarget.id, p_reason: deleteReason.trim() });
     setDeleting(false);
-    if (error) { alert(`削除に失敗しました: ${error.message}`); return; }
+    if (error) { toast(`削除に失敗しました: ${error.message}`); return; }
     setDemands((prev) => prev.map((d) => (d.id === deleteTarget.id ? { ...d, status: "removed" } : d)));
     setDeleteTarget(null);
     setDeleteReason("");
