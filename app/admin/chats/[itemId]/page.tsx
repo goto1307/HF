@@ -27,6 +27,12 @@ type Item = {
   buyer_id: string | null;
 };
 
+type AdminUser = {
+  id: string;
+  email: string;
+  nickname: string | null;
+};
+
 export default function AdminItemChats() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -40,6 +46,7 @@ export default function AdminItemChats() {
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [userMap, setUserMap] = useState<Record<string, AdminUser>>({});
 
   const isAdmin = isAdminEmail(user?.email);
 
@@ -62,7 +69,21 @@ export default function AdminItemChats() {
       .order("buyer_id", { ascending: true })
       .order("created_at", { ascending: true });
     if (messageData) setMessages(messageData);
+
+    // 購入者・問い合わせ相手を ID ではなくニックネームとメールで出すための一覧(管理者のみ取得できる)
+    const { data: users } = await supabase.rpc("admin_list_users");
+    if (users) {
+      const map: Record<string, AdminUser> = {};
+      for (const u of users as AdminUser[]) map[u.id] = u;
+      setUserMap(map);
+    }
     setLoading(false);
+  };
+
+  const describeUser = (id: string) => {
+    const u = userMap[id];
+    if (!u) return id;
+    return u.nickname ? `${u.nickname}（${u.email}）` : u.email;
   };
 
   useEffect(() => {
@@ -138,6 +159,11 @@ export default function AdminItemChats() {
         <p className="text-sm text-stone-500 mb-3">
           出品者：<Link href={`/users/${item?.user_id}`} className="text-orange-700 hover:underline">{item?.nickname}</Link>
         </p>
+        {item?.buyer_id && (
+          <p className="text-sm text-stone-500 mb-3">
+            購入者：<Link href={`/users/${item.buyer_id}`} className="text-orange-700 hover:underline">{describeUser(item.buyer_id)}</Link>
+          </p>
+        )}
 
         {item?.sold && item.buyer_id && (
           <button
@@ -155,7 +181,11 @@ export default function AdminItemChats() {
             {[...threads.entries()].map(([buyerId, msgs]) => (
               <div key={buyerId} className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
                 <p className="text-xs font-bold text-stone-500 bg-stone-50 px-4 py-2 border-b border-stone-100">
-                  相手：<Link href={`/users/${buyerId}`} className="text-orange-700 hover:underline">{buyerId}</Link>
+                  {!buyerId ? (
+                    "公開Q&A"
+                  ) : (
+                    <>相手：<Link href={`/users/${buyerId}`} className="text-orange-700 hover:underline">{describeUser(buyerId)}</Link></>
+                  )}
                 </p>
                 <div className="flex flex-col gap-3 p-4">
                   {msgs.map((m) => (

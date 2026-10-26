@@ -55,6 +55,8 @@ export default function ItemChat() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [item, setItem] = useState<Item | null>(null);
+  // undefined = 読み込み中、"" = ニックネームが取れなかった
+  const [buyerNickname, setBuyerNickname] = useState<string | undefined>(undefined);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
@@ -115,6 +117,11 @@ export default function ItemChat() {
       // 購入者は本人・出品者にだけ返る(それ以外は null)
       const { data: buyerId } = await supabase.rpc("get_item_buyer", { p_item_id: data.id });
       setItem({ ...data, buyer_id: buyerId ?? null });
+      // 出品者には、誰が買ったかをニックネームで見せる
+      if (buyerId && data.user_id === user.id) {
+        const { data: nickname } = await supabase.rpc("get_nickname", { p_user_id: buyerId });
+        setBuyerNickname(nickname ?? "");
+      }
     };
     fetchItem();
   }, [authLoading, user, params.id, router]);
@@ -653,7 +660,15 @@ export default function ItemChat() {
         <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
         <p className="text-sm text-stone-500 mb-6">
           {isSeller ? (
-            item.sold && item.buyer_id ? "購入者とのチャット" : "問い合わせ一覧"
+            item.sold && item.buyer_id ? (
+              <>
+                購入者とのチャット（購入者：
+                <Link href={`/users/${item.buyer_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
+                  {buyerNickname === undefined ? "読み込み中..." : buyerNickname || "購入者のページ"}
+                </Link>
+                ）
+              </>
+            ) : "問い合わせ一覧"
           ) : (
             <>
               出品者：
