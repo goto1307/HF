@@ -17,6 +17,7 @@ import {
 } from "@/lib/demand";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
+import DemandTutorial from "@/components/DemandTutorial";
 import { IconSearch, IconX } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
@@ -208,7 +209,10 @@ function DemandsContent() {
       <Header />
 
       <div className="max-w-6xl mx-auto px-4 pt-5">
-        <h2 className="text-xl font-extrabold text-stone-700 mb-1">みんなの欲しい！</h2>
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h2 className="text-xl font-extrabold text-stone-700">みんなの欲しい！</h2>
+          <DemandTutorial />
+        </div>
         <p className="text-xs sm:text-sm text-stone-500 mb-4">
           北大生が今欲しがっているもの。手元にあれば出品してみよう。出品すると、欲しい！を登録した人に知らせることができます。
         </p>
