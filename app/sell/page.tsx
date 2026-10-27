@@ -272,7 +272,8 @@ function SellContent() {
       });
       setOffering(false);
       if (error) { toast(`通知の送信に失敗しました: ${error.message}`); return; }
-      toast(`出品しました！欲しい！を登録した${data ?? 0}人に知らせました。`);
+      // 知らせた人がいなかったとき(期限切れ・取り下げなど)は、わざわざ伝えず「出品しました！」だけにする
+      toast(data ? `出品しました！欲しい！を登録した${data}人に知らせました。` : "出品しました！");
     } else {
       toast("出品しました！");
     }
