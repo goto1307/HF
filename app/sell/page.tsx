@@ -584,16 +584,13 @@ function SellContent() {
               </p>
             ) : (
               <div className="text-sm text-stone-600 mb-4 flex flex-col gap-2">
-                <p className="text-center font-bold text-orange-800">この商品を探している人がいるかもしれません</p>
+                <p className="text-center font-bold text-orange-700 text-[13px] sm:text-sm">あなたの商品と似たものを探している人がいます。</p>
                 <p>
-                  「みんなの欲しい！」（北大生が「これが欲しい」と書きこめる場所）に、あなたの商品と似たものを探している人がいます。
+                  出品商品がここに表示されているものと同じなら、チェックを入れ「知らせる」を押してください。その人に通知が届きます。
                 </p>
-                <p>
-                  探しているものと同じなら、チェックを入れて「知らせる」を押してください。その人に「欲しいものが出品されました」と通知が届きます。
-                </p>
-                <p className="text-xs text-stone-500">出品はもう終わっています。当てはまらなければ「知らせずに終わる」で大丈夫です。</p>
               </div>
             )}
+            <p className="text-xs font-bold text-stone-500 mb-1.5">探されている商品</p>
             <div className="flex flex-col gap-2 mb-4">
               {offer.candidates.map((d) => (
                 <label key={d.id} className="flex items-start gap-3 border border-stone-200 rounded-xl p-3 cursor-pointer hover:bg-orange-50 transition-colors">
@@ -608,11 +605,7 @@ function SellContent() {
                     className="accent-orange-700 w-4 h-4 mt-0.5 shrink-0"
                   />
                   <span className="min-w-0">
-                    <span className="block font-bold text-sm break-all">「{d.title}」を探している人</span>
-                    <span className="block text-xs text-stone-500">{formatBudget(d.budget)}・{formatDeadline(d.deadline)}</span>
-                    {d.tags.length > 0 && (
-                      <span className="block text-[11px] text-orange-600 truncate">{d.tags.map((t) => `#${t}`).join(" ")}</span>
-                    )}
+                    <span className="block font-bold text-sm break-all">「{d.title}」</span>
                   </span>
                 </label>
               ))}
@@ -623,7 +616,7 @@ function SellContent() {
                 disabled={offering}
                 className="flex-1 border border-stone-300 text-stone-600 py-3 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
               >
-                知らせずに終わる
+                画面を閉じる
               </button>
               <button
                 onClick={() => finishOffer(true)}
