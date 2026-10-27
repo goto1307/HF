@@ -31,7 +31,7 @@ const INTRO_KEY = "hokuma-hokkuma-intro-seen";
 const INTRO_NEW_USER_DAYS = 14;
 // 確認用: true の間は、登録日や「見たかどうか」に関係なく、トップを開くたびに誰にでも紹介を出す。
 // 確認が終わったら false に戻すこと。
-const INTRO_ALWAYS = true;
+const INTRO_ALWAYS = false;
 
 function introSeen(userId: string) {
   try {
