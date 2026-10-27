@@ -210,13 +210,6 @@ export default function DemandBubbles() {
       )}
 
       <div className="pointer-events-auto absolute right-3 bottom-3 sm:right-4 sm:bottom-4">
-        {/* 紹介中は、ホックマのまわりを明るく光らせて目立たせる */}
-        {showIntro && (
-          <>
-            <span aria-hidden className="absolute -inset-2 rounded-[28px] bg-white ring-4 ring-yellow-300" />
-            <span aria-hidden className="absolute -inset-3.5 rounded-[34px] ring-4 ring-yellow-200 animate-pulse" />
-          </>
-        )}
         <Link href="/demands" onClick={showIntro ? closeIntro : undefined} className="relative flex flex-col items-end group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
