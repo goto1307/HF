@@ -578,9 +578,22 @@ function SellContent() {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-lg max-w-md w-full max-h-[85vh] overflow-y-auto p-6">
             <p className="font-bold text-center mb-1">出品しました！</p>
-            <p className="text-sm text-stone-600 text-center mb-4">
-              この商品は、これらの欲しい！の中にありませんか？選んだ欲しい！を投稿した人に通知を送ります。あなたの出品が早く買われるかもしれません。
-            </p>
+            {linkedDemand && offer.candidates.some((d) => d.id === linkedDemand.id) ? (
+              <p className="text-sm text-stone-600 text-center mb-4">
+                応えた「{linkedDemand.title}」を探している人に、出品したことを知らせましょう。「知らせる」を押すと、その人に通知が届きます。
+              </p>
+            ) : (
+              <div className="text-sm text-stone-600 mb-4 flex flex-col gap-2">
+                <p className="text-center font-bold text-orange-800">この商品を探している人がいるかもしれません</p>
+                <p>
+                  「みんなの欲しい！」（北大生が「これが欲しい」と書きこめる場所）に、あなたの商品と似たものを探している人がいます。
+                </p>
+                <p>
+                  探しているものと同じなら、チェックを入れて「知らせる」を押してください。その人に「欲しいものが出品されました」と通知が届きます。
+                </p>
+                <p className="text-xs text-stone-500">出品はもう終わっています。当てはまらなければ「知らせずに終わる」で大丈夫です。</p>
+              </div>
+            )}
             <div className="flex flex-col gap-2 mb-4">
               {offer.candidates.map((d) => (
                 <label key={d.id} className="flex items-start gap-3 border border-stone-200 rounded-xl p-3 cursor-pointer hover:bg-orange-50 transition-colors">
@@ -595,7 +608,7 @@ function SellContent() {
                     className="accent-orange-700 w-4 h-4 mt-0.5 shrink-0"
                   />
                   <span className="min-w-0">
-                    <span className="block font-bold text-sm break-all">{d.title}</span>
+                    <span className="block font-bold text-sm break-all">「{d.title}」を探している人</span>
                     <span className="block text-xs text-stone-500">{formatBudget(d.budget)}・{formatDeadline(d.deadline)}</span>
                     {d.tags.length > 0 && (
                       <span className="block text-[11px] text-orange-600 truncate">{d.tags.map((t) => `#${t}`).join(" ")}</span>
@@ -610,14 +623,14 @@ function SellContent() {
                 disabled={offering}
                 className="flex-1 border border-stone-300 text-stone-600 py-3 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors disabled:opacity-50"
               >
-                送らない
+                知らせずに終わる
               </button>
               <button
                 onClick={() => finishOffer(true)}
                 disabled={offering || offerSelected.size === 0}
                 className="flex-1 bg-orange-700 text-white py-3 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors disabled:opacity-50"
               >
-                {offering ? "送信中..." : `通知を送る（${offerSelected.size}件）`}
+                {offering ? "送信中..." : offerSelected.size > 0 ? `知らせる（${offerSelected.size}件）` : "知らせる"}
               </button>
             </div>
           </div>
