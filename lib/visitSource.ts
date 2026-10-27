@@ -30,3 +30,25 @@ export function getSource(): string | null {
     return null;
   }
 }
+
+// 学内アンケートなどで、登録前のアンケートと同じ内容にもう答えてくれた人の印。
+// /qr?from=street&survey=done で付け、新規登録(/join)でGoogleフォームを飛ばして
+// 登録画面へ案内する。サイトはふつうに見て回れるよう、トップに着いてから使う。
+const SURVEY_KEY = "hokuma-survey-done";
+
+export function markSurveyDone() {
+  try {
+    localStorage.setItem(SURVEY_KEY, String(Date.now()));
+  } catch {
+    // 保存できないときは、ふつうにアンケートから登録してもらう
+  }
+}
+
+export function isSurveyDone(): boolean {
+  try {
+    const at = Number(localStorage.getItem(SURVEY_KEY));
+    return at > 0 && Date.now() - at <= KEEP_DAYS * 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
