@@ -26,6 +26,18 @@ const SWAP_INTERVAL_MS = 1500;
 const CACHE_MS = 60_000;
 const HIDE_KEY = "demandBubblesHidden";
 
+// 登録したばかりの人に、最初に一度だけホックマを紹介する(人ごとにブラウザへ覚える)
+const INTRO_KEY = "hokuma-hokkuma-intro-seen";
+const INTRO_NEW_USER_DAYS = 14;
+
+function introSeen(userId: string) {
+  try {
+    return localStorage.getItem(`${INTRO_KEY}-${userId}`) === "1";
+  } catch {
+    return true; // 覚えられない環境では、毎回出さないようにする
+  }
+}
+
 // 出すのは商品を探すページだけ
 const SHOWN_PATH = "/";
 
@@ -61,6 +73,8 @@ export default function DemandBubbles() {
   });
 
   const isHiddenPath = pathname !== SHOWN_PATH;
+  // ホックマの紹介を出しているか(登録から日が浅く、まだ見ていない人だけ。読み込み後に決める)
+  const [introOpen, setIntroOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -88,6 +102,8 @@ export default function DemandBubbles() {
       const bubbles = cache.bubbles;
       setPool(bubbles);
       setSlots(bubbles.slice(0, SLOTS.length).map((bubble, i) => ({ bubble, key: i })));
+      const isNewUser = Date.now() - new Date(user.created_at).getTime() < INTRO_NEW_USER_DAYS * 86400000;
+      setIntroOpen(isNewUser && !introSeen(user.id));
     };
     load();
   }, [user]);
@@ -111,6 +127,14 @@ export default function DemandBubbles() {
 
   if (!user || hidden || isHiddenPath || pool === null) return null;
 
+  const showIntro = introOpen;
+  const closeIntro = () => {
+    try {
+      localStorage.setItem(`${INTRO_KEY}-${user.id}`, "1");
+    } catch {}
+    setIntroOpen(false);
+  };
+
   const hide = () => {
     try {
       sessionStorage.setItem(HIDE_KEY, "1");
@@ -119,7 +143,39 @@ export default function DemandBubbles() {
   };
 
   return (
-    <div className="fixed bottom-0 right-0 z-10 w-[320px] h-[340px] pointer-events-none">
+    <>
+    {showIntro && (
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={closeIntro}>
+        <div
+          role="dialog"
+          aria-label="ホックマの紹介"
+          className="absolute left-4 right-4 bottom-[300px] sm:left-auto sm:right-[340px] sm:bottom-[120px] sm:w-[320px] bg-white rounded-2xl shadow-xl p-5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* ホックマの方を指すしっぽ(スマホは右下、PCは右) */}
+          <span aria-hidden className="absolute w-4 h-4 bg-white rotate-45 -bottom-2 right-20 sm:bottom-12 sm:-right-2" />
+          <p className="text-sm text-stone-700 leading-relaxed mb-4">
+            この子は<span className="font-extrabold text-orange-700">ホックマ</span>。北大生が教えてくれた「欲しい！」を呟いています。ホックマの呟きが気になったら、<span className="font-bold">みんなの欲しい！</span>を覗いてみましょう。
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={closeIntro}
+              className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors"
+            >
+              わかった
+            </button>
+            <Link
+              href="/demands"
+              onClick={closeIntro}
+              className="flex-1 text-center bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold hover:bg-orange-800 transition-colors"
+            >
+              覗いてみる
+            </Link>
+          </div>
+        </div>
+      </div>
+    )}
+    <div className={`fixed bottom-0 right-0 w-[320px] h-[340px] pointer-events-none ${showIntro ? "z-[45]" : "z-10"}`}>
       {pool.length === 0 ? (
         <Link
           href="/demands/new"
@@ -154,7 +210,14 @@ export default function DemandBubbles() {
       )}
 
       <div className="pointer-events-auto absolute right-3 bottom-3 sm:right-4 sm:bottom-4">
-        <Link href="/demands" className="flex flex-col items-end group">
+        {/* 紹介中は、ホックマのまわりを明るく光らせて目立たせる */}
+        {showIntro && (
+          <>
+            <span aria-hidden className="absolute -inset-2 rounded-[28px] bg-white ring-4 ring-yellow-300" />
+            <span aria-hidden className="absolute -inset-3.5 rounded-[34px] ring-4 ring-yellow-200 animate-pulse" />
+          </>
+        )}
+        <Link href="/demands" onClick={showIntro ? closeIntro : undefined} className="relative flex flex-col items-end group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/hokkuma-thinking.png"
@@ -176,5 +239,6 @@ export default function DemandBubbles() {
         </button>
       </div>
     </div>
+    </>
   );
 }
