@@ -29,6 +29,9 @@ const HIDE_KEY = "demandBubblesHidden";
 // 登録したばかりの人に、最初に一度だけホックマを紹介する(人ごとにブラウザへ覚える)
 const INTRO_KEY = "hokuma-hokkuma-intro-seen";
 const INTRO_NEW_USER_DAYS = 14;
+// 確認用: true の間は、登録日や「見たかどうか」に関係なく、トップを開くたびに誰にでも紹介を出す。
+// 確認が終わったら false に戻すこと。
+const INTRO_ALWAYS = true;
 
 function introSeen(userId: string) {
   try {
@@ -103,7 +106,7 @@ export default function DemandBubbles() {
       setPool(bubbles);
       setSlots(bubbles.slice(0, SLOTS.length).map((bubble, i) => ({ bubble, key: i })));
       const isNewUser = Date.now() - new Date(user.created_at).getTime() < INTRO_NEW_USER_DAYS * 86400000;
-      setIntroOpen(isNewUser && !introSeen(user.id));
+      setIntroOpen(INTRO_ALWAYS || (isNewUser && !introSeen(user.id)));
     };
     load();
   }, [user]);
