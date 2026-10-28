@@ -1,6 +1,6 @@
 "use client";
-import { useSyncExternalStore } from "react";
-import Link from "next/link";
+import { useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { SIGNUP_FORM_URL } from "@/lib/signupForm";
 import { isSurveyDone } from "@/lib/visitSource";
 
@@ -8,25 +8,17 @@ const noop = () => () => {};
 
 // 新規登録の案内。ふだんは Google フォームのアンケートから登録してもらうが、
 // 学内アンケートで同じ内容にもう答えてくれた人(lib/visitSource.ts の印)は、
-// 二重に答えなくて済むよう、そのまま登録画面へ進んでもらう。
+// 二重に答えなくて済むよう、何も表示せずにそのまま登録画面へ移る。
 export default function JoinSteps() {
-  const surveyDone = useSyncExternalStore(noop, isSurveyDone, () => false);
+  const router = useRouter();
+  // サーバーでは印が分からないので null(まだ何も出さない)にして、案内が一瞬見えるのを防ぐ
+  const surveyDone = useSyncExternalStore<boolean | null>(noop, isSurveyDone, () => null);
 
-  if (surveyDone) {
-    return (
-      <div className="flex flex-col gap-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
-        <p className="text-sm text-stone-700 leading-relaxed">
-          アンケートへのご協力ありがとうございました！アンケートは回答済みなので、このまま登録に進めます。
-        </p>
-        <Link
-          href="/register"
-          className="w-full text-center bg-orange-700 text-white py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm"
-        >
-          登録に進む
-        </Link>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (surveyDone) router.replace("/register");
+  }, [surveyDone, router]);
+
+  if (surveyDone !== false) return null;
 
   return (
     <div className="flex flex-col gap-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
