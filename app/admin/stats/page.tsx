@@ -220,11 +220,12 @@ export default function AdminStats() {
             <Link href="/admin/reports" className="text-sm font-bold text-orange-700 hover:underline">通報一覧へ</Link>
           </div>
         </div>
+        <p className="text-xs text-stone-500 -mt-4 mb-6">運営2人のアカウントの登録・出品・取引・メッセージ・欲しい！・僕も！は数えていません（QRやリンクが開かれた回数は、誰が開いたか分からないので含みます）。</p>
 
         {/* ---------- サイト全体 ---------- */}
         <h3 className="text-lg font-extrabold text-stone-700 mb-3">サイト全体</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-          <Tile label="登録者" value={site.totals.users} note="退会した人を除く" />
+          <Tile label="登録者" value={site.totals.users} note="退会した人・運営を除く" />
           <Tile label="出品したことがある人" value={site.totals.sellers} />
           <Tile label="出品中の商品" value={site.totals.listed} note={`これまでの出品 ${site.totals.items}件`} />
           <Tile label="取引成立" value={site.totals.sold} note={`受け取り完了 ${site.totals.received}件`} />
@@ -275,7 +276,7 @@ export default function AdminStats() {
           <p className="text-[11px] text-stone-500 mb-3">
             ポスターのQRは <span className="font-mono">/qr</span>、インスタなどは <span className="font-mono">/qr?from=insta</span> のように目印を付けたリンクで数えます。
             目印は英小文字・数字・_・- で32文字まで。insta で始まる目印は「インスタ」の列にまとめて数えます。
-            「開かれた」はリンクが開かれた回数（同じ人が2回開くと2回）、「登録した人」はそのリンクから来て登録まで進んだ人数（退会した人を除く）です。
+            「開かれた」はリンクが開かれた回数（同じ人が2回開くと2回）、「登録した人」はそのリンクから来て登録まで進んだ人数（退会した人・運営を除く）です。
           </p>
           {signups && (
             <div className="grid grid-cols-2 gap-3 mb-3">

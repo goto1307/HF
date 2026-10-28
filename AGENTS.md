@@ -25,7 +25,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - SQL はオーナーが Supabase ダッシュボードの SQL Editor に貼って手動で実行する。SQL が必要な変更は、PR とあわせて「どの PART を実行すればよいか」を必ず伝える。何度実行しても壊れないように書く(`create or replace`、`drop policy if exists`、`if not exists` など)。
 - すべてのテーブルで RLS を有効にする。ブラウザから直接 Supabase を呼ぶ作りなので、権限チェックは必ず DB 側(RLS・`SECURITY DEFINER` の RPC)で行う。
 - `item` と `demand` は列単位で権限を絞っている(`user_id`・購入者などを隠すため)。`select("*")` は使わず、`lib/itemColumns.ts` の `ITEM_COLUMNS` など決まった列を指定する。
-- 管理者の判定は DB では `public.is_admin()`、画面では `lib/adminEmails.ts` の `isAdminEmail()`。管理者を増やすときは両方を直す。
+- 管理者の判定は DB では `public.is_admin()`、画面では `lib/adminEmails.ts` の `isAdminEmail()`。管理者を増やすときは両方と、集計から運営を除く `public.staff_ids()`（migration PART AR）も直す。
 - 「僕も！」した人など、利用者を特定できる情報は管理者用の RPC 以外から見えないようにする。
 
 ## 画面まわりの決まりごと
