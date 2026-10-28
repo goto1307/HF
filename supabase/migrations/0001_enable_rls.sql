@@ -4626,3 +4626,56 @@ end;
 $$;
 revoke execute on function public.admin_signup_sources() from public, anon;
 grant execute on function public.admin_signup_sources() to authenticated;
+
+
+-- ============================================================
+-- PART AQ: チャットなどで、設定したアイコンが表示されず頭文字のアイコンになる不具合を直す
+-- ============================================================
+--
+-- 背景: アイコンは本人用の auth.users.raw_user_meta_data(avatar_url)と、
+--   他の利用者に見せる用の public.profile.avatar_url の2か所に保存している。
+--   ヘッダー・マイページは前者、チャット・公開Q&A・ユーザーページは後者を見る。
+--   PART AA より前にアイコンを設定した人や、profile への保存だけ失敗した人は
+--   後者が空のままで、自分には見えるのに、チャットでは頭文字のアイコンになっていた。
+-- 対応:
+--   1) いま空になっている人の profile.avatar_url を、auth.users 側の値で埋める
+--   2) 今後は auth.users 側のアイコンが変わったら、トリガーで profile にも自動で写す
+--      (画面からの profile への保存が失敗しても、ずれないようにする)
+
+insert into public.profile (user_id, avatar_url, updated_at)
+select u.id, u.raw_user_meta_data ->> 'avatar_url', now()
+from auth.users u
+where coalesce(u.raw_user_meta_data ->> 'avatar_url', '') <> ''
+on conflict (user_id) do update
+  set avatar_url = excluded.avatar_url,
+      updated_at = now()
+  where public.profile.avatar_url is distinct from excluded.avatar_url;
+
+create or replace function public.sync_profile_avatar()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_avatar text := nullif(new.raw_user_meta_data ->> 'avatar_url', '');
+begin
+  if v_avatar is distinct from nullif(old.raw_user_meta_data ->> 'avatar_url', '') then
+    insert into public.profile (user_id, avatar_url, updated_at)
+    values (new.id, v_avatar, now())
+    on conflict (user_id) do update
+      set avatar_url = excluded.avatar_url,
+          updated_at = now();
+  end if;
+  return new;
+exception when others then
+  -- アイコンを写せなくても、ログインやプロフィールの更新は止めない
+  return new;
+end;
+$$;
+
+drop trigger if exists sync_profile_avatar_trigger on auth.users;
+create trigger sync_profile_avatar_trigger
+after update of raw_user_meta_data on auth.users
+for each row
+execute function public.sync_profile_avatar();
