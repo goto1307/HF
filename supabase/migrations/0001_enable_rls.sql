@@ -4679,3 +4679,299 @@ create trigger sync_profile_avatar_trigger
 after update of raw_user_meta_data on auth.users
 for each row
 execute function public.sync_profile_avatar();
+
+
+-- ============================================================
+-- PART AR: 管理者の集計から、運営2人のデータを除く
+-- ============================================================
+--
+-- 背景: 集計ページ(admin_site_stats・admin_demand_stats・admin_signup_sources)は
+--   運営2人の登録・出品・取引・メッセージ・欲しい！・僕も！も数えていたため、
+--   実際の利用の様子より多く見えていた。発表などで使う数字から運営を除く。
+--   - 運営 = is_admin() と同じメールアドレスのアカウント(staff_ids())。
+--     管理者を増やすときは is_admin()・lib/adminEmails.ts と一緒にここも直すこと
+--   - 商品は「運営が出品したもの」と「運営が買った取引」を除く
+--   - 欲しい！は「運営が登録したもの」と、運営の僕も！・運営の商品の知らせを除く
+--   - QRやリンクが開かれた回数(qr_scan)は誰が開いたか分からないので、そのまま
+
+create or replace function public.staff_ids()
+returns uuid[]
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select coalesce(array_agg(id), '{}'::uuid[]) from auth.users
+  where email = any (array[
+    'debuchi.sora.b0@elms.hokudai.ac.jp',
+    'goto.kanata.w1@elms.hokudai.ac.jp'
+  ]);
+$$;
+-- 集計用の関数(SECURITY DEFINER)の中からだけ使う
+revoke execute on function public.staff_ids() from public, anon, authenticated;
+
+create or replace function public.admin_site_stats()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_week date := date_trunc('week', public.jst_today())::date;  -- 今週の月曜(日本時間)
+  result jsonb;
+  v_staff uuid[] := public.staff_ids();
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  with items as (
+    -- 運営が出品した商品と、運営が買った取引は数えない
+    select * from public.item
+    where not (user_id = any (v_staff)) and (buyer_id is null or not (buyer_id = any (v_staff)))
+  ),
+  msgs as (
+    select * from public.message where not (user_id = any (v_staff))
+  ),
+  people as (
+    select * from auth.users where not (id = any (v_staff))
+  ),
+  weeks as (
+    select (v_week - 7 * g)::date as week_start from generate_series(0, 11) as g
+  ),
+  first_listing as (
+    select user_id, min(created_at) as at from items group by user_id
+  )
+  select jsonb_build_object(
+    'totals', jsonb_build_object(
+      'users', (select count(*) from people u where not exists (select 1 from public.deleted_users d where d.user_id = u.id)),
+      'sellers', (select count(distinct user_id) from items),
+      'items', (select count(*) from items),
+      'listed', (select count(*) from items where not sold),
+      'sold', (select count(*) from items where sold),
+      'received', (select count(*) from items where received),
+      'qr_scans', (select count(*) from public.qr_scan where source is null),
+      'insta', (select count(*) from public.qr_scan where source like 'insta%'),
+      'messages', (select count(*) from msgs)
+    ),
+    'weekly', (
+      select jsonb_agg(jsonb_build_object(
+        'week_start', w.week_start,
+        'new_users', (select count(*) from people u
+                      where (u.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (u.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'users_total', (select count(*) from people u
+                        where (u.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'new_items', (select count(*) from items i
+                      where (i.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (i.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'active_sellers', (select count(distinct i.user_id) from items i
+                           where (i.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                             and (i.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'new_sellers', (select count(*) from first_listing f
+                        where (f.at at time zone 'Asia/Tokyo')::date >= w.week_start
+                          and (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'sellers_total', (select count(*) from first_listing f
+                          where (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'sold', (select count(*) from items i
+                 where i.sold_at is not null
+                   and (i.sold_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                   and (i.sold_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'messages', (select count(*) from msgs m
+                     where (m.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                       and (m.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'qr_scans', (select count(*) from public.qr_scan q
+                     where q.source is null
+                       and (q.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                       and (q.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'insta', (select count(*) from public.qr_scan q
+                  where q.source like 'insta%'
+                    and (q.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                    and (q.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7)
+      ) order by w.week_start)
+      from weeks w
+    ),
+    'sources', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'source', x.source, 'total', x.total, 'last7', x.last7, 'first_at', x.first_at
+      ) order by x.total desc, x.source), '[]'::jsonb)
+      from (
+        select q.source,
+               count(*) as total,
+               count(*) filter (where q.created_at >= now() - interval '7 days') as last7,
+               min(q.created_at) as first_at
+        from public.qr_scan q
+        where q.source is not null
+        group by q.source
+      ) x
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_site_stats() from public, anon;
+grant execute on function public.admin_site_stats() to authenticated;
+
+create or replace function public.admin_demand_stats()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_today date := public.jst_today();
+  -- 週は月曜はじまり(日本時間)
+  v_week date := date_trunc('week', v_today)::date;
+  result jsonb;
+  v_staff uuid[] := public.staff_ids();
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  with demands as (
+    -- 運営が登録した欲しい！と、運営の僕も！・運営の商品の知らせは数えない
+    select * from public.demand where not (user_id = any (v_staff))
+  ),
+  votes as (
+    select v.* from public.demand_vote v
+    join demands d on d.id = v.demand_id
+    where not (v.user_id = any (v_staff))
+  ),
+  items as (
+    select * from public.item
+    where not (user_id = any (v_staff)) and (buyer_id is null or not (buyer_id = any (v_staff)))
+  ),
+  offers as (
+    select o.* from public.demand_offer o
+    join demands d on d.id = o.demand_id
+    join items i on i.id = o.item_id
+  ),
+  active as (
+    select d.*, ((select count(*) from votes v where v.demand_id = d.id and v.fulfilled_at is null) + case when d.owner_fulfilled_at is null then 1 else 0 end) as wanters
+    from demands d
+    where d.status = 'open' and d.deadline >= v_today
+  ),
+  fulfilled_people as (
+    select owner_fulfilled_at as at, fulfilled_item_id from demands where owner_fulfilled_at is not null
+    union all
+    select fulfilled_at, fulfilled_item_id from votes where fulfilled_at is not null
+  ),
+  weeks as (
+    select (v_week - 7 * g)::date as week_start from generate_series(0, 7) as g
+  )
+  select jsonb_build_object(
+    'counts', jsonb_build_object(
+      'active', (select count(*) from active),
+      'expired', (select count(*) from demands where status = 'open' and deadline < v_today),
+      'fulfilled', (select count(*) from demands where status = 'fulfilled'),
+      'withdrawn', (select count(*) from demands where status = 'withdrawn'),
+      'removed', (select count(*) from demands where status = 'removed'),
+      'total', (select count(*) from demands)
+    ),
+    'posters', (select count(distinct user_id) from demands),
+    'votes_total', (select count(*) from votes),
+    'wanters_active', (select coalesce(sum(wanters), 0) from active),
+    'fulfilled_people', (select count(*) from fulfilled_people),
+    'fulfilled_by_purchase', (select count(*) from fulfilled_people where fulfilled_item_id is not null),
+    'offers', (select count(*) from offers),
+    'offered_items', (select count(distinct item_id) from offers),
+    'offered_items_sold', (
+      select count(distinct o.item_id) from offers o join items i on i.id = o.item_id where i.sold
+    ),
+    'avg_days_to_fulfill', (
+      select round(avg(extract(epoch from owner_fulfilled_at - created_at) / 86400)::numeric, 1)
+      from demands where owner_fulfilled_at is not null
+    ),
+    'budget_active', (
+      select jsonb_build_object(
+        'avg', round(avg(budget)),
+        'median', percentile_cont(0.5) within group (order by budget)
+      ) from active
+    ),
+    'weekly', (
+      select jsonb_agg(jsonb_build_object(
+        'week_start', w.week_start,
+        'created', (select count(*) from demands d
+                    where (d.created_at at time zone 'Asia/Tokyo')::date >= w.week_start
+                      and (d.created_at at time zone 'Asia/Tokyo')::date < w.week_start + 7),
+        'fulfilled', (select count(*) from fulfilled_people f
+                      where (f.at at time zone 'Asia/Tokyo')::date >= w.week_start
+                        and (f.at at time zone 'Asia/Tokyo')::date < w.week_start + 7)
+      ) order by w.week_start)
+      from weeks w
+    ),
+    'top_tags', (
+      select coalesce(jsonb_agg(jsonb_build_object('tag', tag, 'demands', n, 'wanters', w) order by w desc, n desc), '[]'::jsonb)
+      from (
+        select t.tag, count(*) as n, sum(a.wanters) as w
+        from active a, unnest(a.tags) as t(tag)
+        group by t.tag
+        order by w desc, n desc
+        limit 15
+      ) s
+    ),
+    'top_demands', (
+      select coalesce(jsonb_agg(jsonb_build_object('id', id, 'title', title, 'budget', budget, 'deadline', deadline, 'wanters', wanters) order by wanters desc, created_at desc), '[]'::jsonb)
+      from (select * from active order by wanters desc, created_at desc limit 10) s
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_demand_stats() from public, anon;
+grant execute on function public.admin_demand_stats() to authenticated;
+
+create or replace function public.admin_signup_sources()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  result jsonb;
+  v_staff uuid[] := public.staff_ids();
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+
+  with users as (
+    select u.id, u.created_at, s.source
+    from auth.users u
+    left join public.signup_source s on s.user_id = u.id
+    where not exists (select 1 from public.deleted_users d where d.user_id = u.id)
+      and not (u.id = any (v_staff))
+  )
+  select jsonb_build_object(
+    'sources', coalesce((
+      select jsonb_agg(jsonb_build_object('source', x.source, 'total', x.total, 'last7', x.last7)
+                       order by x.total desc, x.source)
+      from (
+        select source,
+               count(*) as total,
+               count(*) filter (where created_at >= now() - interval '7 days') as last7
+        from users
+        where source is not null
+        group by source
+      ) x
+    ), '[]'::jsonb),
+    'insta', (select count(*) from users where source like 'insta%'),
+    'none', (select count(*) from users where source is null),
+    -- この仕組みを入れてから(最初の記録以降)に登録した人のうち、目印の無かった人
+    'none_since', (select count(*) from users
+                   where source is null
+                     and created_at >= (select min(created_at) from public.signup_source)),
+    'since', (select min(created_at) from public.signup_source)
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_signup_sources() from public, anon;
+grant execute on function public.admin_signup_sources() to authenticated;
