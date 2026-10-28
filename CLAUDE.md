@@ -70,7 +70,7 @@
 - 登録は簡単なアンケート（Googleフォーム、約2分）経由。完了画面のリンクが見落とされやすいのが課題
 
 ## 8. 作成済みの機能（主なもの）
-- **どこから来たかの記録**：ポスターのQRは `/qr`（`app/qr/page.tsx`）に飛び、Supabase の `qr_scan` 表に1行記録してからトップへ移動（migration PART AC）。インスタなどは `/qr?from=insta` のように目印を付けたリンクを使うと、目印ごとに数えられる（PART AN。目印は英小文字・数字・_・- で32文字まで、insta で始まるものは「インスタ」として集計）。回数は管理者の「集計」ページで見られる。さらに、来たときの目印をブラウザに最長30日覚えておき（`lib/visitSource.ts`、目印なしは `poster`）、登録時に `signup_source` 表へ写して「目印ごとの登録者数」も数える（PART AP。別の端末・ブラウザで登録すると引き継がれず「記録なし」になる）。`&survey=done` を付けると、トップに着いたあとサイトを自由に見られ、「新規登録」（`/join`）で登録前のGoogleフォームを飛ばして登録画面へ進める（学内アンケートの回答者向け `/qr?from=street&survey=done`。印はブラウザに30日、`components/JoinSteps.tsx`）。`&to=register`・`&to=demands` で移動先も変えられる
+- **どこから来たかの記録**：ポスターのQRは `/qr`（`app/qr/page.tsx`）に飛び、Supabase の `qr_scan` 表に1行記録してからトップへ移動（migration PART AC）。インスタなどは `/qr?from=insta` のように目印を付けたリンクを使うと、目印ごとに数えられる（PART AN。目印は英小文字・数字・_・- で32文字まで、insta で始まるものは「インスタ」として集計）。回数は管理者の「集計」ページで見られる。さらに、来たときの目印をブラウザに最長30日覚えておき（`lib/visitSource.ts`、目印なしは `poster`）、登録時に `signup_source` 表へ写して「目印ごとの登録者数」も数える（PART AP。別の端末・ブラウザで登録すると引き継がれず「記録なし」になる）。`&survey=done` を付けると、トップに着いたあとサイトを自由に見られ、「新規登録」（`/join`）を押すと何も表示せず登録画面へ移る（登録前のGoogleフォームを飛ばす）（学内アンケートの回答者向け `/qr?from=street&survey=done`。印はブラウザに30日、`components/JoinSteps.tsx`）。`&to=register`・`&to=demands` で移動先も変えられる
 - **購入時のメール通知**：商品が買われると出品者の北大メールにお知らせ（Resend。Supabase Edge Function `supabase/functions/notify-sold` を DB のトリガーから呼ぶ。PART AD・AE。同じ商品で24時間に2通まで）。プライバシーポリシーにも用途と委託先（Resend）を記載済み
 - **チャットのメール通知**：見ていない間に届いた個別チャットのメッセージを、1時間おきにまとめてメールで知らせる（pg_cron ＋ Edge Function `notify-chat-digest`、PART AO。サイトやチャットを開いている時刻を記録して、見ている人には送らない。メッセージの中身は載せない）
 - **みんなの欲しい！（需要機能）**：`/demands`。PART AF〜AM
