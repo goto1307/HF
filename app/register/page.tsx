@@ -18,8 +18,10 @@ export default function Register() {
   const [agreed, setAgreed] = useState(false);
   const router = useRouter();
 
+  // 北大のアドレス(@elms・@eis・@hokudai.ac.jp や、大学院生などの @xxx.hokudai.ac.jp)だけ受け付ける。
+  // DB 側でも同じチェックをしている(migration PART AS)
   const isValidEmail = (email: string) => {
-    return email.endsWith("@eis.hokudai.ac.jp") || email.endsWith("@hokudai.ac.jp") || email.endsWith("@elms.hokudai.ac.jp");
+    return /^[^@\s]+@([a-z0-9-]+\.)*hokudai\.ac\.jp$/i.test(email.trim());
   };
 
   const isValidPassword = (password: string) => {

@@ -4975,3 +4975,27 @@ end;
 $$;
 revoke execute on function public.admin_signup_sources() from public, anon;
 grant execute on function public.admin_signup_sources() to authenticated;
+
+-- ============================================================
+-- PART AS: 大学院生なども登録できるように、北大のメールアドレスの受け付けを広げる
+-- ============================================================
+-- これまでは @elms / @eis / @hokudai.ac.jp の3つだけだった。
+-- 大学院生などは @xxx.hokudai.ac.jp のように別の形のアドレスを使うことがあるので、
+-- 「hokudai.ac.jp で終わる北大のアドレス」をすべて受け付ける。
+-- 例: OK  a@elms.hokudai.ac.jp / a@hokudai.ac.jp / a@sci.hokudai.ac.jp
+--     NG  a@gmail.com / a@hokudai.ac.jp.example.com / a@nothokudai.ac.jp
+-- 既存の利用者には影響しない(新規登録のときだけチェックされる)。何度実行しても大丈夫。
+
+create or replace function public.enforce_hokudai_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.email !~* '^[^@]+@([a-z0-9-]+\.)*hokudai\.ac\.jp$' then
+    raise exception '北海道大学のメールアドレスのみ登録できます';
+  end if;
+  return new;
+end;
+$$;
