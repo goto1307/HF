@@ -5015,6 +5015,8 @@ $$;
 --     店へ渡すのは個人を特定しない数字だけ
 --   - 運営(is_admin)は、動作確認のため期間・時間帯の外でも受け取り・使用ができ、
 --     reset_my_coupon() で自分の分をやり直せる
+--   - active = false のクーポンは「非公開」。運営2人にだけ見え、運営だけが試せる。
+--     一般に公開するときは update public.coupon set active = true where id = '…'; を実行する
 -- 時刻はすべて日本時間で判定する。何度実行しても大丈夫。
 
 create table if not exists public.coupon (
@@ -5108,7 +5110,8 @@ begin
   if auth.uid() is null then
     raise exception 'ログインが必要です';
   end if;
-  select * into c from public.coupon where id = p_coupon and active;
+  -- 非公開(active = false)のクーポンは、運営だけが動作確認のために使える
+  select * into c from public.coupon where id = p_coupon and (active or v_admin);
   if not found then
     raise exception 'このクーポンは見つかりません';
   end if;
@@ -5152,11 +5155,12 @@ as $$
 declare
   c public.coupon;
   r public.coupon_claim;
+  v_admin boolean := public.is_admin();
 begin
   if auth.uid() is null then
     raise exception 'ログインが必要です';
   end if;
-  select * into c from public.coupon where id = p_coupon and active;
+  select * into c from public.coupon where id = p_coupon and (active or v_admin);
   if not found then
     raise exception 'このクーポンは見つかりません';
   end if;
@@ -5172,7 +5176,7 @@ begin
   if p_benefit is null or not (p_benefit = any (c.benefits)) then
     raise exception '特典を選んでください';
   end if;
-  if not public.is_admin() and not public.coupon_usable_now(c) then
+  if not v_admin and not public.coupon_usable_now(c) then
     raise exception '今は使えない時間です';
   end if;
 
@@ -5286,9 +5290,11 @@ revoke execute on function public.admin_coupon_stats(text) from public, anon;
 grant execute on function public.admin_coupon_stats(text) to authenticated;
 
 -- 第一弾: ふたごザン(2026/11/16 受け取り開始、11/17〜12/11 の火〜金に使える)
--- ※ 店からの返事(特典の内容・人数の上限など)で変わったら、下の update を書き換えて実行する
+-- 最初は非公開(運営2人だけに見える)で作る。公開するときは次の1行を実行する:
+--   update public.coupon set active = true where id = 'futagozan-1';
+-- ※ 店からの返事(特典の内容・人数の上限など)で変わったら、update で書き換える
 insert into public.coupon (id, shop_name, title, description, benefits, notes,
-                           claim_from, use_from, use_until, weekdays, time_windows, max_claims)
+                           claim_from, use_from, use_until, weekdays, time_windows, max_claims, active)
 values (
   'futagozan-1',
   'ふたごザン',
@@ -5301,6 +5307,7 @@ values (
   '2026-12-11',
   '{2,3,4,5}',
   '[{"from":"13:00","to":"14:00"},{"from":"17:00","to":"19:00"}]',
-  null
+  null,
+  false
 )
 on conflict (id) do nothing;

@@ -34,6 +34,15 @@ function timeAgo(iso: string) {
 // send_demand_reminders は同じタブで何度も呼ばない
 let remindersChecked = false;
 
+// 見えるクーポンがあるか(公開中のもの。運営には非公開のものも見える)。ページを移動するたびに調べ直さない
+let couponCheck: Promise<boolean> | null = null;
+function hasVisibleCoupon() {
+  couponCheck ??= Promise.resolve(
+    supabase.from("coupon").select("id").limit(1).then(({ data }) => (data?.length ?? 0) > 0)
+  );
+  return couponCheck;
+}
+
 export default function Header() {
   const { user } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
@@ -47,6 +56,11 @@ export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [showCoupons, setShowCoupons] = useState(false);
+
+  useEffect(() => {
+    hasVisibleCoupon().then(setShowCoupons);
+  }, [user]);
 
   useEffect(() => {
     if (!showNotifications) return;
@@ -327,6 +341,7 @@ export default function Header() {
                     ホーム画面に追加
                   </button>
                   {/* フリマのタブとは分けて、メニューの中に置く(入口はトップのお知らせ・インスタ・お店の張り紙が中心) */}
+                  {showCoupons && (
                   <Link
                     href="/coupons"
                     onClick={() => setShowMenu(false)}
@@ -334,6 +349,7 @@ export default function Header() {
                   >
                     提携店のクーポン
                   </Link>
+                  )}
                   <a
                     href="https://www.instagram.com/hokuma.official/"
                     target="_blank"

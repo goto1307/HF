@@ -81,6 +81,7 @@ export default function CouponsPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold bg-stone-100 text-stone-500 rounded px-1.5 py-0.5">PR・提携</span>
                     <span className="text-sm font-bold text-stone-700">{c.shop_name}</span>
+                    {!c.active && <span className="text-[10px] font-bold bg-stone-800 text-white rounded px-1.5 py-0.5">非公開</span>}
                     <span className={`ml-auto text-[11px] font-bold rounded-full px-2 py-0.5 ${s.tone}`}>{s.label}</span>
                   </div>
                   <p className="text-lg font-black text-orange-700 mt-1">{c.title}</p>

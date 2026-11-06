@@ -211,6 +211,12 @@ export default function CouponPage() {
           ← 戻る
         </button>
 
+        {!coupon.active && (
+          <p className="mb-3 rounded-xl bg-stone-800 text-white text-xs font-bold px-3 py-2">
+            非公開（運営の2人にだけ表示されています）。期間・時間に関係なく試せます。
+          </p>
+        )}
+
         {/* クーポンの中身 */}
         <div className="rounded-3xl bg-white border border-stone-200 shadow-sm overflow-hidden">
           <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-5">
