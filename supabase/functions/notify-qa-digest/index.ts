@@ -1,10 +1,10 @@
-// 商品ページの「みんなの質問チャット」に新しい書き込みがあったことを、1時間おきにまとめてメールで知らせる Edge Function。
+// 商品ページの「みんなの質問チャット」の書き込みを、3時間おきにまとめてメールで知らせる Edge Function。
 //
-// 呼び出し元は DB の send_qa_digests()(migration PART AU、pg_cron で毎時5分)だけ。
+// 呼び出し元は DB の send_qa_digests()(migration PART AU、pg_cron で3時間ごと)だけ。
 // - 合言葉(x-hook-secret)が一致しない呼び出しは拒否する(購入メールと同じ合言葉)
-// - 受け取るのは送り先の recipient_id と message_ids だけ。メッセージは DB から読み直し、
-//   送り先が「その商品の出品者」か「その書き込みより前に同じ質問チャットへ書き込んだ人」の
-//   ものだけを載せる
+// - 受け取るのは送り先の recipient_id と message_ids だけ。メッセージは DB から読み直し、次のものだけを載せる
+//     ・送り先が出品者: 出品者以外の誰かの書き込み
+//     ・送り先が質問した人: 出品者の書き込みで、送り先がそれより前に同じ質問チャットへ書き込んでいたもの
 // - メッセージの中身や書き込んだ人の名前はメールに載せない(プライバシーのため。続きはサイトで読んでもらう)
 // - 利用者が入力した文字(商品名)は HTML として扱わない(テキストメールのみ)
 //
@@ -81,11 +81,12 @@ Deno.serve(async (req) => {
     if (!firstPostAt.has(m.item_id)) firstPostAt.set(m.item_id, m.created_at);
   }
 
-  // 出品者か、その書き込みより前に書き込んでいた人のものだけ残す
+  // 出品者へは「出品者以外の書き込み」、質問した人へは「出品者の書き込み」だけ残す
   const messages = candidates.filter((m) => {
     const item = itemById.get(m.item_id);
     if (!item) return false; // 商品が削除されていれば載せない
-    if (item.user_id === recipientId) return true;
+    if (item.user_id === recipientId) return m.user_id !== recipientId;
+    if (m.user_id !== item.user_id) return false;
     const first = firstPostAt.get(m.item_id);
     return !!first && new Date(first).getTime() < new Date(m.created_at).getTime();
   });
@@ -104,8 +105,10 @@ Deno.serve(async (req) => {
   for (const [itemId, count] of countByItem) {
     const item = itemById.get(itemId)!;
     const title = oneLine(item.title, 45);
-    const role = item.user_id === recipientId ? "（あなたの出品）" : "";
-    lines.push(`・「${title}」${role} 新しい書き込み ${count}件`);
+    const what = item.user_id === recipientId
+      ? `（あなたの出品）新しい書き込み ${count}件`
+      : `出品者からの書き込み ${count}件`;
+    lines.push(`・「${title}」 ${what}`);
     lines.push(`  ${SITE_URL}/items/${itemId}`);
   }
   const total = messages.length;
@@ -117,7 +120,7 @@ Deno.serve(async (req) => {
     "",
     "書き込みの内容は、商品ページの「みんなの質問チャット」で確かめましょう。",
     "",
-    "※このお知らせは、あなたが出品した商品か、一度でも書き込んだ商品の質問チャットに新しい書き込みがあったときに、1時間ごとにまとめて送っています。",
+    "※このお知らせは、あなたの出品に書き込みがあったとき、または書き込んだことのある商品で出品者が書き込んだときに、3時間ごとにまとめて送っています（1日3通まで）。",
     "※このメールは、HOKUMAに登録したメールアドレスに送っています。送信専用のため、返信はできません。",
     "お問い合わせ：公式Instagram（@hokuma.official）／hokuma.official639@gmail.com",
     "",

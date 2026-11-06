@@ -147,7 +147,7 @@ export default function ItemDetail() {
   }, [params.id, user]);
 
   // 商品ページ(質問チャット)を見ている間は、30秒ごとに「見ている」ことを記録する。
-  // 見たあとの書き込みは、1時間おきのまとめメールに載せない(migration PART AU)
+  // 見たあとの書き込みは、3時間おきのまとめメールに載せない(migration PART AU)
   const qaItemId = item?.id;
   useEffect(() => {
     if (!qaItemId || !user) return;
@@ -640,7 +640,7 @@ export default function ItemDetail() {
           </div>
           {user && (
             <p className="px-4 py-2 text-[11px] text-stone-400 border-t border-stone-100 bg-white leading-relaxed">
-              一度書き込んだ商品（自分の出品も含みます）の質問チャットに新しい書き込みがあると、登録したメールアドレスにお知らせが届きます（1時間ごとにまとめて送ります）。
+              自分の出品に書き込みがあったとき、または書き込んだことのある商品で出品者が書き込んだときに、登録したメールアドレスにお知らせが届きます（3時間ごとにまとめて、1日3通まで）。
             </p>
           )}
         </div>

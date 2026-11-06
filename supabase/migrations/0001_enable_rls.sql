@@ -5314,7 +5314,7 @@ on conflict (id) do nothing;
 
 
 -- ============================================================
--- PART AU: 質問チャット(公開Q&A)に新しい書き込みがあったら、1時間おきにメールで知らせる
+-- PART AU: 質問チャット(公開Q&A)の書き込みを、3時間おきにまとめてメールで知らせる
 -- ============================================================
 --
 -- 背景: 商品ページの「みんなの質問チャット」は、書き込んだあと返事が来ても
@@ -5322,13 +5322,15 @@ on conflict (id) do nothing;
 -- 仕組み(PART AO の個別チャットのまとめメールと同じ考え方):
 --   - 商品ページを開いている間、30秒ごとに touch_qa_presence() で
 --     「その商品の質問チャットを見ている」時刻を qa_presence に記録する
---   - pg_cron で毎時5分に send_qa_digests() を動かし、直前の1時間(毎時0分区切り)に
---     届いた質問チャットの書き込みを、次の人ごとにまとめて Edge Function
---     notify-qa-digest に渡してメールを送る
---       ・その商品の質問チャットに、その書き込みより前に1回以上書き込んだ人
---       ・その商品の出品者
---     ただし、書き込んだ本人・退会済みの人・届いたあとにその商品ページを開いた人・
---     届いたあとに質問チャットに書き込んだ人・今サイトを見ている人(直近2分以内)には送らない
+--   - pg_cron で3時間ごと(日本時間 0・3・6・9・12・15・18・21時の5分)に send_qa_digests() を動かし、
+--     直前の3時間に届いた質問チャットの書き込みを、受け取る人ごとに1通にまとめて
+--     Edge Function notify-qa-digest に渡してメールを送る(メールの数を節約するため)
+--   - 誰に知らせるか(やりとりが多くてもメールが増えすぎないように絞っている)
+--       ・出品者: 出品者以外の誰かが書き込んだとき
+--       ・質問した人(その書き込みより前に1回以上書き込んだ人): 出品者が書き込んだときだけ
+--     ただし、退会済みの人・届いたあとにその商品ページを開いた人・届いたあとに質問チャットに
+--     書き込んだ人・今サイトを見ている人(直近2分以内)には送らない
+--   - 1人に送る質問チャットのメールは、24時間で3通まで(Resend の無料枠 1日100通を守るため)
 --   - メッセージの中身は載せない。合言葉は PART AD と同じ Vault の sold_email_hook_secret
 --   - 実行の前に Edge Function notify-qa-digest をデプロイしておくこと
 
@@ -5389,8 +5391,8 @@ declare
   v_count integer := 0;
   r record;
 begin
-  v_to := coalesce(p_window_start + interval '1 hour', date_trunc('hour', now()));
-  v_from := v_to - interval '1 hour';
+  v_to := coalesce(p_window_start + interval '3 hours', date_trunc('hour', now()));
+  v_from := v_to - interval '3 hours';
 
   select decrypted_secret into v_secret
   from vault.decrypted_secrets
@@ -5402,7 +5404,7 @@ begin
 
   for r in
     with incoming as (
-      -- 直前の1時間に届いた質問チャットの書き込み
+      -- 直前の3時間に届いた質問チャットの書き込み
       select m.id, m.item_id, m.user_id as sender_id, m.created_at, i.user_id as seller_id
       from public.message m
       join public.item i on i.id = m.item_id
@@ -5411,18 +5413,21 @@ begin
         and m.created_at <= v_to
     ),
     targets as (
-      -- 知らせる相手: その書き込みより前に同じ商品の質問チャットに書き込んだ人
-      select distinct inc.id, inc.item_id, inc.created_at, prev.user_id as recipient_id
+      -- 出品者へ: 出品者以外の誰かが書き込んだとき
+      select inc.id, inc.item_id, inc.created_at, inc.seller_id as recipient_id
+      from incoming inc
+      where inc.seller_id is not null
+        and inc.sender_id <> inc.seller_id
+      union
+      -- 質問した人へ: 出品者が書き込んだときだけ(その書き込みより前に書き込んでいた人)
+      select inc.id, inc.item_id, inc.created_at, prev.user_id
       from incoming inc
       join public.message prev
         on prev.item_id = inc.item_id
        and prev.buyer_id is null
        and prev.created_at < inc.created_at
-      union
-      -- と、その商品の出品者
-      select inc.id, inc.item_id, inc.created_at, inc.seller_id
-      from incoming inc
-      where inc.seller_id is not null
+      where inc.sender_id = inc.seller_id
+        and prev.user_id <> inc.seller_id
     )
     select t.recipient_id, array_agg(t.id order by t.created_at) as message_ids
     from targets t
@@ -5452,6 +5457,11 @@ begin
         select 1 from public.qa_digest_log l
         where l.recipient_id = t.recipient_id and l.window_start = v_from
       )
+      -- 直近24時間に送った質問チャットのメールが3通未満
+      and (
+        select count(*) from public.qa_digest_log l
+        where l.recipient_id = t.recipient_id and l.created_at > now() - interval '24 hours'
+      ) < 3
     group by t.recipient_id
   loop
     begin
@@ -5473,6 +5483,7 @@ end;
 $$;
 revoke execute on function public.send_qa_digests(timestamptz) from public, anon, authenticated;
 
--- 毎時5分に動かす(個別チャットのまとめメールと時間をずらす。同じ名前で登録し直すと上書きされる)
+-- 3時間ごとの5分に動かす(UTC 0・3・6…時 = 日本時間 9・12・15…時。個別チャットのまとめメールと時間をずらす。
+-- 同じ名前で登録し直すと上書きされる)
 create extension if not exists pg_cron;
-select cron.schedule('hokuma-qa-digest', '5 * * * *', $$select public.send_qa_digests()$$);
+select cron.schedule('hokuma-qa-digest', '5 */3 * * *', $$select public.send_qa_digests()$$);
