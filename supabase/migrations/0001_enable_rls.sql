@@ -4999,3 +4999,308 @@ begin
   return new;
 end;
 $$;
+
+
+-- ============================================================
+-- PART AT: 飲食店の提携クーポン(第一弾: ふたごザン)
+-- ============================================================
+--
+-- 仕組み:
+--   - coupon: クーポンの中身(店名・特典・使える期間・曜日・時間帯)。誰でも見られる
+--   - coupon_claim: 誰が受け取って、いつ使ったか。本人は自分の分だけ見られる。
+--     受け取り・使用は下の関数(claim_coupon・use_coupon)からだけ行い、
+--     期間・曜日・時間帯・1人1回のチェックはすべてここ(DB側)で行う
+--   - coupon_view: クーポンのページが開かれた記録(ブラウザごとに1回)。誰が見たかは記録しない
+--   - admin_coupon_stats(): 管理者だけが見られる集計(運営2人の分は除く)。
+--     店へ渡すのは個人を特定しない数字だけ
+--   - 運営(is_admin)は、動作確認のため期間・時間帯の外でも受け取り・使用ができ、
+--     reset_my_coupon() で自分の分をやり直せる
+-- 時刻はすべて日本時間で判定する。何度実行しても大丈夫。
+
+create table if not exists public.coupon (
+  id text primary key check (id ~ '^[a-z0-9_-]{1,32}$'),  -- URL に使う目印(例: futagozan-1)
+  shop_name text not null,
+  title text not null,
+  description text not null default '',
+  benefits text[] not null,              -- 使うときに選ぶ特典(どれか1つ)
+  notes text not null default '',        -- 注意書き(対象外の物など)
+  claim_from timestamptz not null,       -- 受け取りを始める日時
+  use_from date not null,                -- 使える最初の日(日本時間)
+  use_until date not null,               -- 使える最後の日(この日まで)
+  weekdays smallint[] not null default '{1,2,3,4,5,6,7}',  -- 使える曜日(1=月 … 7=日)
+  time_windows jsonb not null default '[]',  -- 使える時間帯 [{"from":"13:00","to":"14:00"}, …]
+  max_claims integer,                    -- 受け取れる人数の上限(null = 上限なし)
+  active boolean not null default true,  -- false にするとページに出さない(一時停止)
+  created_at timestamptz not null default now()
+);
+alter table public.coupon enable row level security;
+revoke all on public.coupon from anon, authenticated;
+grant select on public.coupon to anon, authenticated;
+drop policy if exists "coupon_select_active" on public.coupon;
+create policy "coupon_select_active" on public.coupon
+  for select to anon, authenticated
+  using (active or public.is_admin());
+
+create table if not exists public.coupon_claim (
+  id bigint generated always as identity primary key,
+  coupon_id text not null references public.coupon(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  claimed_at timestamptz not null default now(),
+  used_at timestamptz,
+  benefit text,          -- 使うときに選んだ特典
+  first_visit boolean,   -- 使うときに「初めて来た」と答えたか
+  unique (coupon_id, user_id)
+);
+alter table public.coupon_claim enable row level security;
+revoke all on public.coupon_claim from anon, authenticated;
+grant select on public.coupon_claim to authenticated;
+drop policy if exists "coupon_claim_select_own" on public.coupon_claim;
+create policy "coupon_claim_select_own" on public.coupon_claim
+  for select to authenticated
+  using (user_id = auth.uid());
+-- 書き込みのポリシーは作らない(下の関数からだけ書き込む)
+
+create table if not exists public.coupon_view (
+  id bigint generated always as identity primary key,
+  coupon_id text not null references public.coupon(id) on delete cascade,
+  logged_in boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table public.coupon_view enable row level security;
+revoke all on public.coupon_view from anon, authenticated;
+grant insert (coupon_id, logged_in) on public.coupon_view to anon, authenticated;
+drop policy if exists "coupon_view_insert" on public.coupon_view;
+create policy "coupon_view_insert" on public.coupon_view
+  for insert to anon, authenticated
+  with check (exists (select 1 from public.coupon c where c.id = coupon_id and c.active));
+
+-- 今(日本時間)クーポンを使えるか
+create or replace function public.coupon_usable_now(c public.coupon)
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select public.jst_today() between c.use_from and c.use_until
+     and extract(isodow from (now() at time zone 'Asia/Tokyo'))::smallint = any (c.weekdays)
+     and (
+       jsonb_array_length(c.time_windows) = 0
+       or exists (
+         select 1 from jsonb_array_elements(c.time_windows) w
+         where (now() at time zone 'Asia/Tokyo')::time >= (w ->> 'from')::time
+           and (now() at time zone 'Asia/Tokyo')::time <  (w ->> 'to')::time
+       )
+     );
+$$;
+
+-- 受け取る(1人1回。すでに受け取っていれば、その記録を返す)
+create or replace function public.claim_coupon(p_coupon text)
+returns public.coupon_claim
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c public.coupon;
+  r public.coupon_claim;
+  v_admin boolean := public.is_admin();
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  select * into c from public.coupon where id = p_coupon and active;
+  if not found then
+    raise exception 'このクーポンは見つかりません';
+  end if;
+
+  select * into r from public.coupon_claim where coupon_id = p_coupon and user_id = auth.uid();
+  if found then
+    return r;
+  end if;
+
+  if not v_admin then
+    if now() < c.claim_from then
+      raise exception 'まだ受け取れません';
+    end if;
+    if public.jst_today() > c.use_until then
+      raise exception 'このクーポンの配布は終了しました';
+    end if;
+    if c.max_claims is not null and (
+      select count(*) from public.coupon_claim x
+      where x.coupon_id = p_coupon and not (x.user_id = any (public.staff_ids()))
+    ) >= c.max_claims then
+      raise exception '受け取れる人数の上限に達しました';
+    end if;
+  end if;
+
+  insert into public.coupon_claim (coupon_id, user_id) values (p_coupon, auth.uid())
+  on conflict (coupon_id, user_id) do nothing;
+  select * into r from public.coupon_claim where coupon_id = p_coupon and user_id = auth.uid();
+  return r;
+end;
+$$;
+revoke execute on function public.claim_coupon(text) from public, anon;
+grant execute on function public.claim_coupon(text) to authenticated;
+
+-- お店で使う(使えるのは1回だけ。選んだ特典と、初めて来たかを一緒に記録する)
+create or replace function public.use_coupon(p_coupon text, p_benefit text, p_first_visit boolean)
+returns public.coupon_claim
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c public.coupon;
+  r public.coupon_claim;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  select * into c from public.coupon where id = p_coupon and active;
+  if not found then
+    raise exception 'このクーポンは見つかりません';
+  end if;
+  select * into r from public.coupon_claim
+  where coupon_id = p_coupon and user_id = auth.uid()
+  for update;
+  if not found then
+    raise exception '先にクーポンを受け取ってください';
+  end if;
+  if r.used_at is not null then
+    raise exception 'このクーポンはもう使いました';
+  end if;
+  if p_benefit is null or not (p_benefit = any (c.benefits)) then
+    raise exception '特典を選んでください';
+  end if;
+  if not public.is_admin() and not public.coupon_usable_now(c) then
+    raise exception '今は使えない時間です';
+  end if;
+
+  update public.coupon_claim
+  set used_at = now(), benefit = p_benefit, first_visit = p_first_visit
+  where id = r.id
+  returning * into r;
+  return r;
+end;
+$$;
+revoke execute on function public.use_coupon(text, text, boolean) from public, anon;
+grant execute on function public.use_coupon(text, text, boolean) to authenticated;
+
+-- 運営の動作確認用: 自分の受け取り記録を消して、もう一度試せるようにする
+create or replace function public.reset_my_coupon(p_coupon text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  delete from public.coupon_claim where coupon_id = p_coupon and user_id = auth.uid();
+end;
+$$;
+revoke execute on function public.reset_my_coupon(text) from public, anon;
+grant execute on function public.reset_my_coupon(text) to authenticated;
+
+-- 管理者向けの集計(店への毎週の報告と、最終発表用)。運営2人の分は数えない
+create or replace function public.admin_coupon_stats(p_coupon text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  c public.coupon;
+  v_staff uuid[] := public.staff_ids();
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  select * into c from public.coupon where id = p_coupon;
+  if not found then
+    raise exception 'このクーポンは見つかりません';
+  end if;
+
+  with claims as (
+    select x.*, u.created_at as user_created_at,
+           (x.used_at at time zone 'Asia/Tokyo') as used_jst
+    from public.coupon_claim x
+    join auth.users u on u.id = x.user_id
+    where x.coupon_id = p_coupon and not (x.user_id = any (v_staff))
+  ),
+  used as (
+    select * from claims where used_at is not null
+  )
+  select jsonb_build_object(
+    'totals', jsonb_build_object(
+      'views', (select count(*) from public.coupon_view v where v.coupon_id = p_coupon),
+      'views_logged_out', (select count(*) from public.coupon_view v where v.coupon_id = p_coupon and not v.logged_in),
+      'claims', (select count(*) from claims),
+      'uses', (select count(*) from used),
+      'first_visits', (select count(*) from used where first_visit),
+      'repeat_visits', (select count(*) from used where first_visit = false),
+      'lunch', (select count(*) from used where extract(hour from used_jst) < 15),
+      'evening', (select count(*) from used where extract(hour from used_jst) >= 15),
+      -- 受け取りが始まってから登録して、受け取った人(クーポンをきっかけに登録した可能性が高い人)
+      'new_users_claimed', (select count(*) from claims where user_created_at >= c.claim_from),
+      -- クーポンの宣伝リンク(/qr?from=coupon… など)から来て登録した人
+      'signup_from_coupon_links', (
+        select count(*) from public.signup_source s
+        where s.source like '%coupon%' and not (s.user_id = any (v_staff))
+          and not exists (select 1 from public.deleted_users d where d.user_id = s.user_id)
+      )
+    ),
+    'benefits', (
+      select coalesce(jsonb_agg(jsonb_build_object('benefit', b.benefit, 'uses', b.n) order by b.n desc), '[]'::jsonb)
+      from (select benefit, count(*) as n from used group by benefit) b
+    ),
+    'daily', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'date', d.day,
+        'views', (select count(*) from public.coupon_view v
+                  where v.coupon_id = p_coupon and (v.created_at at time zone 'Asia/Tokyo')::date = d.day),
+        'claims', (select count(*) from claims x where (x.claimed_at at time zone 'Asia/Tokyo')::date = d.day),
+        'uses', (select count(*) from used x where x.used_jst::date = d.day),
+        'lunch', (select count(*) from used x where x.used_jst::date = d.day and extract(hour from x.used_jst) < 15),
+        'evening', (select count(*) from used x where x.used_jst::date = d.day and extract(hour from x.used_jst) >= 15),
+        'first_visits', (select count(*) from used x where x.used_jst::date = d.day and x.first_visit)
+      ) order by d.day), '[]'::jsonb)
+      from (
+        select g::date as day
+        from generate_series(
+          least((c.claim_from at time zone 'Asia/Tokyo')::date, c.use_from),
+          least(c.use_until, public.jst_today()),
+          interval '1 day'
+        ) g
+      ) d
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_coupon_stats(text) from public, anon;
+grant execute on function public.admin_coupon_stats(text) to authenticated;
+
+-- 第一弾: ふたごザン(2026/11/16 受け取り開始、11/17〜12/11 の火〜金に使える)
+-- ※ 店からの返事(特典の内容・人数の上限など)で変わったら、下の update を書き換えて実行する
+insert into public.coupon (id, shop_name, title, description, benefits, notes,
+                           claim_from, use_from, use_until, weekdays, time_windows, max_claims)
+values (
+  'futagozan-1',
+  'ふたごザン',
+  '空きコマクーポン',
+  '食券と一緒に使うと、下のどれか1つが無料になります。',
+  array['ザンギ+1個', 'ソフトドリンク1杯', '特盛'],
+  'ソフトドリンクはコーラ・ジュース・紅茶などです。お酒とノンアルコール飲料は対象外です。お一人さま期間中1回限りです。',
+  '2026-11-16 00:00:00+09',
+  '2026-11-17',
+  '2026-12-11',
+  '{2,3,4,5}',
+  '[{"from":"13:00","to":"14:00"},{"from":"17:00","to":"19:00"}]',
+  null
+)
+on conflict (id) do nothing;

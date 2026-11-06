@@ -9,6 +9,7 @@ import { markSurveyDone, rememberSource, SOURCE_PATTERN } from "@/lib/visitSourc
 const DESTINATIONS: Record<string, string> = {
   register: "/register",
   demands: "/demands",
+  coupons: "/coupons", // クーポンの宣伝用(例: /qr?from=insta_coupon&to=coupons)
 };
 
 // ポスターのQRコードやインスタのリンクの飛び先。開かれた回数を記録してからトップへ移動する。

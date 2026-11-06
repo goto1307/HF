@@ -303,6 +303,9 @@ export default function Header() {
                       <Link href="/admin/stats" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         集計
                       </Link>
+                      <Link href="/admin/coupons" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
+                        クーポン集計
+                      </Link>
                       <Link href="/admin/log" onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-stone-100 transition-colors">
                         操作ログ
                       </Link>
@@ -376,10 +379,12 @@ export default function Header() {
               { href: "/", label: "商品を探す" },
               ...(user ? [{ href: "/mypage#purchased", label: "出品・購入商品" }] : []),
               { href: "/demands", label: "みんなの欲しい！" },
+              { href: "/coupons", label: "クーポン" },
             ].map((tab) => {
               const isActive =
                 tab.href === "/" ? pathname === "/"
                 : tab.href === "/demands" ? pathname.startsWith("/demands")
+                : tab.href === "/coupons" ? pathname.startsWith("/coupons")
                 : pathname === "/mypage";
               return (
                 <Link
