@@ -146,6 +146,24 @@ export default function ItemDetail() {
     return () => { supabase.removeChannel(channel); };
   }, [params.id, user]);
 
+  // 商品ページ(質問チャット)を見ている間は、30秒ごとに「見ている」ことを記録する。
+  // 見たあとの書き込みは、1時間おきのまとめメールに載せない(migration PART AU)
+  const qaItemId = item?.id;
+  useEffect(() => {
+    if (!qaItemId || !user) return;
+    const touch = () => {
+      if (document.visibilityState !== "visible") return;
+      supabase.rpc("touch_qa_presence", { p_item_id: qaItemId }).then(() => {});
+    };
+    touch();
+    const timer = setInterval(touch, 30000);
+    document.addEventListener("visibilitychange", touch);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", touch);
+    };
+  }, [qaItemId, user]);
+
   useEffect(() => {
     if (!item) return;
     const fetchSellerRating = async () => {
@@ -620,6 +638,11 @@ export default function ItemDetail() {
               送信
             </button>
           </div>
+          {user && (
+            <p className="px-4 py-2 text-[11px] text-stone-400 border-t border-stone-100 bg-white leading-relaxed">
+              一度書き込んだ商品（自分の出品も含みます）の質問チャットに新しい書き込みがあると、登録したメールアドレスにお知らせが届きます（1時間ごとにまとめて送ります）。
+            </p>
+          )}
         </div>
 
         {!isOwnItem && (

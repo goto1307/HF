@@ -5311,3 +5311,168 @@ values (
   false
 )
 on conflict (id) do nothing;
+
+
+-- ============================================================
+-- PART AU: 質問チャット(公開Q&A)に新しい書き込みがあったら、1時間おきにメールで知らせる
+-- ============================================================
+--
+-- 背景: 商品ページの「みんなの質問チャット」は、書き込んだあと返事が来ても
+--   サイトを開かないと気づけなかった。
+-- 仕組み(PART AO の個別チャットのまとめメールと同じ考え方):
+--   - 商品ページを開いている間、30秒ごとに touch_qa_presence() で
+--     「その商品の質問チャットを見ている」時刻を qa_presence に記録する
+--   - pg_cron で毎時5分に send_qa_digests() を動かし、直前の1時間(毎時0分区切り)に
+--     届いた質問チャットの書き込みを、次の人ごとにまとめて Edge Function
+--     notify-qa-digest に渡してメールを送る
+--       ・その商品の質問チャットに、その書き込みより前に1回以上書き込んだ人
+--       ・その商品の出品者
+--     ただし、書き込んだ本人・退会済みの人・届いたあとにその商品ページを開いた人・
+--     届いたあとに質問チャットに書き込んだ人・今サイトを見ている人(直近2分以内)には送らない
+--   - メッセージの中身は載せない。合言葉は PART AD と同じ Vault の sold_email_hook_secret
+--   - 実行の前に Edge Function notify-qa-digest をデプロイしておくこと
+
+-- ---------- 商品ページ(質問チャット)を見ている時刻 ----------
+create table if not exists public.qa_presence (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  item_id bigint not null references public.item(id) on delete cascade,
+  last_seen_at timestamptz not null default now(),
+  primary key (user_id, item_id)
+);
+alter table public.qa_presence enable row level security;
+revoke all on public.qa_presence from anon, authenticated;
+-- 一般ユーザー向けのポリシーは作らない。下の SECURITY DEFINER 関数経由でのみ使う。
+
+create or replace function public.touch_qa_presence(p_item_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or p_item_id is null then
+    return;
+  end if;
+  if not exists (select 1 from public.item i where i.id = p_item_id) then
+    return;
+  end if;
+  insert into public.qa_presence (user_id, item_id, last_seen_at) values (auth.uid(), p_item_id, now())
+  on conflict (user_id, item_id) do update set last_seen_at = excluded.last_seen_at;
+end;
+$$;
+revoke execute on function public.touch_qa_presence(bigint) from public, anon;
+grant execute on function public.touch_qa_presence(bigint) to authenticated;
+
+-- ---------- 1時間ごとのまとめメール ----------
+create table if not exists public.qa_digest_log (
+  recipient_id uuid not null,
+  window_start timestamptz not null,
+  created_at timestamptz not null default now(),
+  primary key (recipient_id, window_start)
+);
+alter table public.qa_digest_log enable row level security;
+revoke all on public.qa_digest_log from anon, authenticated;
+
+create index if not exists message_public_item_created_idx
+  on public.message (item_id, created_at) where buyer_id is null;
+
+create or replace function public.send_qa_digests(p_window_start timestamptz default null)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_to timestamptz;
+  v_from timestamptz;
+  v_secret text;
+  v_count integer := 0;
+  r record;
+begin
+  v_to := coalesce(p_window_start + interval '1 hour', date_trunc('hour', now()));
+  v_from := v_to - interval '1 hour';
+
+  select decrypted_secret into v_secret
+  from vault.decrypted_secrets
+  where name = 'sold_email_hook_secret'
+  limit 1;
+  if v_secret is null then
+    return 0;
+  end if;
+
+  for r in
+    with incoming as (
+      -- 直前の1時間に届いた質問チャットの書き込み
+      select m.id, m.item_id, m.user_id as sender_id, m.created_at, i.user_id as seller_id
+      from public.message m
+      join public.item i on i.id = m.item_id
+      where m.buyer_id is null
+        and m.created_at > v_from
+        and m.created_at <= v_to
+    ),
+    targets as (
+      -- 知らせる相手: その書き込みより前に同じ商品の質問チャットに書き込んだ人
+      select distinct inc.id, inc.item_id, inc.created_at, prev.user_id as recipient_id
+      from incoming inc
+      join public.message prev
+        on prev.item_id = inc.item_id
+       and prev.buyer_id is null
+       and prev.created_at < inc.created_at
+      union
+      -- と、その商品の出品者
+      select inc.id, inc.item_id, inc.created_at, inc.seller_id
+      from incoming inc
+      where inc.seller_id is not null
+    )
+    select t.recipient_id, array_agg(t.id order by t.created_at) as message_ids
+    from targets t
+    join incoming inc on inc.id = t.id
+    where t.recipient_id is not null
+      and t.recipient_id <> inc.sender_id
+      and not public.is_deleted(t.recipient_id)
+      -- 届いたあとに、その商品ページを開いていない
+      and not exists (
+        select 1 from public.qa_presence qp
+        where qp.user_id = t.recipient_id and qp.item_id = t.item_id
+          and qp.last_seen_at >= t.created_at
+      )
+      -- 届いたあとに、その質問チャットに書き込んでいない
+      and not exists (
+        select 1 from public.message rep
+        where rep.item_id = t.item_id and rep.buyer_id is null
+          and rep.user_id = t.recipient_id and rep.created_at > t.created_at
+      )
+      -- 今サイトを見ていない(直近2分以内に見ていない)
+      and not exists (
+        select 1 from public.site_presence sp
+        where sp.user_id = t.recipient_id and sp.last_seen_at > now() - interval '2 minutes'
+      )
+      -- この時間帯のまとめメールをまだ送っていない
+      and not exists (
+        select 1 from public.qa_digest_log l
+        where l.recipient_id = t.recipient_id and l.window_start = v_from
+      )
+    group by t.recipient_id
+  loop
+    begin
+      insert into public.qa_digest_log (recipient_id, window_start) values (r.recipient_id, v_from);
+      perform net.http_post(
+        url := 'https://cchsbakrlranhpgetcwg.supabase.co/functions/v1/notify-qa-digest',
+        body := jsonb_build_object('recipient_id', r.recipient_id, 'message_ids', to_jsonb(r.message_ids[1:50])),
+        headers := jsonb_build_object('Content-Type', 'application/json', 'x-hook-secret', v_secret)
+      );
+      v_count := v_count + 1;
+    exception when others then
+      raise warning 'send_qa_digests failed for %: %', r.recipient_id, sqlerrm;
+    end;
+  end loop;
+
+  delete from public.qa_digest_log where window_start < now() - interval '7 days';
+  return v_count;
+end;
+$$;
+revoke execute on function public.send_qa_digests(timestamptz) from public, anon, authenticated;
+
+-- 毎時5分に動かす(個別チャットのまとめメールと時間をずらす。同じ名前で登録し直すと上書きされる)
+create extension if not exists pg_cron;
+select cron.schedule('hokuma-qa-digest', '5 * * * *', $$select public.send_qa_digests()$$);

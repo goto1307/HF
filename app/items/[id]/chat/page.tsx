@@ -659,6 +659,9 @@ export default function ItemChat() {
           送信
         </button>
       </div>
+      <p className="px-4 py-2 text-[11px] text-stone-400 border-t border-stone-100 leading-relaxed">
+        見ていない間にメッセージが届くと、登録したメールアドレスにお知らせが届きます（1時間ごとにまとめて送ります）。
+      </p>
     </div>
   );
 
