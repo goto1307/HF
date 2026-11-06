@@ -326,6 +326,14 @@ export default function Header() {
                   >
                     ホーム画面に追加
                   </button>
+                  {/* フリマのタブとは分けて、メニューの中に置く(入口はトップのお知らせ・インスタ・お店の張り紙が中心) */}
+                  <Link
+                    href="/coupons"
+                    onClick={() => setShowMenu(false)}
+                    className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
+                  >
+                    提携店のクーポン
+                  </Link>
                   <a
                     href="https://www.instagram.com/hokuma.official/"
                     target="_blank"
@@ -379,12 +387,10 @@ export default function Header() {
               { href: "/", label: "商品を探す" },
               ...(user ? [{ href: "/mypage#purchased", label: "出品・購入商品" }] : []),
               { href: "/demands", label: "みんなの欲しい！" },
-              { href: "/coupons", label: "クーポン" },
             ].map((tab) => {
               const isActive =
                 tab.href === "/" ? pathname === "/"
                 : tab.href === "/demands" ? pathname.startsWith("/demands")
-                : tab.href === "/coupons" ? pathname.startsWith("/coupons")
                 : pathname === "/mypage";
               return (
                 <Link
