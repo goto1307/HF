@@ -10,6 +10,7 @@ import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconMapPin, IconCheck, IconWarning, IconStar } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import { formatChatTime } from "@/lib/chatTime";
 
 type Item = {
   id: number;
@@ -618,14 +619,20 @@ export default function ItemChat() {
                 <div className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
                   {msg.content}
                 </div>
-                {user && msg.user_id !== user.id && (
-                  <button
-                    onClick={() => { setReportingMessage(msg); setMessageReportReason(""); }}
-                    className="text-[11px] text-stone-400 hover:text-red-500 transition-colors mt-0.5"
-                  >
-                    通報
-                  </button>
-                )}
+                <div className={`flex items-center gap-2 mt-0.5 ${msg.user_id === user?.id ? "flex-row-reverse" : "flex-row"}`}>
+                  {/* 送った時刻（例：14:05、昨日 14:05、11/5 14:05） */}
+                  <time dateTime={msg.created_at} className="text-[11px] text-stone-400">
+                    {formatChatTime(msg.created_at)}
+                  </time>
+                  {user && msg.user_id !== user.id && (
+                    <button
+                      onClick={() => { setReportingMessage(msg); setMessageReportReason(""); }}
+                      className="text-[11px] text-stone-400 hover:text-red-500 transition-colors"
+                    >
+                      通報
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))
@@ -728,7 +735,14 @@ export default function ItemChat() {
                       onClick={() => setSelectedBuyerId(c.buyer_id)}
                       className={`w-full text-left px-4 py-3 border-b border-stone-100 last:border-b-0 hover:bg-stone-100 transition-colors ${selectedBuyerId === c.buyer_id ? "bg-orange-50" : ""}`}
                     >
-                      <p className="font-bold text-sm truncate">{c.buyer_nickname}</p>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="font-bold text-sm truncate">{c.buyer_nickname}</p>
+                        {c.last_created_at && (
+                          <time dateTime={c.last_created_at} className="text-[11px] text-stone-400 flex-shrink-0">
+                            {formatChatTime(c.last_created_at)}
+                          </time>
+                        )}
+                      </div>
                       <p className="text-xs text-stone-400 truncate">{c.last_message}</p>
                     </button>
                   ))
