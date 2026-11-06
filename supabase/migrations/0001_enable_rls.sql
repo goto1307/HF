@@ -5314,7 +5314,7 @@ on conflict (id) do nothing;
 
 
 -- ============================================================
--- PART AU: 質問チャット(公開Q&A)の書き込みを、3時間おきにまとめてメールで知らせる
+-- PART AU: 質問チャット(公開Q&A)の書き込みを、2時間おきにまとめてメールで知らせる
 -- ============================================================
 --
 -- 背景: 商品ページの「みんなの質問チャット」は、書き込んだあと返事が来ても
@@ -5322,10 +5322,9 @@ on conflict (id) do nothing;
 -- 仕組み(PART AO の個別チャットのまとめメールと同じ考え方):
 --   - 商品ページを開いている間、30秒ごとに touch_qa_presence() で
 --     「その商品の質問チャットを見ている」時刻を qa_presence に記録する
---   - pg_cron で日本時間 9・12・15・18・21時の5分に send_qa_digests() を動かし、
---     前回から届いた質問チャットの書き込みを、受け取る人ごとに1通にまとめて
+--   - pg_cron で2時間ごと(日本時間 1・3・5…23時の5分。UTC の偶数時)に send_qa_digests() を動かし、
+--     直前の2時間に届いた質問チャットの書き込みを、受け取る人ごとに1通にまとめて
 --     Edge Function notify-qa-digest に渡してメールを送る(メールの数を節約するため)
---     夜中に届かないように、21時〜翌9時の書き込みは朝9時にまとめて送る
 --   - 誰に知らせるか(やりとりが多くてもメールが増えすぎないように絞っている)
 --       ・出品者: 出品者以外の誰かが書き込んだとき
 --       ・質問した人(その書き込みより前に1回以上書き込んだ人): 出品者が書き込んだときだけ
@@ -5381,7 +5380,7 @@ create index if not exists message_public_item_created_idx
 
 -- 引数の名前を変えたので、古い形があれば消してから作り直す
 drop function if exists public.send_qa_digests(timestamptz);
--- p_window_end: テスト用。区切りの時刻(日本時間 9・12・15・18・21時)を渡すと、その直前の分を送る
+-- p_window_end: テスト用。区切りの時刻を渡すと、その直前の2時間の分を送る
 create or replace function public.send_qa_digests(p_window_end timestamptz default null)
 returns integer
 language plpgsql
@@ -5396,12 +5395,7 @@ declare
   r record;
 begin
   v_to := coalesce(p_window_end, date_trunc('hour', now()));
-  -- 朝9時の回は前日21時から(夜の12時間ぶん)、それ以外は3時間前から
-  if extract(hour from (v_to at time zone 'Asia/Tokyo')) = 9 then
-    v_from := v_to - interval '12 hours';
-  else
-    v_from := v_to - interval '3 hours';
-  end if;
+  v_from := v_to - interval '2 hours';
 
   select decrypted_secret into v_secret
   from vault.decrypted_secrets
@@ -5492,7 +5486,7 @@ end;
 $$;
 revoke execute on function public.send_qa_digests(timestamptz) from public, anon, authenticated;
 
--- 日本時間 9・12・15・18・21時の5分に動かす(pg_cron は UTC なので 0・3・6・9・12時。
+-- 2時間ごとの5分に動かす(pg_cron は UTC なので 0・2・4…時 = 日本時間 9・11・13…時。
 -- 個別チャットのまとめメールと時間をずらす。同じ名前で登録し直すと上書きされる)
 create extension if not exists pg_cron;
-select cron.schedule('hokuma-qa-digest', '5 0,3,6,9,12 * * *', $$select public.send_qa_digests()$$);
+select cron.schedule('hokuma-qa-digest', '5 */2 * * *', $$select public.send_qa_digests()$$);
