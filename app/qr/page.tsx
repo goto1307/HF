@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import HokkumaMascot from "@/components/HokkumaMascot";
-import { markSurveyDone, rememberSource, SOURCE_PATTERN } from "@/lib/visitSource";
+import { rememberSource, SOURCE_PATTERN } from "@/lib/visitSource";
 
 // 記録したあとの移動先。外のサイトへは飛ばさないよう、決まったページだけにする。
 const DESTINATIONS: Record<string, string> = {
@@ -15,7 +15,7 @@ const DESTINATIONS: Record<string, string> = {
 // ポスターのQRコードやインスタのリンクの飛び先。開かれた回数を記録してからトップへ移動する。
 // ポスターは /qr(目印なし)、インスタは /qr?from=insta のように目印を付ける。
 // &to=demands などを付けると、トップではなくそのページへ移動する。
-// &survey=done を付けると、登録前のアンケートを飛ばせる印を付ける(学内アンケートの回答者向け)。
+// (以前の &survey=done は、登録前のアンケートをやめたので何もしない。古いリンクのままでも問題なく動く)
 export default function QrLanding() {
   const router = useRouter();
 
@@ -24,7 +24,6 @@ export default function QrLanding() {
     const to = params.get("to") ?? "";
     const dest = Object.hasOwn(DESTINATIONS, to) ? DESTINATIONS[to] : "/";
     const goHome = () => router.replace(dest);
-    if (params.get("survey") === "done") markSurveyDone();
     const from = params.get("from")?.trim().toLowerCase();
     // 目印が付いているのに決まりに合わないときは、ポスターと混ざらないよう "other" として数える
     const source = from ? (SOURCE_PATTERN.test(from) ? from : "other") : null;
