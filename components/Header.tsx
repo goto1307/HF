@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -8,6 +8,8 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import DemandBubbles from "@/components/DemandBubbles";
 import InstallGuide from "@/components/InstallGuide";
+import AppLauncher from "@/components/AppLauncher";
+import { SECTIONS, type SectionKey } from "@/lib/appSections";
 import { loginPath } from "@/lib/nav";
 import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
@@ -43,7 +45,9 @@ function hasVisibleCoupon() {
   return couponCheck;
 }
 
-export default function Header() {
+// section: いまどのサービスの中か。クーポンのページでは "coupons" にして、フリマ用のタブなどを出さない
+// (いまは運営だけの試作。一般の人にはこれまでどおりフリマのヘッダーを出す)
+export default function Header({ section = "market" }: { section?: SectionKey } = {}) {
   const { user } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
   const [showGuide, setShowGuide] = useState(false);
@@ -57,6 +61,36 @@ export default function Header() {
   const notificationsRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showCoupons, setShowCoupons] = useState(false);
+  // ☰ から開くホーム画面(運営だけの試作)
+  const [showLauncher, setShowLauncher] = useState(false);
+  const closeLauncher = useCallback(() => setShowLauncher(false), []);
+  const inCoupons = isAdmin && section === "coupons";
+  const homeHref = isAdmin ? SECTIONS[section].home : "/";
+  const subtitle = isAdmin ? SECTIONS[section].subtitle : "北大生専用のフリマ";
+
+  // 画面の右上から左下へなぞると、ホーム画面を開く(運営だけの試作)
+  useEffect(() => {
+    if (!isAdmin) return;
+    let start: { x: number; y: number } | null = null;
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      start = t.clientX > window.innerWidth - 90 && t.clientY < 110 ? { x: t.clientX, y: t.clientY } : null;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!start) return;
+      const t = e.touches[0];
+      if (start.x - t.clientX > 40 && t.clientY - start.y > 40) {
+        start = null;
+        setShowLauncher(true);
+      }
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+    };
+  }, [isAdmin]);
 
   useEffect(() => {
     hasVisibleCoupon().then(setShowCoupons);
@@ -180,11 +214,11 @@ export default function Header() {
     <>
       <header className="sticky top-0 z-20 bg-orange-700 text-white shadow-md">
         <div className="relative max-w-6xl mx-auto flex justify-between items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3.5">
-          <Link href="/" className="flex items-center gap-1.5 hover:opacity-90 transition-opacity shrink-0">
+          <Link href={homeHref} className="flex items-center gap-1.5 hover:opacity-90 transition-opacity shrink-0">
             <HokkumaMascot size={34} className="shrink-0 -my-1" />
             <span className="flex flex-col leading-tight">
               <span className="text-lg sm:text-xl font-extrabold tracking-tight">HOKUMA</span>
-              <span className="text-[10px] sm:text-[13px] font-bold text-white whitespace-nowrap">北大生専用のフリマ</span>
+              <span className="text-[10px] sm:text-[13px] font-bold text-white whitespace-nowrap">{subtitle}</span>
             </span>
           </Link>
           {pathname === "/" && (
@@ -287,6 +321,16 @@ export default function Header() {
               </>
             )}
             <div ref={menuRef}>
+              {isAdmin ? (
+                // 運営だけの試作: 目立つ ☰ で、画面いっぱいのホーム画面を開く
+                <button
+                  onClick={() => setShowLauncher(true)}
+                  className="ml-0.5 w-9 h-9 flex items-center justify-center rounded-xl bg-white text-orange-700 shadow-sm hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
+                  aria-label="HOKUMAのサービス一覧を開く"
+                >
+                  <IconMenu size={20} />
+                </button>
+              ) : (
               <button
                 onClick={() => setShowMenu((v) => !v)}
                 className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors"
@@ -294,7 +338,8 @@ export default function Header() {
               >
                 <IconMenu size={18} />
               </button>
-              {showMenu && (
+              )}
+              {showMenu && !isAdmin && (
                 <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
                   {isAdmin && (
                     <>
@@ -396,7 +441,8 @@ export default function Header() {
             </div>
           </div>
         )}
-        {/* 未ログインでも「商品を探す」「みんなの欲しい！」は見られるのでタブを出す */}
+        {/* 未ログインでも「商品を探す」「みんなの欲しい！」は見られるのでタブを出す(クーポンの中ではフリマのタブは出さない) */}
+        {!inCoupons && (
         <div className="border-t border-white/20">
           <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
             {[
@@ -422,7 +468,19 @@ export default function Header() {
             })}
           </div>
         </div>
+        )}
       </header>
+
+      {isAdmin && (
+        <AppLauncher
+          open={showLauncher}
+          onClose={closeLauncher}
+          loggedIn={!!user}
+          isAdmin={isAdmin}
+          onShowGuide={() => setShowGuide(true)}
+          onShowInstall={() => setShowInstall(true)}
+        />
+      )}
 
       <DemandBubbles />
 

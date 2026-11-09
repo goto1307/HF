@@ -15,6 +15,8 @@ import {
 } from "@/lib/coupon";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
+import CouponMapView from "@/components/CouponMapView";
+import { isAdminEmail } from "@/lib/adminEmails";
 
 type MyClaim = { coupon_id: string; used_at: string | null };
 
@@ -24,6 +26,8 @@ export default function CouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [claims, setClaims] = useState<Record<string, MyClaim>>({});
   const [loading, setLoading] = useState(true);
+  // 地図のページは、いまは運営だけの試作
+  const isAdmin = isAdminEmail(user?.email);
 
   useEffect(() => {
     if (authLoading) return;
@@ -49,6 +53,19 @@ export default function CouponsPage() {
     if (claimOpen(c)) return { label: "受け取れます", tone: "bg-yellow-200 text-yellow-900" };
     return { label: `${formatDateTime(c.claim_from)}から`, tone: "bg-stone-100 text-stone-600" };
   };
+
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#EEF2F5]">
+        <Header section="coupons" />
+        {loading ? (
+          <div className="max-w-md mx-auto aspect-[9/11] bg-[#E3E9EE] animate-pulse" />
+        ) : (
+          <CouponMapView coupons={coupons} claims={claims} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50">
