@@ -135,7 +135,7 @@ export default function CouponPage() {
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-stone-50">
-        <Header />
+        <Header section={isAdmin ? "coupons" : "market"} />
         <div className="max-w-md mx-auto p-4">
           <div className="h-64 rounded-2xl bg-stone-100 animate-pulse" />
         </div>
@@ -146,7 +146,7 @@ export default function CouponPage() {
   if (!coupon) {
     return (
       <div className="min-h-screen bg-stone-50">
-        <Header />
+        <Header section={isAdmin ? "coupons" : "market"} />
         <div className="flex flex-col items-center py-20 px-4 text-center">
           <HokkumaMascot size={88} className="mb-3 opacity-90" />
           <p className="text-stone-500 mb-4">このクーポンは見つかりませんでした</p>
@@ -165,7 +165,7 @@ export default function CouponPage() {
   if (claim?.used_at) {
     return (
       <div className="min-h-screen bg-stone-50">
-        <Header />
+        <Header section={isAdmin ? "coupons" : "market"} />
         <div className="max-w-md mx-auto p-4">
           <div className="rounded-3xl bg-gradient-to-br from-orange-600 to-orange-700 text-white p-6 shadow-lg text-center relative overflow-hidden">
             <p className="text-sm font-bold opacity-90">{coupon.shop_name}・{coupon.title}</p>
@@ -205,7 +205,7 @@ export default function CouponPage() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <Header />
+      <Header section={isAdmin ? "coupons" : "market"} />
       <div className="max-w-md mx-auto p-4 pb-24">
         <button onClick={() => goBack(router, "/coupons")} className="text-sm text-stone-500 mb-3">
           ← 戻る
