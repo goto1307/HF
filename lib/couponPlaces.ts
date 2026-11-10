@@ -7,6 +7,7 @@ export type CouponPlace = {
   y: number;
   address: string; // 住所のうち、場所の見当がつく部分
   access: string; // 行き方のひとこと
+  photo?: string; // お店や料理の写真(public/ に置いたファイルのパス。例: "/coupons/futagozan.jpg")。ないときは地図を出す
 };
 
 export const COUPON_PLACES: Record<string, CouponPlace> = {

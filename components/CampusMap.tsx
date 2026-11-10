@@ -27,14 +27,16 @@ export default function CampusMap({
   pins,
   selected,
   onSelect,
+  viewBox = "0 0 360 440",
 }: {
   pins: Pin[];
   selected: string | null;
   onSelect: (id: string) => void;
+  viewBox?: string; // 一部分だけを大きく見せるとき(クーポンの詳細ページの上の絵)に使う
 }) {
   return (
     <svg
-      viewBox="0 0 360 440"
+      viewBox={viewBox}
       className="block w-full h-auto select-none"
       role="img"
       aria-label="北海道大学と、クーポンが使えるお店の位置関係の地図"

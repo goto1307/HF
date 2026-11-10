@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
-import { COUPON_COLUMNS, formatDate, type Coupon } from "@/lib/coupon";
+import { COUPON_COLUMNS, benefitName, formatDate, type Coupon } from "@/lib/coupon";
 import Header from "@/components/Header";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
@@ -71,7 +71,7 @@ function reportText(coupon: Coupon, weekDays: Day[], stats: CouponStats) {
     `・クーポンを受け取った人：${t.claims}人`,
     `・使われた回数：${t.uses}回（初めて来店 ${t.first_visits}人）`,
     ...(stats.benefits.length > 0
-      ? [`・選ばれた特典：${stats.benefits.map((b) => `${b.benefit} ${b.uses}回`).join("、")}`]
+      ? [`・選ばれた特典：${stats.benefits.map((b) => `${benefitName(b.benefit)} ${b.uses}回`).join("、")}`]
       : []),
     "",
     "お客様の個人情報はお送りしていません。引き続きよろしくお願いいたします。",
@@ -210,7 +210,7 @@ export default function AdminCouponsPage() {
                 <ul className="text-sm space-y-1">
                   {stats.benefits.map((b) => (
                     <li key={b.benefit ?? ""} className="flex justify-between">
-                      <span>{b.benefit}</span>
+                      <span>{benefitName(b.benefit)}</span>
                       <span className="font-bold">{b.uses}回</span>
                     </li>
                   ))}
