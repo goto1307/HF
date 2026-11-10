@@ -15,7 +15,7 @@ import {
 } from "@/lib/coupon";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
-import CouponMapView from "@/components/CouponMapView";
+import CouponExplorer from "@/components/CouponExplorer";
 import { isAdminEmail } from "@/lib/adminEmails";
 
 type MyClaim = { coupon_id: string; used_at: string | null };
@@ -55,13 +55,20 @@ export default function CouponsPage() {
   };
 
   if (isAdmin) {
+    // 画面いっぱいの地図(下のフッターは地図の下に隠れる)
     return (
-      <div className="min-h-screen bg-[#EEF2F5]">
+      <div className="flex h-dvh flex-col bg-[#EEF2F5]">
         <Header section="coupons" />
         {loading ? (
-          <div className="max-w-md mx-auto aspect-[9/11] bg-[#E3E9EE] animate-pulse" />
+          <div className="flex-1 bg-[#E3E9EE] animate-pulse" />
         ) : (
-          <CouponMapView coupons={coupons} claims={claims} />
+          <CouponExplorer
+            coupons={coupons}
+            claims={claims}
+            onClaimed={(c) => setClaims((prev) => ({ ...prev, [c.coupon_id]: c }))}
+            loggedIn={!!user}
+            isAdmin={isAdmin}
+          />
         )}
       </div>
     );

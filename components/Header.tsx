@@ -64,31 +64,48 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
   // ☰ から開くホーム画面(運営だけの試作)
   const [showLauncher, setShowLauncher] = useState(false);
   const closeLauncher = useCallback(() => setShowLauncher(false), []);
-  const inCoupons = isAdmin && section === "coupons";
+  // フリマ以外のサービス(クーポン・マイページ)では、フリマ用のタブを出さない
+  const inCoupons = isAdmin && section !== "market";
   const homeHref = isAdmin ? SECTIONS[section].home : "/";
   const subtitle = isAdmin ? SECTIONS[section].subtitle : "北大生専用のフリマ";
 
-  // 画面の右上から左下へなぞると、ホーム画面を開く(運営だけの試作)
+  // 画面の右上から左下へなぞると、指の動きに合わせてホーム画面が広がる。離したときに十分広がっていれば開く(運営だけの試作)
+  const [dragRadius, setDragRadius] = useState<number | null>(null);
   useEffect(() => {
     if (!isAdmin) return;
     let start: { x: number; y: number } | null = null;
+    let radius = 0;
     const onStart = (e: TouchEvent) => {
       const t = e.touches[0];
-      start = t.clientX > window.innerWidth - 90 && t.clientY < 110 ? { x: t.clientX, y: t.clientY } : null;
+      start = t.clientX > window.innerWidth - 90 && t.clientY < 120 ? { x: t.clientX, y: t.clientY } : null;
+      radius = 0;
     };
     const onMove = (e: TouchEvent) => {
       if (!start) return;
       const t = e.touches[0];
-      if (start.x - t.clientX > 40 && t.clientY - start.y > 40) {
-        start = null;
-        setShowLauncher(true);
-      }
+      const dx = start.x - t.clientX; // 左へ動いた量
+      const dy = t.clientY - start.y; // 下へ動いた量
+      if (dx < 0 || dy < 0) { radius = 0; setDragRadius(null); return; }
+      // 指の位置まで届く大きさ × 少し大きめにして、なぞった先が見えるようにする
+      radius = Math.hypot(dx, dy) * 1.6;
+      if (radius > 12) setDragRadius(radius);
+    };
+    const onEnd = () => {
+      if (!start) return;
+      start = null;
+      const enough = radius > Math.min(window.innerWidth, window.innerHeight) * 0.35;
+      setDragRadius(null);
+      if (enough) setShowLauncher(true);
     };
     document.addEventListener("touchstart", onStart, { passive: true });
     document.addEventListener("touchmove", onMove, { passive: true });
+    document.addEventListener("touchend", onEnd);
+    document.addEventListener("touchcancel", onEnd);
     return () => {
       document.removeEventListener("touchstart", onStart);
       document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onEnd);
     };
   }, [isAdmin]);
 
@@ -291,7 +308,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                   )}
                 </div>
                 <Link
-                  href="/mypage"
+                  href={isAdmin ? "/me" : "/mypage"}
                   className="flex items-center gap-1.5 sm:gap-2 bg-white text-orange-700 pl-1.5 pr-1.5 sm:pl-2 sm:pr-4 py-1.5 rounded-full font-bold text-sm hover:bg-orange-100 transition-colors"
                 >
                   {user.user_metadata?.avatar_url ? (
@@ -474,6 +491,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
       {isAdmin && (
         <AppLauncher
           open={showLauncher}
+          dragRadius={showLauncher ? null : dragRadius}
           onClose={closeLauncher}
           loggedIn={!!user}
           isAdmin={isAdmin}

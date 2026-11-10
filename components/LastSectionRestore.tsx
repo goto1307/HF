@@ -30,7 +30,8 @@ export default function LastSectionRestore() {
   useEffect(() => {
     if (!isAdmin) return;
     const section = sectionOf(pathname);
-    if (section) rememberSection(section);
+    // マイページは「前回のサービス」として覚えない(開き直したらフリマかクーポンから始める)
+    if (section && section !== "account") rememberSection(section);
   }, [isAdmin, pathname]);
 
   return null;
