@@ -12,6 +12,40 @@ const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 // 最初に映す場所: 北大の札幌キャンパスの東側(北18条駅〜北12条駅のあたり)
 const START = { lng: 141.3445, lat: 43.0775, zoom: 15.2 };
 
+// 動かせる範囲: 北大の札幌キャンパスの真ん中(北13条西8丁目あたり)から、半径およそ1km。
+// 緯度 0.009度 ≒ 1km、経度 0.0123度 ≒ 1km(札幌の緯度で計算)
+const CAMPUS = { lng: 141.3415, lat: 43.0760 };
+const BOUNDS: [[number, number], [number, number]] = [
+  [CAMPUS.lng - 0.0123, CAMPUS.lat - 0.009],
+  [CAMPUS.lng + 0.0123, CAMPUS.lat + 0.009],
+];
+
+// 地図を見やすくするため、いらない情報を消す
+// - 立体の建物(3D)を消す
+// - お店や施設のアイコン(POI)は、駅だけ残して消す
+// - 番地・山頂・空港の名前を消す
+// - 地名・道路名は日本語だけにする(英語の読みを並べない)
+// 地図の部品の名前は OpenMapTiles の決まり(https://openmaptiles.org/schema/)
+type StyleLayer = { id: string; type: string; "source-layer"?: string; layout?: Record<string, unknown> };
+function simplify(map: MlMap) {
+  const layers = (map.getStyle().layers ?? []) as StyleLayer[];
+  for (const layer of layers) {
+    const src = layer["source-layer"];
+    if (layer.type === "fill-extrusion" || src === "housenumber" || src === "mountain_peak" || src === "aerodrome_label") {
+      map.removeLayer(layer.id);
+      continue;
+    }
+    if (src === "poi") {
+      map.setFilter(layer.id, ["in", ["get", "class"], ["literal", ["railway"]]]);
+    }
+    const textField = layer.layout?.["text-field"];
+    // 道路番号の看板(ref)などは変えず、名前を出している文字だけを日本語にする
+    if (layer.type === "symbol" && textField && JSON.stringify(textField).includes("name")) {
+      map.setLayoutProperty(layer.id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]]);
+    }
+  }
+}
+
 function pinElement(label: string) {
   const el = document.createElement("button");
   el.type = "button";
@@ -65,8 +99,9 @@ export default function ShopMap({
         center: !interactive && shops[0] ? [shops[0].lng, shops[0].lat] : [START.lng, START.lat],
         zoom: interactive ? START.zoom : 16,
         interactive,
-        minZoom: 11,
+        minZoom: 13.5,
         maxZoom: 19,
+        maxBounds: BOUNDS,
         attributionControl: { compact: true },
         // 地図を回したり傾けたりはしない(迷わないように北を上で固定)
         dragRotate: false,
@@ -81,6 +116,13 @@ export default function ShopMap({
           "bottom-right",
         );
       }
+      map.once("style.load", () => {
+        try {
+          simplify(map);
+        } catch {
+          // 地図の作りが変わって消せなかったときも、地図はそのまま使えるようにする
+        }
+      });
       // 地図の何もないところを押したら、お店の選択を外す
       map.on("click", () => onSelectRef.current(null));
 

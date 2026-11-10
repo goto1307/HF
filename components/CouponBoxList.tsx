@@ -9,7 +9,7 @@ export default function CouponBoxList({ rows, compact = false }: { rows: { claim
     return (
       <div className="rounded-2xl border border-dashed border-white/25 p-6 text-center">
         <p className="font-bold">まだクーポンがありません</p>
-        <p className="mt-1 text-sm text-white/65">地図からお店を選んで、クーポンを受け取りましょう。</p>
+        <p className="mt-1 text-sm text-white/80">地図からお店を選んで、クーポンを受け取りましょう。</p>
         <Link href="/coupons" className="mt-4 inline-block rounded-full bg-white px-5 py-2.5 text-sm font-extrabold text-[#1B243A]">
           クーポンの地図を見る
         </Link>
@@ -31,7 +31,7 @@ export default function CouponBoxList({ rows, compact = false }: { rows: { claim
             <Link
               href={`/coupons/${coupon.id}`}
               className={`block rounded-2xl p-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E] ${
-                used || ended ? "bg-white/5 text-white/55" : "bg-white text-[#1B243A] hover:bg-stone-50"
+                used || ended ? "bg-black/10 text-white/80" : "bg-white text-[#1B243A] hover:bg-stone-50"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
