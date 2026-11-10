@@ -2,13 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import CampusMap from "@/components/CampusMap";
+import { BenefitCards, CouponConditions, CouponNotes } from "@/components/CouponParts";
 import { COUPON_PLACES } from "@/lib/couponPlaces";
 import {
   claimOpen,
-  formatDate,
   formatDateTime,
-  formatWeekdays,
-  formatWindows,
   hasEnded,
   usableNow,
   type Coupon,
@@ -59,48 +57,31 @@ export default function CouponMapView({ coupons, claims }: { coupons: Coupon[]; 
           aria-label={`${selected.shop_name}のクーポン`}
           className="relative -mt-8 rounded-t-[28px] bg-[#2F3E5C] text-white px-6 pt-6 pb-10"
         >
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-white/80">
-            {selected.shop_name}
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-bold bg-white/15 rounded px-1.5 py-0.5">PR・提携</span>
-            {!selected.active && <span className="text-[10px] font-bold bg-yellow-300 text-[#1B243A] rounded px-1.5 py-0.5">非公開</span>}
-          </p>
-          <h1 className="mt-1 text-[28px] leading-tight font-extrabold tracking-tight">{selected.title}</h1>
+            {!selected.active && <span className="text-[10px] font-bold bg-[#F2C14E] text-[#1B243A] rounded px-1.5 py-0.5">非公開・運営だけに表示中</span>}
+          </div>
+          <h1 className="mt-2 text-[30px] leading-tight font-extrabold tracking-tight">{selected.shop_name}</h1>
+          <p className="mt-1 text-base font-bold text-[#F2C14E]">{selected.title}</p>
           {status(selected) && (
-            <p className="mt-2 inline-block text-xs font-bold rounded-full bg-yellow-300 text-[#1B243A] px-3 py-1">
-              {status(selected)}
-            </p>
+            <p className="mt-3 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold">{status(selected)}</p>
           )}
 
-          <dl className="mt-5 grid grid-cols-[4.5em_1fr] gap-y-2.5 text-sm">
-            <dt className="text-white/60">使える日</dt>
-            <dd className="font-bold">
-              {formatWeekdays(selected.weekdays)}（{formatDate(selected.use_from)}〜{formatDate(selected.use_until)}）
-            </dd>
-            <dt className="text-white/60">時間</dt>
-            <dd className="font-bold">{formatWindows(selected.time_windows)}</dd>
-            <dt className="text-white/60">場所</dt>
-            <dd className="font-bold">
-              {COUPON_PLACES[selected.id].address}
-              <span className="block font-normal text-white/75">{COUPON_PLACES[selected.id].access}</span>
-            </dd>
-          </dl>
+          <h2 className="mt-7 text-xl font-extrabold">どれか1つが無料</h2>
+          <p className="mt-1 mb-4 text-sm text-white/70">{selected.description}</p>
+          <BenefitCards benefits={selected.benefits} />
 
-          <div className="mt-5">
-            <p className="text-sm text-white/75">{selected.description}</p>
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {selected.benefits.map((b) => (
-                <li key={b} className="rounded-full bg-white text-[#1B243A] text-sm font-bold px-3 py-1.5">{b}</li>
-              ))}
-            </ul>
+          <div className="mt-7">
+            <CouponConditions coupon={selected} place={COUPON_PLACES[selected.id]} />
           </div>
 
           <Link
             href={`/coupons/${selected.id}`}
-            className="mt-7 block w-full rounded-full bg-[#BA421D] py-3.5 text-center font-extrabold shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-300 transition-transform"
+            className="mt-8 block w-full rounded-full bg-[#BA421D] py-3.5 text-center font-extrabold shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-300 transition-transform"
           >
-            {claims[selected.id] ? "クーポンを開く" : "クーポンを受け取る"}
+            {claims[selected.id] ? "クーポンを開く" : claimOpen(selected) ? "クーポンを受け取る" : "クーポンの詳細を見る"}
           </Link>
-          {selected.notes && <p className="mt-4 text-xs leading-relaxed text-white/60">{selected.notes}</p>}
+          <CouponNotes notes={selected.notes} />
         </section>
       )}
     </div>

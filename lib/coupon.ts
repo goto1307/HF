@@ -95,3 +95,19 @@ export function formatWindows(windows: TimeWindow[]) {
   if (windows.length === 0) return "営業時間中";
   return windows.map((w) => `${w.from}〜${w.to}`).join("、");
 }
+
+// 特典の書き方: 「特典名｜ひとこと｜注意書き」(｜は全角の縦線。ひとこと・注意書きはなくてもよい)
+// 例: "ザンギ増量｜2個注文で+1個、5個注文で+2個"
+//     "パルプンテ｜何が出てくるかはお楽しみ｜変更・キャンセルはできません。好き嫌いやアレルギーがある方はご利用をお控えください"
+// DB(coupon.benefits)にはこの文字列のまま入れる。使ったときに記録されるのも、この文字列そのもの
+export type Benefit = { raw: string; name: string; detail: string | null; caution: string | null };
+
+export function parseBenefit(raw: string): Benefit {
+  const [name, detail, caution] = raw.split("｜").map((s) => s.trim());
+  return { raw, name: name || raw, detail: detail || null, caution: caution || null };
+}
+
+// 記録された特典の文字列から、名前だけを出す(使用済みの画面・集計で使う)
+export function benefitName(raw: string | null) {
+  return raw ? parseBenefit(raw).name : "";
+}

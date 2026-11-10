@@ -8,8 +8,8 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import {
   CLAIM_COLUMNS,
   COUPON_COLUMNS,
+  benefitName,
   claimOpen,
-  formatDate,
   formatDateTime,
   formatTime,
   formatWeekdays,
@@ -20,6 +20,9 @@ import {
   type Coupon,
   type CouponClaim,
 } from "@/lib/coupon";
+import { COUPON_PLACES } from "@/lib/couponPlaces";
+import CampusMap from "@/components/CampusMap";
+import { BenefitCards, CouponConditions, CouponNotes } from "@/components/CouponParts";
 import { rememberSource } from "@/lib/visitSource";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
@@ -108,7 +111,7 @@ export default function CouponPage() {
   const handleUse = async () => {
     if (!coupon || !benefit || firstVisit === null) return;
     const ok = confirm(
-      `「${benefit}」で使います。\n\nお店の人に画面を見せながら押してください。押すと使用済みになり、元に戻せません。`
+      `「${benefitName(benefit)}」で使います。\n\nお店の人に画面を見せながら押してください。押すと使用済みになり、元に戻せません。`
     );
     if (!ok) return;
     setBusy(true);
@@ -132,12 +135,18 @@ export default function CouponPage() {
     toast("受け取り記録を消しました");
   };
 
+  const NAVY = "bg-[#2F3E5C]";
+
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-stone-50">
+      <div className={`min-h-screen ${NAVY}`}>
         <Header section={isAdmin ? "coupons" : "market"} />
-        <div className="max-w-md mx-auto p-4">
-          <div className="h-64 rounded-2xl bg-stone-100 animate-pulse" />
+        <div className="max-w-md mx-auto">
+          <div className="h-52 bg-[#E3E9EE] animate-pulse" />
+          <div className="p-6 space-y-3">
+            <div className="h-8 w-40 rounded-lg bg-white/10" />
+            <div className="h-24 rounded-2xl bg-white/5" />
+          </div>
         </div>
       </div>
     );
@@ -145,56 +154,55 @@ export default function CouponPage() {
 
   if (!coupon) {
     return (
-      <div className="min-h-screen bg-stone-50">
+      <div className={`min-h-screen ${NAVY} text-white`}>
         <Header section={isAdmin ? "coupons" : "market"} />
-        <div className="flex flex-col items-center py-20 px-4 text-center">
-          <HokkumaMascot size={88} className="mb-3 opacity-90" />
-          <p className="text-stone-500 mb-4">このクーポンは見つかりませんでした</p>
-          <Link href="/coupons" className="text-orange-700 font-bold underline">クーポン一覧へ</Link>
+        <div className="flex flex-col items-center py-20 px-6 text-center">
+          <HokkumaMascot size={88} className="mb-4" />
+          <p className="font-bold">このクーポンは見つかりませんでした</p>
+          <p className="text-sm text-white/65 mt-1">配布が終わったか、URLが違う可能性があります。</p>
+          <Link href="/coupons" className="mt-5 rounded-full bg-white text-[#1B243A] font-bold px-5 py-2.5">クーポンの一覧へ</Link>
         </div>
       </div>
     );
   }
 
+  const place = COUPON_PLACES[coupon.id];
   const usable = usableNow(coupon, now);
   const ended = hasEnded(coupon, now);
   const usedToday = claim?.used_at ? jstNow(new Date(claim.used_at)).date === jstNow(now).date : false;
-  const rules = `${formatDate(coupon.use_from)}〜${formatDate(coupon.use_until)}の${formatWeekdays(coupon.weekdays)}、${formatWindows(coupon.time_windows)}`;
+  const whenUsable = `${formatWeekdays(coupon.weekdays)}の${formatWindows(coupon.time_windows)}`;
 
   // ---------- 使用済み(お店の人に見せる画面) ----------
   if (claim?.used_at) {
     return (
-      <div className="min-h-screen bg-stone-50">
+      <div className={`min-h-screen ${NAVY} text-white`}>
         <Header section={isAdmin ? "coupons" : "market"} />
-        <div className="max-w-md mx-auto p-4">
-          <div className="rounded-3xl bg-gradient-to-br from-orange-600 to-orange-700 text-white p-6 shadow-lg text-center relative overflow-hidden">
-            <p className="text-sm font-bold opacity-90">{coupon.shop_name}・{coupon.title}</p>
-            <p className="mt-4 text-xs opacity-80">特典</p>
-            <p className="text-3xl font-black mt-1">{claim.benefit}</p>
-            <div className="mt-5 rounded-2xl bg-white text-stone-800 py-3">
-              <p className="text-xs text-stone-500">使った時刻</p>
-              <p className="text-2xl font-black">
-                {formatDateTime(claim.used_at)} {formatTime(claim.used_at)}
-              </p>
-            </div>
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm">
-              {/* 動いていることで、スクリーンショットではないと分かるようにする */}
-              <span className="inline-block w-3 h-3 rounded-full bg-yellow-300 animate-ping" />
-              <span className="font-mono font-bold tabular-nums">
-                現在 {jstNow(now).time}:{String(now.getSeconds()).padStart(2, "0")}
-              </span>
-            </div>
-            {usedToday ? (
-              <p className="mt-4 text-sm font-bold bg-white/15 rounded-xl py-2">
-                お店の方へ：上の特典を1つお出しください
-              </p>
-            ) : (
-              <p className="mt-4 text-sm font-bold bg-white/15 rounded-xl py-2">このクーポンは使用済みです</p>
-            )}
+        <div className="max-w-md mx-auto px-6 pt-8 pb-16 text-center">
+          <p className="text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
+          <p className="mt-6 text-xs text-white/60">特典</p>
+          <p className="mt-1 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-3">
+            {benefitName(claim.benefit)}
+          </p>
+          <div className="mt-6 rounded-2xl bg-white text-[#1B243A] py-4">
+            <p className="text-xs text-stone-500">使った時刻</p>
+            <p className="text-2xl font-extrabold">{formatDateTime(claim.used_at)} {formatTime(claim.used_at)}</p>
           </div>
-          <p className="text-xs text-stone-500 mt-4 text-center">ご利用ありがとうございました！</p>
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+            {/* 動いていることで、スクリーンショットではないと分かるようにする */}
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-[#F2C14E] opacity-70 animate-ping motion-reduce:animate-none" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-[#F2C14E]" />
+            </span>
+            <span className="font-bold tabular-nums">
+              現在 {jstNow(now).time}:{String(now.getSeconds()).padStart(2, "0")}
+            </span>
+          </div>
+          <p className="mt-6 rounded-xl bg-white/10 py-3 text-sm font-bold">
+            {usedToday ? "お店の方へ：上の特典を1つお出しください" : "このクーポンは使用済みです"}
+          </p>
+          <p className="text-xs text-white/60 mt-5">ご利用ありがとうございました！</p>
           {isAdmin && (
-            <button onClick={handleReset} className="mt-6 w-full text-xs text-stone-400 underline">
+            <button onClick={handleReset} className="mt-8 text-xs text-white/50 underline">
               （運営の動作確認用）受け取りをやり直す
             </button>
           )}
@@ -203,149 +211,132 @@ export default function CouponPage() {
     );
   }
 
+  // ---------- 下に固定するボタン ----------
+  const primary = "block w-full rounded-full py-3.5 text-center font-extrabold transition-transform";
+  const enabled = `${primary} bg-[#BA421D] text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
+  const disabled = `${primary} bg-white/10 text-white/60 cursor-not-allowed`;
+  const beforeStart = !claim && !claimOpen(coupon, now) && !ended;
+
+  let cta: React.ReactNode;
+  let ctaNote: React.ReactNode = null;
+  if (!user) {
+    cta = ended ? <span className={disabled}>配布は終了しました</span> : <Link href={loginPath()} className={enabled}>ログインして受け取る</Link>;
+    if (!ended) ctaNote = <Link href="/join" className="underline">はじめての方は新規登録（無料・北大のメールアドレス）</Link>;
+  } else if (!claim) {
+    if (ended) cta = <span className={disabled}>配布は終了しました</span>;
+    else if (beforeStart) {
+      cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から受け取れます</button>;
+      if (isAdmin) ctaNote = <button onClick={handleClaim} disabled={busy} className="underline">（運営の動作確認用）開始前に受け取って試す</button>;
+    } else cta = <button onClick={handleClaim} disabled={busy} className={enabled}>{busy ? "受け取り中..." : "クーポンを受け取る"}</button>;
+  } else {
+    const ready = !!benefit && firstVisit !== null;
+    const canUse = ready && (usable || isAdmin);
+    cta = (
+      <button onClick={handleUse} disabled={!canUse || busy} className={canUse ? enabled : disabled}>
+        {busy ? "処理中..." : !ready ? "特典と来店の回数を選んでください" : !usable && !isAdmin ? "今は使えない時間です" : "お店で使う"}
+      </button>
+    );
+    ctaNote = !usable
+      ? ended ? "使える期間は終了しました" : `使えるのは${whenUsable}です${isAdmin ? "（運営は動作確認のため押せます）" : ""}`
+      : "店員さんにこの画面を見せながら押してください";
+  }
+
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className={`min-h-screen ${NAVY} text-white`}>
       <Header section={isAdmin ? "coupons" : "market"} />
-      <div className="max-w-md mx-auto p-4 pb-24">
-        <button onClick={() => goBack(router, "/coupons")} className="text-sm text-stone-500 mb-3">
-          ← 戻る
-        </button>
-
-        {!coupon.active && (
-          <p className="mb-3 rounded-xl bg-stone-800 text-white text-xs font-bold px-3 py-2">
-            非公開（運営の2人にだけ表示されています）。期間・時間に関係なく試せます。
-          </p>
-        )}
-
-        {/* クーポンの中身 */}
-        <div className="rounded-3xl bg-white border border-stone-200 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-5">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold bg-white/25 rounded px-1.5 py-0.5">PR・提携</span>
-              <span className="text-sm font-bold">{coupon.shop_name}</span>
+      <main className="max-w-md mx-auto pb-40">
+        {/* いちばん上: お店の写真。まだないときは、北大との位置関係の地図 */}
+        <div className="relative">
+          {place?.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={place.photo} alt={`${coupon.shop_name}の写真`} className="block h-56 w-full object-cover" />
+          ) : place ? (
+            <div className="h-56 overflow-hidden bg-[#EEF2F5]">
+              <CampusMap
+                pins={[{ id: coupon.id, label: coupon.shop_name, place }]}
+                selected={coupon.id}
+                onSelect={() => {}}
+                viewBox={`${Math.max(0, place.x - 210)} ${place.y - 114} 330 196`}
+              />
             </div>
-            <h1 className="text-2xl font-black mt-2">{coupon.title}</h1>
-            <p className="text-sm mt-2 opacity-95">{coupon.description}</p>
-          </div>
-          <div className="p-5 space-y-3 text-sm">
-            <div>
-              <p className="text-xs font-bold text-stone-400">特典（使うときに1つ選びます）</p>
-              <ul className="mt-1 space-y-1">
-                {coupon.benefits.map((b) => (
-                  <li key={b} className="font-bold text-stone-800">・{b}</li>
-                ))}
-              </ul>
+          ) : (
+            <div className="h-40 flex items-end justify-center bg-[#EEF2F5]">
+              <HokkumaMascot size={96} />
             </div>
-            <div>
-              <p className="text-xs font-bold text-stone-400">使える日時</p>
-              <p className="text-stone-800">{rules}</p>
-            </div>
-            {coupon.notes && <p className="text-xs text-stone-500 leading-relaxed">{coupon.notes}</p>}
-          </div>
+          )}
         </div>
 
-        {/* 受け取り・使う */}
-        <div className="mt-4">
-          {!user ? (
-            ended ? (
-              <p className="text-center text-stone-500 text-sm py-4">このクーポンの配布は終了しました</p>
-            ) : (
-              <div className="rounded-2xl bg-white border border-stone-200 p-5 text-center">
-                <p className="text-sm text-stone-700 mb-3">
-                  受け取るには、北大のメールアドレスで HOKUMA にログインしてください。
-                </p>
-                <Link
-                  href={loginPath()}
-                  className="block w-full bg-gradient-to-br from-orange-600 to-orange-700 text-white py-3 rounded-full font-bold shadow-md"
-                >
-                  ログインして受け取る
-                </Link>
-                <Link href="/join" className="block mt-3 text-sm text-orange-700 font-bold underline">
-                  はじめての方は新規登録（無料）
-                </Link>
-              </div>
-            )
-          ) : !claim ? (
-            ended ? (
-              <p className="text-center text-stone-500 text-sm py-4">このクーポンの配布は終了しました</p>
-            ) : claimOpen(coupon, now) || isAdmin ? (
-              <button
-                onClick={handleClaim}
-                disabled={busy}
-                className="w-full bg-gradient-to-br from-orange-600 to-orange-700 text-white py-3.5 rounded-full font-bold shadow-md disabled:opacity-50"
-              >
-                {busy ? "受け取り中..." : "クーポンを受け取る"}
-              </button>
-            ) : (
-              <p className="text-center text-stone-600 text-sm py-4 font-bold">
-                {formatDateTime(coupon.claim_from)}から受け取れます
-              </p>
-            )
-          ) : (
-            <div className="rounded-2xl bg-white border-2 border-orange-600 p-5">
-              <p className="text-center font-black text-orange-700">受け取り済み</p>
-              <p className="text-center text-xs text-stone-500 mt-1">
-                お店で食券を買ったら、店員さんにこの画面を見せながら「使う」を押してください
-              </p>
+        <div className="-mt-6 relative rounded-t-[28px] bg-[#2F3E5C] px-6 pt-6">
+          <button onClick={() => goBack(router, "/coupons")} className="-ml-1 mb-3 px-1 py-1 text-sm font-bold text-white/70 hover:text-white">
+            ← 戻る
+          </button>
+          {/* 店名(大) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-bold bg-white/15 rounded px-1.5 py-0.5">PR・提携</span>
+            {!coupon.active && <span className="text-[10px] font-bold bg-[#F2C14E] text-[#1B243A] rounded px-1.5 py-0.5">非公開・運営だけに表示中</span>}
+          </div>
+          <h1 className="mt-2 text-[32px] leading-tight font-extrabold tracking-tight">{coupon.shop_name}</h1>
+          <p className="mt-1 text-base font-bold text-[#F2C14E]">{coupon.title}</p>
+          {claim && <p className="mt-3 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-bold">受け取り済み</p>}
 
-              <p className="text-xs font-bold text-stone-500 mt-5 mb-2">① 特典を選ぶ</p>
-              <div className="grid gap-2">
-                {coupon.benefits.map((b) => (
-                  <button
-                    key={b}
-                    onClick={() => setBenefit(b)}
-                    className={`py-2.5 rounded-xl border-2 font-bold text-sm transition-colors ${
-                      benefit === b ? "border-orange-600 bg-orange-50 text-orange-800" : "border-stone-200 text-stone-700"
-                    }`}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
+          {/* 特典(中) */}
+          <section className="mt-8" aria-labelledby="benefit-heading">
+            <h2 id="benefit-heading" className="text-xl font-extrabold">
+              {claim ? "使う特典を1つ選ぶ" : "どれか1つが無料"}
+            </h2>
+            <p className="mt-1 mb-4 text-sm text-white/70">{coupon.description}</p>
+            <BenefitCards benefits={coupon.benefits} selected={benefit} onSelect={claim ? setBenefit : undefined} />
+          </section>
 
-              <p className="text-xs font-bold text-stone-500 mt-5 mb-2">② このお店に来たのは？</p>
-              <div className="grid grid-cols-2 gap-2">
+          {claim && (
+            <section className="mt-8" aria-labelledby="visit-heading">
+              <h2 id="visit-heading" className="text-xl font-extrabold">このお店に来たのは？</h2>
+              <p className="mt-1 mb-4 text-sm text-white/70">お店への報告に使います（名前などは伝わりません）。</p>
+              <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-labelledby="visit-heading">
                 {[
                   { v: true, label: "はじめて" },
                   { v: false, label: "前にも来た" },
                 ].map((o) => (
                   <button
                     key={o.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={firstVisit === o.v}
                     onClick={() => setFirstVisit(o.v)}
-                    className={`py-2.5 rounded-xl border-2 font-bold text-sm transition-colors ${
-                      firstVisit === o.v ? "border-orange-600 bg-orange-50 text-orange-800" : "border-stone-200 text-stone-700"
+                    className={`min-h-[52px] rounded-2xl border-2 font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E] ${
+                      firstVisit === o.v ? "border-[#F2C14E] bg-[#F2C14E] text-[#1B243A]" : "border-white/20 bg-white/5"
                     }`}
                   >
                     {o.label}
                   </button>
                 ))}
               </div>
+            </section>
+          )}
 
-              <button
-                onClick={handleUse}
-                disabled={busy || !benefit || firstVisit === null || !(usable || isAdmin)}
-                className="mt-5 w-full bg-gradient-to-br from-orange-600 to-orange-700 text-white py-3.5 rounded-full font-bold shadow-md disabled:opacity-40"
-              >
-                {busy ? "処理中..." : "③ お店で使う"}
-              </button>
-              {!usable && (
-                <p className="text-xs text-stone-500 mt-2 text-center">
-                  {ended ? "使える期間は終了しました" : `今は使えない時間です。使えるのは${rules}です。`}
-                  {isAdmin && "（運営は動作確認のため押せます）"}
-                </p>
-              )}
-              {isAdmin && (
-                <button onClick={handleReset} className="mt-4 w-full text-xs text-stone-400 underline">
-                  （運営の動作確認用）受け取りをやり直す
-                </button>
-              )}
-            </div>
+          {/* 条件(小) */}
+          <section className="mt-8" aria-label="使える日時と場所">
+            <CouponConditions coupon={coupon} place={place} />
+          </section>
+
+          <CouponNotes notes={coupon.notes} />
+          <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+            このクーポンは HOKUMA と{coupon.shop_name}の提携によるものです。お店に、あなたの名前やメールアドレスが伝わることはありません。
+          </p>
+          {isAdmin && claim && (
+            <button onClick={handleReset} className="mt-6 text-xs text-white/50 underline">
+              （運営の動作確認用）受け取りをやり直す
+            </button>
           )}
         </div>
+      </main>
 
-        <p className="text-[11px] text-stone-400 mt-6 leading-relaxed">
-          このクーポンは HOKUMA と{coupon.shop_name}の提携によるものです。お店に、あなたの名前やメールアドレスなどの個人情報が伝わることはありません（お店には、使われた回数などの数字だけをお伝えします）。
-        </p>
+      {/* ボタンは画面の下に固定 */}
+      <div className="fixed inset-x-0 bottom-0 z-10 bg-[#2F3E5C]/95 backdrop-blur border-t border-white/10">
+        <div className="max-w-md mx-auto px-6 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          {cta}
+          {ctaNote && <p className="mt-2 text-center text-xs text-white/70">{ctaNote}</p>}
+        </div>
       </div>
     </div>
   );
