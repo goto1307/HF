@@ -34,12 +34,12 @@ export default function CouponBoxPage() {
   }, [authLoading, user, router]);
 
   return (
-    <div className="min-h-screen bg-[#2F3E5C] text-white">
+    <div className="min-h-screen bg-[#BA421D] text-white">
       <Header section={isAdmin ? "coupons" : "market"} />
       <main className="mx-auto max-w-md px-6 pb-16 pt-6">
-        <Link href="/coupons" className="text-sm font-bold text-white/70 hover:text-white">← クーポンの地図へ</Link>
+        <Link href="/coupons" className="text-sm font-bold text-white/85 hover:text-white">← クーポンの地図へ</Link>
         <h1 className="mt-3 text-[28px] font-extrabold leading-tight">クーポンボックス</h1>
-        <p className="mt-1 text-sm text-white/70">受け取ったクーポンです。お店で食券を買ったら、ここから開いて使います。</p>
+        <p className="mt-1 text-sm text-white/85">受け取ったクーポンです。お店で食券を買ったら、ここから開いて使います。</p>
         <div className="mt-6">
           {rows === null ? (
             <div className="h-28 rounded-2xl bg-white/5 animate-pulse" />

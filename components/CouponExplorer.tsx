@@ -86,7 +86,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         {loggedIn && (
           <Link
             href="/coupons/box"
-            className="pointer-events-auto relative rounded-full bg-[#2F3E5C] px-3.5 py-2 text-sm font-bold text-white shadow-md"
+            className="pointer-events-auto relative rounded-full bg-[#BA421D] px-3.5 py-2 text-sm font-bold text-white shadow-md"
           >
             クーポンボックス
             {boxCount > 0 && (
@@ -107,23 +107,23 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
               <button
                 key={s.id}
                 onClick={() => select(s.id)}
-                className="min-w-[78%] shrink-0 rounded-2xl bg-[#2F3E5C] p-4 text-left text-white shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
+                className="min-w-[78%] shrink-0 rounded-2xl bg-[#BA421D] p-4 text-left text-white shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
               >
-                <span className="text-xs text-white/70">{s.genre}</span>
+                <span className="text-xs text-white/85">{s.genre}</span>
                 <span className="block text-lg font-extrabold leading-tight">{s.name}</span>
                 <span className="mt-1.5 inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">
                   {c?.title ?? "クーポン"}配布中
                 </span>
-                <span className="mt-2 block text-xs text-white/70">押すとクーポンとお店の情報を見られます</span>
+                <span className="mt-2 block text-xs text-white/85">押すとクーポンとお店の情報を見られます</span>
               </button>
             );
           })}
         </div>
       )}
       {shops.length === 0 && (
-        <div className="absolute inset-x-3 bottom-3 z-10 rounded-2xl bg-[#2F3E5C] p-5 text-white shadow-lg">
+        <div className="absolute inset-x-3 bottom-3 z-10 rounded-2xl bg-[#BA421D] p-5 text-white shadow-lg">
           <p className="font-bold">いま配布中のクーポンはありません</p>
-          <p className="mt-1 text-sm text-white/70">提携しているお店が決まったら、この地図に表示します。</p>
+          <p className="mt-1 text-sm text-white/85">提携しているお店が決まったら、この地図に表示します。</p>
         </div>
       )}
 
@@ -131,13 +131,13 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
       {shop && (
         <section
           aria-label={`${shop.name}の情報`}
-          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto rounded-t-[28px] bg-[#2F3E5C] text-white shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
+          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto rounded-t-[28px] bg-[#BA421D] text-white shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
         >
-          <div className="sticky top-0 z-10 bg-[#2F3E5C] px-6 pt-2.5">
+          <div className="sticky top-0 z-10 bg-[#BA421D] px-6 pt-2.5">
             <div className="mx-auto h-1.5 w-10 rounded-full bg-white/25" aria-hidden />
             <div className="mt-3 flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 text-xs text-white/70">
+                <p className="flex flex-wrap items-center gap-2 text-xs text-white/85">
                   {shop.genre}
                   <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-bold">PR・提携</span>
                   {coupon && !coupon.active && (
@@ -165,7 +165,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
                   aria-selected={tab === t.key}
                   onClick={() => setTab(t.key)}
                   className={`-mb-px border-b-[3px] py-2.5 text-sm font-extrabold transition-colors ${
-                    tab === t.key ? "border-[#F2C14E] text-white" : "border-transparent text-white/55"
+                    tab === t.key ? "border-[#F2C14E] text-white" : "border-transparent text-white/80"
                   }`}
                 >
                   {t.label}
@@ -187,7 +187,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
                   onClaim={() => handleClaim(coupon)}
                 />
               ) : (
-                <p className="text-sm text-white/70">このお店のクーポンは、いま配布していません。</p>
+                <p className="text-sm text-white/85">このお店のクーポンは、いま配布していません。</p>
               )
             ) : (
               <ShopTab shop={shop} />
@@ -210,7 +210,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
             </button>
             <button
               onClick={() => { setJustClaimed(null); toast("クーポンボックスに入れました"); }}
-              className="mt-3 block w-full rounded-full border-2 border-[#2F3E5C] py-3 font-extrabold text-[#2F3E5C]"
+              className="mt-3 block w-full rounded-full border-2 border-[#BA421D] py-3 font-extrabold text-[#BA421D]"
             >
               クーポンボックスに入れる
             </button>
@@ -241,8 +241,8 @@ function CouponTab({
   onClaim: () => void;
 }) {
   const primary = "block w-full rounded-full py-3.5 text-center font-extrabold";
-  const enabled = `${primary} bg-[#BA421D] text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
-  const disabled = `${primary} bg-white/10 text-white/60 cursor-not-allowed`;
+  const enabled = `${primary} bg-white text-[#BA421D] shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
+  const disabled = `${primary} bg-black/15 text-white/80 cursor-not-allowed`;
   const beforeStart = !claimOpen(coupon) && !hasEnded(coupon);
 
   let cta: React.ReactNode;
@@ -266,14 +266,14 @@ function CouponTab({
     <div>
       <p className="text-base font-bold text-[#F2C14E]">{coupon.title}</p>
       <h2 className="mt-1 text-xl font-extrabold">どれか1つが無料</h2>
-      <p className="mt-1 mb-4 text-sm text-white/70">{coupon.description}</p>
+      <p className="mt-1 mb-4 text-sm text-white/85">{coupon.description}</p>
       <BenefitCards benefits={coupon.benefits} />
       <div className="mt-7">
         <CouponConditions coupon={coupon} place={{ address: shop.address.replace(/^札幌市北区/, ""), access: shop.access }} />
       </div>
       <div className="mt-7">
         {cta}
-        {note && <p className="mt-2 text-center text-xs text-white/70">{note}</p>}
+        {note && <p className="mt-2 text-center text-xs text-white/85">{note}</p>}
       </div>
       <CouponNotes notes={coupon.notes} />
     </div>
@@ -285,22 +285,22 @@ function ShopTab({ shop }: { shop: Shop }) {
   return (
     <div className="space-y-6 text-sm">
       <dl className="grid grid-cols-[5em_1fr] gap-y-3">
-        <dt className="text-white/60">ジャンル</dt>
+        <dt className="text-white/80">ジャンル</dt>
         <dd className="font-bold">{shop.genre}</dd>
-        <dt className="text-white/60">住所</dt>
+        <dt className="text-white/80">住所</dt>
         <dd className="font-bold">
           {shop.address}
-          <span className="block font-normal text-white/70">{shop.access}</span>
+          <span className="block font-normal text-white/85">{shop.access}</span>
         </dd>
         {shop.hours && (
           <>
-            <dt className="text-white/60">営業時間</dt>
+            <dt className="text-white/80">営業時間</dt>
             <dd className="font-bold">{shop.hours}</dd>
           </>
         )}
         {shop.closed && (
           <>
-            <dt className="text-white/60">定休日</dt>
+            <dt className="text-white/80">定休日</dt>
             <dd className="font-bold">{shop.closed}</dd>
           </>
         )}
@@ -326,7 +326,7 @@ function ShopTab({ shop }: { shop: Shop }) {
               </li>
             ))}
           </ul>
-          {shop.menuNote && <p className="mt-2 text-xs text-white/55">{shop.menuNote}</p>}
+          {shop.menuNote && <p className="mt-2 text-xs text-white/80">{shop.menuNote}</p>}
         </section>
       )}
     </div>

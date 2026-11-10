@@ -126,7 +126,7 @@ export default function CouponPage() {
     toast("受け取り記録を消しました");
   };
 
-  const NAVY = "bg-[#2F3E5C]";
+  const NAVY = "bg-[#BA421D]";
 
   if (loading || authLoading) {
     return (
@@ -150,7 +150,7 @@ export default function CouponPage() {
         <div className="flex flex-col items-center py-20 px-6 text-center">
           <HokkumaMascot size={88} className="mb-4" />
           <p className="font-bold">このクーポンは見つかりませんでした</p>
-          <p className="text-sm text-white/65 mt-1">配布が終わったか、URLが違う可能性があります。</p>
+          <p className="text-sm text-white/80 mt-1">配布が終わったか、URLが違う可能性があります。</p>
           <Link href="/coupons" className="mt-5 rounded-full bg-white text-[#1B243A] font-bold px-5 py-2.5">クーポンの一覧へ</Link>
         </div>
       </div>
@@ -171,7 +171,7 @@ export default function CouponPage() {
         <Header section={isAdmin ? "coupons" : "market"} />
         <div className="max-w-md mx-auto px-6 pt-8 pb-16 text-center">
           <p className="text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
-          <p className="mt-6 text-xs text-white/60">特典</p>
+          <p className="mt-6 text-xs text-white/80">特典</p>
           <p className="mt-1 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-3">
             {benefitName(claim.benefit)}
           </p>
@@ -192,7 +192,7 @@ export default function CouponPage() {
           <p className="mt-6 rounded-xl bg-white/10 py-3 text-sm font-bold">
             {usedToday ? "お店の方へ：上の特典を1つお出しください" : "このクーポンは使用済みです"}
           </p>
-          <p className="text-xs text-white/60 mt-5">ご利用ありがとうございました！</p>
+          <p className="text-xs text-white/80 mt-5">ご利用ありがとうございました！</p>
           {isAdmin && (
             <button onClick={handleReset} className="mt-8 text-xs text-white/50 underline">
               （運営の動作確認用）受け取りをやり直す
@@ -205,8 +205,8 @@ export default function CouponPage() {
 
   // ---------- 下に固定するボタン ----------
   const primary = "block w-full rounded-full py-3.5 text-center font-extrabold transition-transform";
-  const enabled = `${primary} bg-[#BA421D] text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
-  const disabled = `${primary} bg-white/10 text-white/60 cursor-not-allowed`;
+  const enabled = `${primary} bg-white text-[#BA421D] shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
+  const disabled = `${primary} bg-black/15 text-white/80 cursor-not-allowed`;
   const beforeStart = !claim && !claimOpen(coupon, now) && !ended;
 
   let cta: React.ReactNode;
@@ -253,8 +253,8 @@ export default function CouponPage() {
           )}
         </div>
 
-        <div className="-mt-6 relative rounded-t-[28px] bg-[#2F3E5C] px-6 pt-6">
-          <button onClick={() => goBack(router, "/coupons")} className="-ml-1 mb-3 px-1 py-1 text-sm font-bold text-white/70 hover:text-white">
+        <div className="-mt-6 relative rounded-t-[28px] bg-[#BA421D] px-6 pt-6">
+          <button onClick={() => goBack(router, "/coupons")} className="-ml-1 mb-3 px-1 py-1 text-sm font-bold text-white/85 hover:text-white">
             ← 戻る
           </button>
           {/* 店名(大) */}
@@ -271,14 +271,14 @@ export default function CouponPage() {
             <h2 id="benefit-heading" className="text-xl font-extrabold">
               {claim ? "使う特典を1つ選ぶ" : "どれか1つが無料"}
             </h2>
-            <p className="mt-1 mb-4 text-sm text-white/70">{coupon.description}</p>
+            <p className="mt-1 mb-4 text-sm text-white/85">{coupon.description}</p>
             <BenefitCards benefits={coupon.benefits} selected={benefit} onSelect={claim ? setBenefit : undefined} />
           </section>
 
           {claim && (
             <section className="mt-8" aria-labelledby="visit-heading">
               <h2 id="visit-heading" className="text-xl font-extrabold">このお店に来たのは？</h2>
-              <p className="mt-1 mb-4 text-sm text-white/70">お店への報告に使います（名前などは伝わりません）。</p>
+              <p className="mt-1 mb-4 text-sm text-white/85">お店への報告に使います（名前などは伝わりません）。</p>
               <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-labelledby="visit-heading">
                 {[
                   { v: true, label: "はじめて" },
@@ -307,7 +307,7 @@ export default function CouponPage() {
           </section>
 
           <CouponNotes notes={coupon.notes} />
-          <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+          <p className="mt-3 text-[11px] leading-relaxed text-white/80">
             このクーポンは HOKUMA と{coupon.shop_name}の提携によるものです。お店に、あなたの名前やメールアドレスが伝わることはありません。
           </p>
           {isAdmin && claim && (
@@ -319,10 +319,10 @@ export default function CouponPage() {
       </main>
 
       {/* ボタンは画面の下に固定 */}
-      <div className="fixed inset-x-0 bottom-0 z-10 bg-[#2F3E5C]/95 backdrop-blur border-t border-white/10">
+      <div className="fixed inset-x-0 bottom-0 z-10 bg-[#BA421D]/95 backdrop-blur border-t border-white/10">
         <div className="max-w-md mx-auto px-6 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
           {cta}
-          {ctaNote && <p className="mt-2 text-center text-xs text-white/70">{ctaNote}</p>}
+          {ctaNote && <p className="mt-2 text-center text-xs text-white/85">{ctaNote}</p>}
         </div>
       </div>
     </div>
