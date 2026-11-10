@@ -3,7 +3,6 @@
 // 色は地図のページと同じ: 濃紺 #2F3E5C の上に白、差し色に黄色 #F2C14E、ボタンは朱 #BA421D
 
 import { formatDate, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
-import type { CouponPlace } from "@/lib/couponPlaces";
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
@@ -33,7 +32,7 @@ function IconPin() {
 }
 
 // 使える日・時間・場所を、アイコン付きの行で並べる
-export function CouponConditions({ coupon, place }: { coupon: Coupon; place?: CouponPlace }) {
+export function CouponConditions({ coupon, place }: { coupon: Coupon; place?: { address: string; access: string } }) {
   const rows = [
     { icon: <IconCalendar />, label: "使える日", main: formatWeekdays(coupon.weekdays), sub: `${formatDate(coupon.use_from)}〜${formatDate(coupon.use_until)}` },
     { icon: <IconClock />, label: "時間", main: formatWindows(coupon.time_windows), sub: null },

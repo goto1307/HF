@@ -20,10 +20,14 @@ import {
   type Coupon,
   type CouponClaim,
 } from "@/lib/coupon";
-import { COUPON_PLACES } from "@/lib/couponPlaces";
-import CampusMap from "@/components/CampusMap";
+import dynamic from "next/dynamic";
+import { shopForCoupon } from "@/lib/shops";
 import { BenefitCards, CouponConditions, CouponNotes } from "@/components/CouponParts";
+
+// 上に出す小さな地図(ブラウザでだけ動く)
+const ShopMap = dynamic(() => import("@/components/ShopMap"), { ssr: false, loading: () => <div className="h-full bg-[#EEF2F5]" /> });
 import { rememberSource } from "@/lib/visitSource";
+import { recordCouponView } from "@/lib/couponView";
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { goBack, loginPath } from "@/lib/nav";
@@ -37,19 +41,6 @@ function useNow() {
     return () => clearInterval(id);
   }, []);
   return now;
-}
-
-// クーポンのページを開いたことを記録する(ブラウザごとに1回。誰が見たかは記録しない)
-function recordView(couponId: string, loggedIn: boolean) {
-  const key = `hokuma-coupon-viewed-${couponId}`;
-  try {
-    if (localStorage.getItem(key)) return;
-    localStorage.setItem(key, String(Date.now()));
-  } catch {
-    // 保存できないブラウザでは、開くたびに数えないよう記録しない
-    return;
-  }
-  supabase.from("coupon_view").insert({ coupon_id: couponId, logged_in: loggedIn }).then(() => {});
 }
 
 function errorMessage(e: { message?: string } | null) {
@@ -94,7 +85,7 @@ export default function CouponPage() {
 
   useEffect(() => {
     if (authLoading || !coupon) return;
-    recordView(coupon.id, !!user);
+    recordCouponView(coupon.id, !!user);
     // 未登録の人がここから登録したら「クーポンから来た人」として数える(すでに別の目印があればそちらを優先)
     if (!user) rememberSource("coupon");
   }, [authLoading, coupon, user]);
@@ -166,7 +157,8 @@ export default function CouponPage() {
     );
   }
 
-  const place = COUPON_PLACES[coupon.id];
+  const shop = shopForCoupon(coupon.id);
+  const place = shop ? { address: shop.address.replace(/^札幌市北区/, ""), access: shop.access } : undefined;
   const usable = usableNow(coupon, now);
   const ended = hasEnded(coupon, now);
   const usedToday = claim?.used_at ? jstNow(new Date(claim.used_at)).date === jstNow(now).date : false;
@@ -247,17 +239,12 @@ export default function CouponPage() {
       <main className="max-w-md mx-auto pb-40">
         {/* いちばん上: お店の写真。まだないときは、北大との位置関係の地図 */}
         <div className="relative">
-          {place?.photo ? (
+          {shop?.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={place.photo} alt={`${coupon.shop_name}の写真`} className="block h-56 w-full object-cover" />
-          ) : place ? (
-            <div className="h-56 overflow-hidden bg-[#EEF2F5]">
-              <CampusMap
-                pins={[{ id: coupon.id, label: coupon.shop_name, place }]}
-                selected={coupon.id}
-                onSelect={() => {}}
-                viewBox={`${Math.max(0, place.x - 210)} ${place.y - 114} 330 196`}
-              />
+            <img src={shop.photo} alt={`${coupon.shop_name}の写真`} className="block h-56 w-full object-cover" />
+          ) : shop ? (
+            <div className="relative h-56 overflow-hidden bg-[#EEF2F5]">
+              <ShopMap shops={[shop]} selectedId={shop.id} onSelect={() => {}} bottomPadding={0} interactive={false} />
             </div>
           ) : (
             <div className="h-40 flex items-end justify-center bg-[#EEF2F5]">

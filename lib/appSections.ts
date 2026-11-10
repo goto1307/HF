@@ -3,15 +3,17 @@
 // アプリを開き直したときに前回のサービスから始める仕組み(components/LastSectionRestore.tsx)で使う。
 // ※ いまは運営(管理者)だけに出している試作。一般公開するときは、これを使っている画面の isAdmin の条件を外す
 
-export type SectionKey = "market" | "coupons";
+export type SectionKey = "market" | "coupons" | "account";
 
 export const SECTIONS: Record<SectionKey, { home: string; label: string; subtitle: string }> = {
   market: { home: "/", label: "フリマ", subtitle: "北大生専用のフリマ" },
-  coupons: { home: "/coupons", label: "空きコマクーポン", subtitle: "北大まわりの空きコマクーポン" },
+  coupons: { home: "/coupons", label: "クーポン", subtitle: "北大まわりの空きコマクーポン" },
+  account: { home: "/me", label: "マイページ", subtitle: "マイページ" },
 };
 
 // ページの場所から、どのサービスの中にいるかを決める(どれにも当たらないページは null)
 export function sectionOf(pathname: string): SectionKey | null {
+  if (pathname === "/me" || pathname.startsWith("/me/")) return "account";
   if (pathname === "/coupons" || pathname.startsWith("/coupons/")) return "coupons";
   if (
     pathname === "/" ||
