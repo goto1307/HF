@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import Skeleton, { LoadingLabel, PageSkeleton } from "@/components/Skeleton";
 import StarRating from "@/components/StarRating";
 import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconMapPin, IconCheck, IconWarning, IconStar } from "@/components/icons";
@@ -475,7 +476,7 @@ export default function ItemChat() {
     return (
       <div className="min-h-screen bg-stone-50">
         <Header />
-        <div className="p-8 text-center text-stone-400">読み込み中...</div>
+        <PageSkeleton />
       </div>
     );
   }
@@ -685,13 +686,13 @@ export default function ItemChat() {
           <p>チャットでは取引に必要なことだけをやりとりしてください。住所・電話番号・SNSアカウントなど、取引に不要な個人情報は送らないでください。受け渡し日はなるべく近い日に。当日は1時間前に確認の連絡をしましょう。「30分待って連絡がなければキャンセル」など、事前に決めておくと安心です。受け渡しは人目のある場所で。連絡なしで来なかった相手は通報でき、運営が確認のうえ利用停止とすることがあります。困ったときは公式Instagram（@hokuma.official）のDMへ。</p>
         </div>
 
-        <h2 className="text-xl font-bold mb-1 text-blue-700">{item.title}</h2>
+        <h2 className="text-xl font-bold mb-1 text-stone-900">{item.title}</h2>
         <p className="text-sm text-stone-500 mb-6">
           {isSeller ? (
             item.sold && item.buyer_id ? (
               <>
                 <Link href={`/users/${item.buyer_id}`} className="text-orange-700 font-bold hover:underline transition-colors">
-                  {buyerNickname === undefined ? "読み込み中..." : buyerNickname || "購入者"}
+                  {buyerNickname === undefined ? <Skeleton className="inline-block h-3.5 w-16 align-middle" /> : buyerNickname || "購入者"}
                 </Link>
                 さんとのチャット
               </>
@@ -725,7 +726,7 @@ export default function ItemChat() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-1 border border-stone-200 rounded-2xl bg-white shadow-sm overflow-hidden h-fit">
                 {conversationsLoading ? (
-                  <p className="p-4 text-sm text-stone-400 text-center">読み込み中...</p>
+                  <div className="p-4 space-y-2"><LoadingLabel /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
                 ) : conversations.length === 0 ? (
                   <p className="p-4 text-sm text-stone-400 text-center">まだ問い合わせがありません</p>
                 ) : (

@@ -7,6 +7,7 @@ import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import { validateImageFile } from "@/lib/resizeImage";
 import { makeImagePath } from "@/lib/uploadPath";
 import Header from "@/components/Header";
+import { PageSkeleton } from "@/components/Skeleton";
 import ImageCropper from "@/components/ImageCropper";
 import { IconX } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
@@ -165,7 +166,7 @@ export default function EditItem() {
     return (
       <div className="min-h-screen bg-stone-50">
         <Header />
-        <div className="p-8 text-center text-stone-400">読み込み中...</div>
+        <PageSkeleton />
       </div>
     );
   }

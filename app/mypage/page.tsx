@@ -1,4 +1,5 @@
 "use client";
+import { PageSkeleton } from "@/components/Skeleton";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -290,8 +291,8 @@ export default function MyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <p className="text-stone-400">読み込み中...</p>
+      <div className="min-h-screen bg-stone-50">
+        <PageSkeleton />
       </div>
     );
   }
@@ -490,7 +491,7 @@ export default function MyPage() {
                       </Link>
                       <div className="p-3">
                         <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
-                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-stone-900">{item.title}</p>
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <p className="text-xs text-stone-400 truncate mb-2">出品者：{item.nickname}</p>
                         <button
@@ -558,7 +559,7 @@ export default function MyPage() {
                       </Link>
                       <div className="p-3">
                         <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
-                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-stone-900">{item.title}</p>
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <div className="flex flex-col gap-1.5">
                           <button
@@ -603,7 +604,7 @@ export default function MyPage() {
                       </Link>
                       <div className="p-3">
                         <p className="text-xs text-orange-700 font-bold mb-1">{item.category}</p>
-                        <p className="font-bold mb-1 text-sm truncate text-blue-700">{item.title}</p>
+                        <p className="font-bold mb-1 text-sm truncate text-stone-900">{item.title}</p>
                         <p className="text-orange-700 font-bold text-sm mb-2">{item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}</p>
                         <button
                           onClick={() => router.push(`/items/${item.id}/chat`)}
@@ -634,7 +635,7 @@ export default function MyPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="font-bold text-sm mb-1 text-center">この商品を削除しますか？</p>
-            <p className="text-center text-blue-700 font-bold text-sm mb-4 truncate">{deleteTarget.title}</p>
+            <p className="text-center text-stone-900 font-bold text-sm mb-4 truncate">{deleteTarget.title}</p>
             <p className="text-xs text-stone-400 text-center mb-4">削除すると元に戻せません。</p>
             <div className="flex gap-2">
               <button

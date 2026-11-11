@@ -1,4 +1,5 @@
 "use client";
+import Skeleton, { LoadingLabel } from "@/components/Skeleton";
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -495,7 +496,7 @@ function SellContent() {
               </button>
             </div>
             {drafts === null ? (
-              <p className="text-center text-stone-400 text-sm py-8">読み込み中...</p>
+              <div className="space-y-2 py-4"><LoadingLabel /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>
             ) : drafts.length === 0 ? (
               <p className="text-center text-stone-400 text-sm py-8">下書きはありません</p>
             ) : (
@@ -541,7 +542,7 @@ function SellContent() {
                 <p className="text-xs text-orange-700 font-bold">{category}</p>
                 {condition && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{condition}</span>}
               </div>
-              <p className="text-lg font-bold text-blue-700 mb-1">{title}</p>
+              <p className="text-lg font-bold text-stone-900 mb-1">{title}</p>
               <p className="text-2xl text-orange-700 font-bold mb-2">{isFree ? "無料" : `¥${Number(price || 0).toLocaleString()}`}</p>
               {area && <p className="text-sm text-stone-500 mb-1">希望場所：{area}</p>}
               {hashtags.length > 0 && (

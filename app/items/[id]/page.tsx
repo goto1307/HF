@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
+import { PageSkeleton } from "@/components/Skeleton";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/lib/ui";
 import StarRating from "@/components/StarRating";
 import NotFoundView from "@/components/NotFoundView";
 import DemandFulfillModal from "@/components/DemandFulfillModal";
@@ -365,7 +367,7 @@ export default function ItemDetail() {
     return (
       <div className="min-h-screen bg-stone-50">
         <Header />
-        <div className="p-8 text-center text-stone-400">読み込み中...</div>
+        <PageSkeleton />
       </div>
     );
   }
@@ -374,7 +376,7 @@ export default function ItemDetail() {
     <div className="min-h-screen bg-stone-50">
       <Header />
 
-      <main className="max-w-2xl mx-auto px-4 py-8">
+      <main className="max-w-2xl mx-auto px-4 py-8 pb-28 sm:pb-8">
         <button onClick={() => goBack(router)} className="text-orange-700 font-bold mb-6 flex items-center gap-1 hover:text-orange-800 transition-colors">
           <span aria-hidden>←</span> 戻る
         </button>
@@ -388,7 +390,7 @@ export default function ItemDetail() {
                 className="block w-full cursor-zoom-in"
                 aria-label="画像を拡大表示"
               >
-                <img src={gallery[activeImage]} alt={item.title} className={`w-full h-80 sm:h-96 object-cover ${item.sold ? "opacity-50" : ""}`} />
+                <img src={gallery[activeImage]} alt={item.title} className={`block w-full aspect-[4/3] bg-stone-100 object-contain ${item.sold ? "opacity-50" : ""}`} />
               </button>
             ) : (
               <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 ${item.sold ? "opacity-50" : ""}`}><IconPackage size={40} /></div>
@@ -452,7 +454,7 @@ export default function ItemDetail() {
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">{item.condition}</span>
             )}
           </div>
-          <h2 className="text-2xl font-bold mb-2 text-blue-700">{item.title}</h2>
+          <h2 className="text-2xl font-bold mb-2 text-stone-900">{item.title}</h2>
           <p className="text-3xl text-orange-700 font-bold mb-1">
             {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
           </p>
@@ -507,6 +509,59 @@ export default function ItemDetail() {
             >
               取引ページを見る
             </button>
+          )}
+        </div>
+
+        {/* 購入(写真 → 価格・状態 → 購入 → チャット の順) */}
+        <div className="mb-6">
+        {!isOwnItem && (
+            item.sold ? (
+              <button disabled className="w-full bg-stone-200 text-stone-400 py-3 rounded-full font-bold cursor-not-allowed">
+                売り切れました
+              </button>
+            ) : user ? (
+              showBuyConfirm ? (
+                <div id="buy-confirm" className="border border-orange-200 rounded-2xl p-4 bg-orange-50 scroll-mt-24">
+                  <p className="font-bold text-sm mb-3">購入前の確認</p>
+                  <ul className="text-sm text-stone-600 flex flex-col gap-1.5 mb-3 list-disc pl-5">
+                    <li>商品説明・価格・状態を確認しました</li>
+                    <li>受け渡し場所・日時・支払い方法は、このあとの個別チャットで出品者と相談します</li>
+                    <li>受け渡しのときに商品を確認してから代金を支払います</li>
+                    <li>キャンセルするときは、早めにチャットで出品者に連絡します。連絡なしの不参加はしません</li>
+                    <li>受け取った後の返品・返金は原則できないことを理解しました</li>
+                  </ul>
+                  <label className="flex items-center gap-2 text-sm mb-3">
+                    <input
+                      type="checkbox"
+                      checked={buyAgreed}
+                      onChange={(e) => setBuyAgreed(e.target.checked)}
+                      className="accent-orange-700 w-4 h-4"
+                    />
+                    上記に同意して購入する
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowBuyConfirm(false); setBuyAgreed(false); }}
+                      className={`${BTN_SECONDARY} flex-1 py-2.5 text-sm`}
+                    >
+                      キャンセル
+                    </button>
+                    <button onClick={handleBuy} disabled={!buyAgreed || buying} className={`${BTN_PRIMARY} flex-1 py-2.5 text-sm`}>
+                      {buying ? "処理中..." : "購入を確定する"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // スマホでは画面の下に固定したボタン(下のほう)を使うので、ここは大きい画面だけ
+                <button onClick={() => setShowBuyConfirm(true)} className={`${BTN_PRIMARY} max-sm:hidden w-full py-3`}>
+                  購入する
+                </button>
+              )
+            ) : (
+              <button onClick={() => router.push(loginPath())} className={`${BTN_PRIMARY} max-sm:hidden w-full py-3`}>
+                ログインして購入する
+              </button>
+            )
           )}
         </div>
 
@@ -572,6 +627,18 @@ export default function ItemDetail() {
           </div>
         )}
 
+        {!user ? (
+          // ログインしていないときは、空の箱を出さずに1行の案内だけにする
+          <div className="flex items-center justify-between gap-3 border border-stone-200 rounded-2xl bg-white shadow-sm px-4 py-3 mb-4">
+            <p className="text-sm text-stone-600">
+              <span className="font-bold text-stone-800">みんなの質問チャット</span>
+              <span className="block text-xs text-stone-500">ログインすると、質問を見たり送ったりできます</span>
+            </p>
+            <button onClick={() => router.push(loginPath())} className={`${BTN_SECONDARY} shrink-0 px-4 py-2 text-sm`}>
+              ログイン
+            </button>
+          </div>
+        ) : (
         <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm mb-4">
           <div className="bg-orange-700 text-white px-4 py-3 font-bold flex items-center justify-between">
             <span>みんなの質問チャット</span>
@@ -644,64 +711,27 @@ export default function ItemDetail() {
             </p>
           )}
         </div>
+        )}
 
-        {!isOwnItem && (
-          item.sold ? (
-            <button disabled className="w-full bg-stone-200 text-stone-400 py-3 rounded-full font-bold cursor-not-allowed">
-              売り切れました
-            </button>
-          ) : user ? (
-            showBuyConfirm ? (
-              <div className="border border-orange-200 rounded-2xl p-4 bg-orange-50">
-                <p className="font-bold text-sm mb-3">購入前の確認</p>
-                <ul className="text-sm text-stone-600 flex flex-col gap-1.5 mb-3 list-disc pl-5">
-                  <li>商品説明・価格・状態を確認しました</li>
-                  <li>受け渡し場所・日時・支払い方法は、このあとの個別チャットで出品者と相談します</li>
-                  <li>受け渡しのときに商品を確認してから代金を支払います</li>
-                  <li>キャンセルするときは、早めにチャットで出品者に連絡します。連絡なしの不参加はしません</li>
-                  <li>受け取った後の返品・返金は原則できないことを理解しました</li>
-                </ul>
-                <label className="flex items-center gap-2 text-sm mb-3">
-                  <input
-                    type="checkbox"
-                    checked={buyAgreed}
-                    onChange={(e) => setBuyAgreed(e.target.checked)}
-                    className="accent-orange-700 w-4 h-4"
-                  />
-                  上記に同意して購入する
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setShowBuyConfirm(false); setBuyAgreed(false); }}
-                    className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    onClick={handleBuy}
-                    disabled={!buyAgreed || buying}
-                    className="flex-1 bg-orange-700 text-white py-2.5 rounded-full text-sm font-bold disabled:opacity-50 hover:bg-orange-800 transition-colors"
-                  >
-                    {buying ? "処理中..." : "購入を確定する"}
-                  </button>
-                </div>
-              </div>
-            ) : (
+        {/* スマホ: 画面の下に価格と購入ボタンを固定する(確認の画面を開いている間は出さない) */}
+        {!isOwnItem && !item.sold && !showBuyConfirm && (
+          <div className="sm:hidden fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 backdrop-blur px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+            <div className="flex items-center gap-3">
+              <p className="text-xl font-bold text-orange-700 shrink-0">
+                {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
+              </p>
               <button
-                onClick={() => setShowBuyConfirm(true)}
-                className="w-full bg-orange-700 text-white py-3 rounded-full font-bold hover:bg-orange-800 transition-colors shadow-sm"
+                onClick={() => {
+                  if (!user) { router.push(loginPath()); return; }
+                  setShowBuyConfirm(true);
+                  setTimeout(() => document.getElementById("buy-confirm")?.scrollIntoView({ behavior: "smooth" }), 50);
+                }}
+                className={`${BTN_PRIMARY} flex-1 py-3`}
               >
-                購入する
+                {user ? "購入する" : "ログインして購入する"}
               </button>
-            )
-          ) : (
-            <button
-              onClick={() => router.push(loginPath())}
-              className="w-full border border-orange-700 text-orange-700 py-3 rounded-full font-bold hover:bg-orange-100 transition-colors"
-            >
-              ログインして購入する
-            </button>
-          )
+            </div>
+          </div>
         )}
 
         {openDemands && (

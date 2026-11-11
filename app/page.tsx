@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
+import Skeleton, { LoadingLabel } from "@/components/Skeleton";
 import CouponBanner from "@/components/CouponBanner";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { IconPackage, IconHeart, IconX, IconMenu } from "@/components/icons";
@@ -169,6 +170,58 @@ function HomeContent() {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
+  const onSale = sorted.filter((item) => !item.sold);
+  const soldOut = sorted.filter((item) => item.sold);
+
+  // 商品のカード: 写真(正方形) → 商品名(2行まで) → 価格
+  const renderCard = (item: (typeof sorted)[number], index: number) => {
+    const image = item.image_urls?.[0] ?? item.image_url;
+    return (
+      <Link
+        href={`/items/${item.id}`}
+        key={item.id}
+        className={`group block rounded-xl overflow-hidden bg-white border border-stone-200/70 shadow-sm hover:shadow-lg transition-shadow ${item.sold ? "opacity-70" : ""}`}
+      >
+        <div className="relative aspect-square overflow-hidden bg-stone-100">
+          {image ? (
+            <img
+              src={image}
+              alt=""
+              // 最初の数件以外は、画面に近づいてから読み込む(最初の表示を速くする)
+              loading={index < 6 ? "eager" : "lazy"}
+              decoding="async"
+              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${item.sold ? "opacity-40 grayscale" : ""}`}
+            />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center text-orange-300 ${item.sold ? "opacity-40 grayscale" : ""}`}>
+              <IconPackage size={28} />
+            </div>
+          )}
+          {item.sold && (
+            <div className="absolute top-1.5 left-1.5 bg-stone-700 text-white text-[10px] sm:text-xs font-extrabold px-2 py-0.5 rounded-full tracking-wider">
+              SOLD OUT
+            </div>
+          )}
+          {!item.sold && (
+            <button
+              onClick={(e) => toggleLike(e, item.id)}
+              className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+              aria-label={likedByMe.has(item.id) ? "いいねを取り消す" : "いいね"}
+            >
+              <IconHeart size={15} filled={likedByMe.has(item.id)} className={likedByMe.has(item.id) ? "text-orange-600" : "text-orange-300"} />
+            </button>
+          )}
+        </div>
+        <div className="px-2 py-1.5 sm:px-2.5 sm:py-2">
+          <p className="text-xs sm:text-sm font-bold leading-snug text-stone-800 line-clamp-2 break-all">{item.title}</p>
+          <p className={`mt-0.5 text-sm sm:text-base font-extrabold tracking-tight ${item.sold ? "text-stone-400" : "text-orange-700"}`}>
+            {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
+          </p>
+        </div>
+      </Link>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-stone-50">
       <Header />
@@ -186,7 +239,7 @@ function HomeContent() {
           <div className="absolute -top-24 right-10 w-56 h-56 rounded-full bg-white/10" aria-hidden />
           <div className="absolute -bottom-20 left-[8%] w-36 h-36 rounded-full bg-white/10" aria-hidden />
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-200/60 to-transparent" aria-hidden />
-          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
+          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
             <div className="max-w-md">
               <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-extrabold bg-white/15 backdrop-blur-sm border border-white/25 px-3 py-1 rounded-full mb-3 tracking-wide">
                 🐻‍❄️ 北大生限定のフリマ
@@ -213,7 +266,7 @@ function HomeContent() {
                 </button>
               </div>
             </div>
-            <HokkumaMascot size={96} className="shrink-0 drop-shadow-2xl hidden sm:block" />
+            <HokkumaMascot size={160} className="shrink-0 drop-shadow-2xl hidden sm:block sm:mr-6 lg:mr-16" />
           </div>
         </div>
       )}
@@ -512,8 +565,13 @@ function HomeContent() {
           <CouponBanner />
           {loading ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+              <LoadingLabel />
               {Array.from({ length: 15 }).map((_, i) => (
-                <div key={i} className="aspect-square rounded-xl bg-stone-100 animate-pulse" />
+                <div key={i}>
+                  <Skeleton className="aspect-square w-full" />
+                  <Skeleton className="mt-2 h-3 w-4/5" />
+                  <Skeleton className="mt-1.5 h-3.5 w-1/2" />
+                </div>
               ))}
             </div>
           ) : sorted.length === 0 ? (
@@ -522,51 +580,21 @@ function HomeContent() {
               <p className="text-stone-400">条件に合う商品がありません</p>
             </div>
           ) : (
-            // 一覧性を上げるため、カードは商品画像と価格だけにする(商品名などは商品ページで見る)
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
-              {sorted.map((item) => {
-                const image = item.image_urls?.[0] ?? item.image_url;
-                return (
-                  <Link
-                    href={`/items/${item.id}`}
-                    key={item.id}
-                    title={item.title}
-                    className="group relative block aspect-square rounded-xl overflow-hidden bg-white border border-stone-200/70 shadow-sm hover:shadow-lg transition-shadow"
-                  >
-                    {image ? (
-                      <img
-                        src={image}
-                        alt={item.title}
-                        className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${item.sold ? "opacity-50" : ""}`}
-                      />
-                    ) : (
-                      // 写真が無い商品は何か分からないので、商品名だけ薄く出す
-                      <div className={`w-full h-full bg-gradient-to-br from-orange-50 to-amber-50 flex flex-col items-center justify-center gap-1 px-2 text-orange-300 ${item.sold ? "opacity-50" : ""}`}>
-                        <IconPackage size={28} />
-                        <span className="text-[11px] font-bold text-stone-500 text-center line-clamp-2 break-all">{item.title}</span>
-                      </div>
-                    )}
-                    {item.sold && (
-                      <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[10px] sm:text-xs font-extrabold px-2 py-0.5 rounded-full shadow-md tracking-wider">
-                        SOLD OUT
-                      </div>
-                    )}
-                    {!item.sold && (
-                      <button
-                        onClick={(e) => toggleLike(e, item.id)}
-                        className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-sm rounded-full w-7 h-7 flex items-center justify-center shadow-md hover:scale-110 transition-transform"
-                        aria-label={likedByMe.has(item.id) ? "いいねを取り消す" : "いいね"}
-                      >
-                        <IconHeart size={15} filled={likedByMe.has(item.id)} className={likedByMe.has(item.id) ? "text-orange-600" : "text-orange-300"} />
-                      </button>
-                    )}
-                    <span className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-0.75rem)] truncate bg-black/65 text-white text-xs sm:text-sm font-extrabold px-2 py-0.5 rounded-full tracking-tight">
-                      {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+            <>
+              {/* 販売中。写真の下に商品名と価格を出す(教科書は写真だけでは見分けにくいため) */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+                {onSale.map((item, i) => renderCard(item, i))}
+              </div>
+              {/* 売り切れは見出しを付けて後ろにまとめる */}
+              {soldOut.length > 0 && (
+                <section className="mt-10" aria-labelledby="sold-heading">
+                  <h2 id="sold-heading" className="mb-3 text-sm font-bold text-stone-500">売り切れ（{soldOut.length}件）</h2>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+                    {soldOut.map((item, i) => renderCard(item, onSale.length + i))}
+                  </div>
+                </section>
+              )}
+            </>
           )}
         </main>
       </div>

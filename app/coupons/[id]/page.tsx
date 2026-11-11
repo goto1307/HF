@@ -22,7 +22,7 @@ import {
 } from "@/lib/coupon";
 import dynamic from "next/dynamic";
 import { shopForCoupon } from "@/lib/shops";
-import { BenefitCards, CouponConditions, CouponNotes } from "@/components/CouponParts";
+import { BenefitCards, CouponConditions, CouponNotes, CouponPeriod } from "@/components/CouponParts";
 
 // 上に出す小さな地図(ブラウザでだけ動く)
 const ShopMap = dynamic(() => import("@/components/ShopMap"), { ssr: false, loading: () => <div className="h-full bg-[#EEF2F5]" /> });
@@ -271,8 +271,10 @@ export default function CouponPage() {
 
         {/* ここから下は白地 */}
         <div className="px-6">
+          {/* いつから・いつまで(いちばん上) */}
+          {!claim && <div className="mt-6"><CouponPeriod coupon={coupon} started={!beforeStart} ended={ended} /></div>}
           {/* 特典(中) */}
-          <section className="mt-8" aria-labelledby="benefit-heading">
+          <section className={claim ? "mt-8" : "mt-6"} aria-labelledby="benefit-heading">
             <h2 id="benefit-heading" className="text-xl font-extrabold">
               {claim ? "使う特典を1つ選ぶ" : "どれか1つが無料"}
             </h2>
