@@ -7,7 +7,7 @@ export type SectionKey = "market" | "coupons" | "account";
 
 export const SECTIONS: Record<SectionKey, { home: string; label: string; subtitle: string }> = {
   market: { home: "/", label: "フリマ", subtitle: "北大生専用のフリマ" },
-  coupons: { home: "/coupons", label: "クーポン", subtitle: "北大まわりの空きコマクーポン" },
+  coupons: { home: "/coupons", label: "クーポン", subtitle: "北大生のためのクーポンサービス" },
   account: { home: "/me", label: "マイページ", subtitle: "マイページ" },
 };
 

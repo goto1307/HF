@@ -12,12 +12,13 @@ const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 // 最初に映す場所: 北大の札幌キャンパスの東側(北18条駅〜北12条駅のあたり)
 const START = { lng: 141.3445, lat: 43.0775, zoom: 15.2 };
 
-// 動かせる範囲: 北大の札幌キャンパスの真ん中(北13条西8丁目あたり)から、半径およそ1km。
-// 緯度 0.009度 ≒ 1km、経度 0.0123度 ≒ 1km(札幌の緯度で計算)
+// 動かせる範囲: 北大の札幌キャンパスの真ん中(北13条西8丁目あたり)から、半径およそ3km。
+// 1kmあたり 緯度 0.009度・経度 0.0123度(札幌の緯度で計算)
 const CAMPUS = { lng: 141.3415, lat: 43.0760 };
+const RADIUS_KM = 3;
 const BOUNDS: [[number, number], [number, number]] = [
-  [CAMPUS.lng - 0.0123, CAMPUS.lat - 0.009],
-  [CAMPUS.lng + 0.0123, CAMPUS.lat + 0.009],
+  [CAMPUS.lng - 0.0123 * RADIUS_KM, CAMPUS.lat - 0.009 * RADIUS_KM],
+  [CAMPUS.lng + 0.0123 * RADIUS_KM, CAMPUS.lat + 0.009 * RADIUS_KM],
 ];
 
 // 地図を見やすくするため、いらない情報を消す
@@ -46,21 +47,16 @@ function simplify(map: MlMap) {
   }
 }
 
+// ピンは、ひとまずシンプルな朱色の丸＋店名(あとでアイコンを決めたら差し替える)
 function pinElement(label: string) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = "hokuma-pin";
   el.setAttribute("aria-label", `${label}（クーポン配布中）`);
   el.innerHTML = `
-    <span class="hokuma-pin__label">クーポン配布中！</span>
-    <span class="hokuma-pin__dot" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 12h16a8 6.5 0 0 1-16 0z" fill="#fff" stroke="none"/>
-        <path d="M9 20h6"/>
-        <path d="M9 9c-1-1.5 1-2 0-3.5M15 9c-1-1.5 1-2 0-3.5"/>
-      </svg>
-    </span>
-    <span class="hokuma-pin__name">${label}</span>`;
+    <span class="hokuma-pin__dot" aria-hidden="true"></span>
+    <span class="hokuma-pin__name"></span>`;
+  el.querySelector(".hokuma-pin__name")!.textContent = label;
   return el;
 }
 
@@ -70,12 +66,14 @@ export default function ShopMap({
   onSelect,
   bottomPadding,
   interactive = true,
+  attributionClass = "right-1 bottom-1",
 }: {
   shops: Shop[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   bottomPadding: number; // 下のシートに隠れる割合(0〜1。ピンがシートの上に見えるように地図をずらす)
   interactive?: boolean; // false: 動かせない小さな地図(クーポンの詳細ページの上に出す)
+  attributionClass?: string; // 提供元の文字を置く場所(Tailwind の位置のクラス)
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -99,23 +97,18 @@ export default function ShopMap({
         center: !interactive && shops[0] ? [shops[0].lng, shops[0].lat] : [START.lng, START.lat],
         zoom: interactive ? START.zoom : 16,
         interactive,
-        minZoom: 13.5,
+        minZoom: 12.5,
         maxZoom: 19,
         maxBounds: BOUNDS,
-        attributionControl: { compact: true },
+        // 提供元の表示は、下の文字(地図の右上)で出す。i ボタンだけだと分かりにくいため
+        attributionControl: false,
         // 地図を回したり傾けたりはしない(迷わないように北を上で固定)
         dragRotate: false,
         pitchWithRotate: false,
         touchPitch: false,
       });
-      if (interactive) {
-        map.touchZoomRotate.disableRotation();
-        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
-        map.addControl(
-          new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }),
-          "bottom-right",
-        );
-      }
+      // 拡大・縮小などのボタンは出さない(指でつまんで拡大・縮小できる)
+      if (interactive) map.touchZoomRotate.disableRotation();
       map.once("style.load", () => {
         try {
           simplify(map);
@@ -132,7 +125,8 @@ export default function ShopMap({
           e.stopPropagation();
           onSelectRef.current(s.id);
         });
-        const marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([s.lng, s.lat]).addTo(map);
+        // 丸の真ん中がお店の位置に来るようにする(丸の高さ 22px の半分だけ上へ)
+        const marker = new maplibregl.Marker({ element: el, anchor: "top", offset: [0, -11] }).setLngLat([s.lng, s.lat]).addTo(map);
         markers.set(s.id, { marker, el });
       }
       mapRef.current = map;
@@ -170,25 +164,25 @@ export default function ShopMap({
       <div className="absolute inset-0">
         <div ref={boxRef} className="h-full w-full" role="region" aria-label="北大まわりのクーポンが使えるお店の地図" />
       </div>
+      {/* 地図の提供元(無料で使う条件。消さないこと) */}
+      <p className={`pointer-events-auto absolute z-[5] rounded bg-white/80 px-1.5 py-0.5 text-[9px] leading-tight text-stone-600 ${attributionClass}`}>
+        <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="underline">OpenFreeMap</a>{" "}
+        <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer" className="underline">© OpenMapTiles</a>{" "}
+        Data from{" "}
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a>
+      </p>
       <style>{`
         .hokuma-pin { display: flex; flex-direction: column; align-items: center; cursor: pointer; background: none; border: 0; padding: 0; }
-        .hokuma-pin:focus-visible { outline: 3px solid #F2C14E; outline-offset: 4px; border-radius: 12px; }
-        .hokuma-pin__label {
-          background: #F2C14E; color: #1B243A; font-weight: 800; font-size: 12px; line-height: 1;
-          padding: 7px 10px; border-radius: 999px; border: 2px solid #1B243A; white-space: nowrap;
-          box-shadow: 0 2px 0 #1B243A; margin-bottom: 4px;
-        }
+        .hokuma-pin:focus-visible { outline: 3px solid #BA421D; outline-offset: 4px; border-radius: 12px; }
         .hokuma-pin__dot {
-          width: 36px; height: 36px; border-radius: 999px; background: #BA421D; border: 2.5px solid #1B243A;
-          display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 6px rgba(27,36,58,.35);
-          transition: transform 160ms ease;
+          width: 22px; height: 22px; border-radius: 999px; background: #BA421D; border: 3px solid #fff;
+          box-shadow: 0 0 0 1.5px #BA421D, 0 3px 8px rgba(27,36,58,.35); transition: transform 160ms ease;
         }
         .hokuma-pin__name {
-          margin-top: 3px; font-size: 11px; font-weight: 800; color: #1B243A; white-space: nowrap;
+          margin-top: 4px; font-size: 12px; font-weight: 800; color: #2F3E5C; white-space: nowrap;
           text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
         }
-        .hokuma-pin.is-active .hokuma-pin__dot { transform: scale(1.18); }
-        .hokuma-pin.is-active .hokuma-pin__label { background: #fff; }
+        .hokuma-pin.is-active .hokuma-pin__dot { transform: scale(1.3); }
         @media (prefers-reduced-motion: reduce) { .hokuma-pin__dot { transition: none; } }
       `}</style>
     </>

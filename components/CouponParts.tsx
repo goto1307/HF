@@ -1,6 +1,6 @@
 "use client";
-// クーポンの画面(地図のページの帯・クーポンの詳細ページ)で共通に使う部品。
-// 色は地図のページと同じ: 濃紺 #BA421D の上に白、差し色に黄色 #F2C14E、ボタンは朱 #BA421D
+// クーポンの画面(地図のシート・クーポンの詳細ページ)で共通に使う部品。
+// 白地に、文字は紺 #2F3E5C(ブランドの色)、差し色は朱 #BA421D
 
 import { formatDate, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
 
@@ -42,11 +42,11 @@ export function CouponConditions({ coupon, place }: { coupon: Coupon; place?: { 
     <ul className="space-y-3">
       {rows.map((r) => (
         <li key={r.label} className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#F2C14E]">{r.icon}</span>
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#BA421D]/10 text-[#BA421D]">{r.icon}</span>
           <span className="min-w-0">
             <span className="sr-only">{r.label}：</span>
             <span className="block text-[15px] font-bold leading-snug">{r.main}</span>
-            {r.sub && <span className="block text-xs text-white/80 mt-0.5">{r.sub}</span>}
+            {r.sub && <span className="block text-xs text-[#2F3E5C]/70 mt-0.5">{r.sub}</span>}
           </span>
         </li>
       ))}
@@ -74,8 +74,8 @@ export function BenefitCards({
           const body = (
             <>
               <span className="block text-[15px] font-extrabold leading-snug">{b.name}</span>
-              {b.detail && <span className={`block mt-1 text-xs leading-snug ${active ? "text-[#1B243A]/75" : "text-white/85"}`}>{b.detail}</span>}
-              {b.caution && <span className={`mt-1.5 inline-block text-[10px] font-bold rounded px-1.5 py-0.5 ${active ? "bg-[#1B243A] text-white" : "bg-[#F2C14E] text-[#1B243A]"}`}>注意あり</span>}
+              {b.detail && <span className="block mt-1 text-xs leading-snug text-[#2F3E5C]/75">{b.detail}</span>}
+              {b.caution && <span className="mt-1.5 inline-block text-[10px] font-bold rounded px-1.5 py-0.5 bg-[#F2C14E] text-[#1B243A]">注意あり</span>}
             </>
           );
           const base = "block h-full min-h-[64px] w-full rounded-2xl px-4 py-3 text-left transition-colors";
@@ -87,14 +87,14 @@ export function BenefitCards({
                   role="radio"
                   aria-checked={active}
                   onClick={() => onSelect(b.raw)}
-                  className={`${base} border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E] ${
-                    active ? "border-[#F2C14E] bg-[#F2C14E] text-[#1B243A]" : "border-white/20 bg-white/5 hover:bg-white/10"
+                  className={`${base} border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA421D] ${
+                    active ? "border-[#BA421D] bg-[#BA421D]/[0.07] shadow-[inset_0_0_0_1px_#BA421D]" : "border-stone-200 bg-white hover:bg-stone-50"
                   }`}
                 >
                   {body}
                 </button>
               ) : (
-                <div className={`${base} border border-white/15 bg-white/5`}>{body}</div>
+                <div className={`${base} border border-stone-200 bg-stone-50`}>{body}</div>
               )}
             </li>
           );
@@ -102,8 +102,8 @@ export function BenefitCards({
       </ul>
       {/* 注意書きのある特典(パルプンテなど)は、特典のすぐ下に出す */}
       {cautions.map((b) => (
-        <p key={b.raw} className="mt-3 flex gap-2 rounded-xl bg-[#F2C14E]/15 border border-[#F2C14E]/40 px-3 py-2.5 text-xs leading-relaxed text-white/90">
-          <span aria-hidden className="font-extrabold text-[#F2C14E]">!</span>
+        <p key={b.raw} className="mt-3 flex gap-2 rounded-xl bg-[#F2C14E]/20 border border-[#F2C14E] px-3 py-2.5 text-xs leading-relaxed text-[#1B243A]">
+          <span aria-hidden className="font-extrabold text-[#BA421D]">!</span>
           <span><span className="font-bold">{b.name}：</span>{b.caution}</span>
         </p>
       ))}
@@ -115,8 +115,8 @@ export function BenefitCards({
 export function CouponNotes({ notes }: { notes: string }) {
   if (!notes) return null;
   return (
-    <div className="mt-8 border-t border-white/15 pt-4">
-      <p className="text-xs leading-relaxed text-white/80">{notes}</p>
+    <div className="mt-8 border-t border-stone-200 pt-4">
+      <p className="text-xs leading-relaxed text-[#2F3E5C]/70">{notes}</p>
     </div>
   );
 }

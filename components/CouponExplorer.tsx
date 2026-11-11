@@ -76,12 +76,18 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
 
   return (
     <div className="relative flex-1 overflow-hidden">
-      <ShopMap shops={shops} selectedId={selectedId} onSelect={select} bottomPadding={selectedId ? SHEET_RATIO : 0.2} />
+      <ShopMap
+        shops={shops}
+        selectedId={selectedId}
+        onSelect={select}
+        bottomPadding={selectedId ? SHEET_RATIO : 0.2}
+        attributionClass="right-3 top-[60px]"
+      />
 
       {/* 上に浮かべるもの: 件数とクーポンボックス */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
         <p className="pointer-events-auto rounded-full bg-white/95 px-3.5 py-2 text-sm font-bold text-[#1B243A] shadow-md">
-          北大まわりのクーポン <span className="text-[#BA421D]">{live.length}件</span>
+          現在配布中のクーポン <span className="text-[#BA421D]">{live.length}件</span>
         </p>
         {loggedIn && (
           <Link
@@ -100,7 +106,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
 
       {/* 何も選んでいないとき: 下にお店のカードを小さく出す(押すとシートが開く) */}
       {!shop && shops.length > 0 && (
-        <div className="absolute inset-x-0 bottom-0 z-10 flex gap-3 overflow-x-auto p-3 pr-16 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="absolute inset-x-0 bottom-0 z-10 flex gap-3 overflow-x-auto p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
           {shops.map((s) => {
             const c = live.find((x) => s.couponIds.includes(x.id));
             return (
@@ -131,30 +137,33 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
       {shop && (
         <section
           aria-label={`${shop.name}の情報`}
-          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto rounded-t-[28px] bg-[#BA421D] text-white shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
+          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto rounded-t-[28px] bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
         >
-          <div className="sticky top-0 z-10 bg-[#BA421D] px-6 pt-2.5">
-            <div className="mx-auto h-1.5 w-10 rounded-full bg-white/25" aria-hidden />
-            <div className="mt-3 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 text-xs text-white/85">
-                  {shop.genre}
-                  <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-bold">PR・提携</span>
-                  {coupon && !coupon.active && (
-                    <span className="rounded bg-[#F2C14E] px-1.5 py-0.5 text-[10px] font-bold text-[#1B243A]">非公開・運営だけに表示中</span>
-                  )}
-                </p>
-                <h1 className="mt-1 text-[28px] font-extrabold leading-tight tracking-tight">{shop.name}</h1>
+          <div className="sticky top-0 z-10">
+            {/* 店名のところだけ朱色 */}
+            <div className="rounded-t-[28px] bg-[#BA421D] px-6 pb-5 pt-2.5 text-white">
+              <div className="mx-auto h-1.5 w-10 rounded-full bg-white/35" aria-hidden />
+              <div className="mt-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-white/90">
+                    {shop.genre}
+                    <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">PR・提携</span>
+                    {coupon && !coupon.active && (
+                      <span className="rounded bg-[#F2C14E] px-1.5 py-0.5 text-[10px] font-bold text-[#1B243A]">非公開・運営だけに表示中</span>
+                    )}
+                  </p>
+                  <h1 className="mt-1 text-[28px] font-extrabold leading-tight tracking-tight">{shop.name}</h1>
+                </div>
+                <button
+                  onClick={() => select(null)}
+                  aria-label="閉じる"
+                  className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+                >
+                  <IconX size={18} />
+                </button>
               </div>
-              <button
-                onClick={() => select(null)}
-                aria-label="閉じる"
-                className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 hover:bg-white/20"
-              >
-                <IconX size={18} />
-              </button>
             </div>
-            <div className="mt-4 grid grid-cols-2 border-b border-white/15" role="tablist" aria-label="表示する内容">
+            <div className="grid grid-cols-2 border-b border-stone-200 bg-white px-6" role="tablist" aria-label="表示する内容">
               {[
                 { key: "coupon" as const, label: "クーポン" },
                 { key: "shop" as const, label: "お店の情報" },
@@ -164,8 +173,8 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
                   role="tab"
                   aria-selected={tab === t.key}
                   onClick={() => setTab(t.key)}
-                  className={`-mb-px border-b-[3px] py-2.5 text-sm font-extrabold transition-colors ${
-                    tab === t.key ? "border-[#F2C14E] text-white" : "border-transparent text-white/80"
+                  className={`-mb-px border-b-[3px] py-3 text-sm font-extrabold transition-colors ${
+                    tab === t.key ? "border-[#BA421D] text-[#BA421D]" : "border-transparent text-[#2F3E5C]/55"
                   }`}
                 >
                   {t.label}
@@ -187,7 +196,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
                   onClaim={() => handleClaim(coupon)}
                 />
               ) : (
-                <p className="text-sm text-white/85">このお店のクーポンは、いま配布していません。</p>
+                <p className="text-sm text-[#2F3E5C]/75">このお店のクーポンは、いま配布していません。</p>
               )
             ) : (
               <ShopTab shop={shop} />
@@ -241,8 +250,8 @@ function CouponTab({
   onClaim: () => void;
 }) {
   const primary = "block w-full rounded-full py-3.5 text-center font-extrabold";
-  const enabled = `${primary} bg-white text-[#BA421D] shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
-  const disabled = `${primary} bg-black/15 text-white/80 cursor-not-allowed`;
+  const enabled = `${primary} bg-[#BA421D] text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
+  const disabled = `${primary} bg-stone-200 text-stone-500 cursor-not-allowed`;
   const beforeStart = !claimOpen(coupon) && !hasEnded(coupon);
 
   let cta: React.ReactNode;
@@ -264,16 +273,16 @@ function CouponTab({
 
   return (
     <div>
-      <p className="text-base font-bold text-[#F2C14E]">{coupon.title}</p>
+      <p className="text-base font-bold text-[#BA421D]">{coupon.title}</p>
       <h2 className="mt-1 text-xl font-extrabold">どれか1つが無料</h2>
-      <p className="mt-1 mb-4 text-sm text-white/85">{coupon.description}</p>
+      <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
       <BenefitCards benefits={coupon.benefits} />
       <div className="mt-7">
         <CouponConditions coupon={coupon} place={{ address: shop.address.replace(/^札幌市北区/, ""), access: shop.access }} />
       </div>
       <div className="mt-7">
         {cta}
-        {note && <p className="mt-2 text-center text-xs text-white/85">{note}</p>}
+        {note && <p className="mt-2 text-center text-xs text-[#2F3E5C]/70">{note}</p>}
       </div>
       <CouponNotes notes={coupon.notes} />
     </div>
@@ -285,22 +294,22 @@ function ShopTab({ shop }: { shop: Shop }) {
   return (
     <div className="space-y-6 text-sm">
       <dl className="grid grid-cols-[5em_1fr] gap-y-3">
-        <dt className="text-white/80">ジャンル</dt>
+        <dt className="text-[#2F3E5C]/60">ジャンル</dt>
         <dd className="font-bold">{shop.genre}</dd>
-        <dt className="text-white/80">住所</dt>
+        <dt className="text-[#2F3E5C]/60">住所</dt>
         <dd className="font-bold">
           {shop.address}
-          <span className="block font-normal text-white/85">{shop.access}</span>
+          <span className="block font-normal text-[#2F3E5C]/70">{shop.access}</span>
         </dd>
         {shop.hours && (
           <>
-            <dt className="text-white/80">営業時間</dt>
+            <dt className="text-[#2F3E5C]/60">営業時間</dt>
             <dd className="font-bold">{shop.hours}</dd>
           </>
         )}
         {shop.closed && (
           <>
-            <dt className="text-white/80">定休日</dt>
+            <dt className="text-[#2F3E5C]/60">定休日</dt>
             <dd className="font-bold">{shop.closed}</dd>
           </>
         )}
@@ -310,7 +319,7 @@ function ShopTab({ shop }: { shop: Shop }) {
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="block w-full rounded-full border-2 border-white/30 py-3 text-center font-extrabold hover:bg-white/10"
+        className="block w-full rounded-full border-2 border-[#2F3E5C]/25 py-3 text-center font-extrabold hover:bg-stone-50"
       >
         地図アプリで道順を見る
       </a>
@@ -318,15 +327,15 @@ function ShopTab({ shop }: { shop: Shop }) {
       {shop.menu.length > 0 && (
         <section aria-labelledby="menu-heading">
           <h2 id="menu-heading" className="text-lg font-extrabold">メニュー</h2>
-          <ul className="mt-3 divide-y divide-white/10">
+          <ul className="mt-3 divide-y divide-stone-200">
             {shop.menu.map((m) => (
               <li key={m.name} className="flex items-baseline justify-between gap-3 py-2.5">
                 <span className="font-bold">{m.name}</span>
-                {m.price !== null && <span className="tabular-nums text-white/85">{m.price.toLocaleString()}円</span>}
+                {m.price !== null && <span className="tabular-nums text-[#2F3E5C]/80">{m.price.toLocaleString()}円</span>}
               </li>
             ))}
           </ul>
-          {shop.menuNote && <p className="mt-2 text-xs text-white/80">{shop.menuNote}</p>}
+          {shop.menuNote && <p className="mt-2 text-xs text-[#2F3E5C]/60">{shop.menuNote}</p>}
         </section>
       )}
     </div>
