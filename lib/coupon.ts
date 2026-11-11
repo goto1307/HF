@@ -98,6 +98,11 @@ export function formatTime(iso: string) {
 export function formatWeekdays(days: number[]) {
   const sorted = [...days].sort((a, b) => a - b);
   if (sorted.length === 7) return "毎日";
+  // 1日だけ休み(定休日)のときは「月曜以外の毎日」のように書く
+  if (sorted.length === 6) {
+    const off = [1, 2, 3, 4, 5, 6, 7].find((d) => !sorted.includes(d))!;
+    return `${WEEKDAY_LABELS[off]}曜以外の毎日`;
+  }
   const consecutive = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
   if (consecutive && sorted.length >= 3) {
     return `${WEEKDAY_LABELS[sorted[0]]}〜${WEEKDAY_LABELS[sorted[sorted.length - 1]]}`;
