@@ -24,7 +24,7 @@ import {
 } from "@/lib/coupon";
 import dynamic from "next/dynamic";
 import { shopForCoupon } from "@/lib/shops";
-import { BenefitCards, CouponConditions, CouponNotes, CouponPeriod } from "@/components/CouponParts";
+import { BenefitCards, CouponConditions, CouponHeadline, CouponNotes, CouponPeriod, PhotoSlot } from "@/components/CouponParts";
 
 // 上に出す小さな地図(ブラウザでだけ動く)
 const ShopMap = dynamic(() => import("@/components/ShopMap"), { ssr: false, loading: () => <div className="h-full bg-[#EEF2F5]" /> });
@@ -205,9 +205,10 @@ export default function CouponPage() {
               現在 {jstNow(now).time}:{String(now.getSeconds()).padStart(2, "0")}
             </span>
           </div>
-          <p className="mt-6 rounded-xl bg-white/10 py-3 text-sm font-bold">
-            {usedToday ? "お店の方へ：上の特典を1つお出しください" : "このクーポンは使用済みです"}
-          </p>
+          {/* お店の方への案内は、運営から直接お店に伝えるので画面には出さない */}
+          {!usedToday && finished && (
+            <p className="mt-6 rounded-xl bg-white/10 py-3 text-sm font-bold">このクーポンは使用済みです</p>
+          )}
           <p className="text-xs text-white/80 mt-5">ご利用ありがとうございました！</p>
           {!finished && (
             <div className="mt-8">
@@ -264,11 +265,10 @@ export default function CouponPage() {
     <div className="min-h-screen bg-white text-[#2F3E5C]">
       <Header section={isAdmin ? "coupons" : "market"} />
       <main className="max-w-md mx-auto pb-40">
-        {/* いちばん上: お店の写真。まだないときは、北大との位置関係の地図 */}
+        {/* いちばん上: お店の写真。まだないときは、運営には写真の枠、利用者には北大との位置関係の地図 */}
         <div className="relative">
-          {shop?.photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={shop.photo} alt={`${coupon.shop_name}の写真`} className="block h-56 w-full object-cover" />
+          {shop?.photo || (shop && isAdmin) ? (
+            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} className="h-56" />
           ) : shop ? (
             <div className="relative h-56 overflow-hidden bg-[#EEF2F5]">
               <ShopMap shops={[shop]} selectedId={shop.id} onSelect={() => {}} bottomPadding={0} interactive={false} attributionClass="right-1 top-1" />
@@ -290,8 +290,11 @@ export default function CouponPage() {
             <span className="text-[10px] font-bold bg-white/20 rounded px-1.5 py-0.5">PR・提携</span>
             {!coupon.active && <span className="text-[10px] font-bold bg-[#F2C14E] text-[#1B243A] rounded px-1.5 py-0.5">非公開・運営だけに表示中</span>}
           </div>
-          <h1 className="mt-2 text-[32px] leading-tight font-extrabold tracking-tight">{coupon.shop_name}</h1>
-          <p className="mt-1 text-base font-bold text-[#F2C14E]">{coupon.title}</p>
+          <p className="mt-2 text-base font-extrabold text-[#F2C14E]">{coupon.shop_name}</p>
+          {/* クーポン名と使える時間をいちばん大きく */}
+          <div className="mt-1">
+            <CouponHeadline coupon={coupon} />
+          </div>
           {claim && (
             <p className="mt-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold">
               受け取り済み{useCount > 0 && `・${useCount}回使用`}
@@ -342,6 +345,18 @@ export default function CouponPage() {
           <section className="mt-8" aria-label="使える日時と場所">
             <CouponConditions coupon={coupon} place={place} />
           </section>
+
+          {/* お店の写真(届いたら lib/shops.ts の photos に足す) */}
+          {shop && (shop.photos.length > 0 || isAdmin) && (
+            <section className="mt-8" aria-labelledby="photos-heading">
+              <h2 id="photos-heading" className="text-xl font-extrabold">お店の写真</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {(shop.photos.length > 0 ? shop.photos : Array.from({ length: shop.photoSlots }, () => undefined)).map((src, i) => (
+                  <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} className="aspect-square rounded-2xl" />
+                ))}
+              </div>
+            </section>
+          )}
 
           <CouponNotes notes={coupon.notes} />
           <p className="mt-3 text-[11px] leading-relaxed text-[#2F3E5C]/55">

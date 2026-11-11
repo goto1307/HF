@@ -123,6 +123,53 @@ export function BenefitCards({
   );
 }
 
+// クーポンのいちばん上に置く大きな見出し。
+// 「空きコマクーポン」は使える時間そのものが売りなので、名前のすぐ下に時間を大きく出す。
+// tone: "dark" は朱色の背景の上、"light" は白地の上に置くとき
+export function CouponHeadline({ coupon, tone = "dark" }: { coupon: Coupon; tone?: "dark" | "light" }) {
+  const dark = tone === "dark";
+  return (
+    <div>
+      <h1 className={`text-[40px] leading-[1.1] font-black tracking-tight ${dark ? "text-white" : "text-[#BA421D]"}`}>{coupon.title}</h1>
+      <div className={`mt-4 rounded-2xl px-4 py-3 ${dark ? "bg-white text-[#1B243A]" : "bg-[#BA421D] text-white"}`}>
+        <p className={`text-xs font-bold ${dark ? "text-[#BA421D]" : "text-white/85"}`}>使える時間</p>
+        {coupon.time_windows.length === 0 ? (
+          <p className="text-3xl font-black">営業時間中</p>
+        ) : (
+          <ul className="mt-0.5">
+            {coupon.time_windows.map((w) => (
+              <li key={w.from} className="text-[34px] leading-tight font-black tabular-nums tracking-tight">
+                {w.from}<span className="mx-1 text-2xl">〜</span>{w.to}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <p className={`mt-3 text-lg font-extrabold ${dark ? "text-white" : "text-[#2F3E5C]"}`}>
+        {formatWeekdays(coupon.weekdays)}
+        <span className={`ml-2 text-sm font-bold ${dark ? "text-white/80" : "text-[#2F3E5C]/70"}`}>
+          {formatDate(coupon.use_from)}〜{formatDate(coupon.use_until)}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+// 写真を入れる枠。写真がまだないときは、運営にだけ「ここに写真が入ります」と出す(利用者には何も出さない)
+export function PhotoSlot({ src, alt, isAdmin, className = "" }: { src?: string; alt: string; isAdmin: boolean; className?: string }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={alt} className={`block w-full object-cover ${className}`} />;
+  }
+  if (!isAdmin) return null;
+  return (
+    <div className={`flex w-full flex-col items-center justify-center border-2 border-dashed border-[#2F3E5C]/25 bg-stone-50 text-center text-xs font-bold text-[#2F3E5C]/50 ${className}`}>
+      <span>写真が入ります</span>
+      <span className="mt-0.5 font-normal">（運営だけに表示）</span>
+    </div>
+  );
+}
+
 // 対象外・1回限りなどの注意書き。区切り線のあとに小さく出す
 export function CouponNotes({ notes }: { notes: string }) {
   if (!notes) return null;

@@ -10,7 +10,7 @@ import { recordCouponView } from "@/lib/couponView";
 import { rememberSource } from "@/lib/visitSource";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
-import { BenefitCards, CouponConditions, CouponNotes, CouponPeriod } from "@/components/CouponParts";
+import { BenefitCards, CouponConditions, CouponHeadline, CouponNotes, CouponPeriod, PhotoSlot } from "@/components/CouponParts";
 import { IconX } from "@/components/icons";
 
 // 地図はブラウザでだけ動くので、サーバーでは描かない
@@ -46,7 +46,6 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"coupon" | "shop">("coupon");
   const [busy, setBusy] = useState(false);
-  const [justClaimed, setJustClaimed] = useState<string | null>(null);
   // 運営だけ: 地図をタップした場所の緯度・経度を調べる(お店のピンの位置を直すため)
   const [picking, setPicking] = useState(false);
 
@@ -88,7 +87,9 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     if (error) { toast(errorMessage(error)); return; }
     const claim = data as CouponClaim;
     onClaimed({ coupon_id: claim.coupon_id, used_at: claim.used_at, use_count: claim.use_count });
-    setJustClaimed(c.id);
+    // 受け取ったら、シートの中ではなくクーポンのページ(1画面)へ移る
+    toast("クーポンを受け取りました", "success");
+    router.push(`/coupons/${c.id}`);
   };
 
   return (
@@ -227,32 +228,10 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
                 <p className="text-sm text-[#2F3E5C]/75">このお店のクーポンは、いま配布していません。</p>
               )
             ) : (
-              <ShopTab shop={shop} />
+              <ShopTab shop={shop} isAdmin={isAdmin} />
             )}
           </div>
         </section>
-      )}
-
-      {/* 受け取った直後: 今すぐ使うか、クーポンボックスに入れるか */}
-      {justClaimed && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="claimed-title">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-[#1B243A] shadow-xl">
-            <p id="claimed-title" className="text-xl font-extrabold">クーポンを受け取りました</p>
-            <p className="mt-1 text-sm text-stone-600">お店にいるなら、今すぐ使えます。あとで使うなら、クーポンボックスに入れておきましょう。</p>
-            <button
-              onClick={() => router.push(`/coupons/${justClaimed}`)}
-              className="mt-5 block w-full rounded-full bg-[#BA421D] py-3.5 font-extrabold text-white shadow-[0_3px_0_#1B243A]"
-            >
-              今すぐ使う
-            </button>
-            <button
-              onClick={() => { setJustClaimed(null); toast("クーポンボックスに入れました"); }}
-              className="mt-3 block w-full rounded-full border-2 border-[#BA421D] py-3 font-extrabold text-[#BA421D]"
-            >
-              クーポンボックスに入れる
-            </button>
-          </div>
-        </div>
       )}
 
       <style>{`@keyframes sheet-up { from { transform: translateY(40%); opacity: .6; } to { transform: none; opacity: 1; } }`}</style>
@@ -301,9 +280,9 @@ function CouponTab({
 
   return (
     <div>
-      <div className="mb-4"><CouponPeriod coupon={coupon} started={!beforeStart} /></div>
-      <p className="text-base font-bold text-[#BA421D]">{coupon.title}</p>
-      <h2 className="mt-1 text-xl font-extrabold">特典はどれか1つ</h2>
+      <CouponHeadline coupon={coupon} tone="light" />
+      <div className="mt-4 mb-6"><CouponPeriod coupon={coupon} started={!beforeStart} /></div>
+      <h2 className="text-xl font-extrabold">特典はどれか1つ</h2>
       <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
       <BenefitCards benefits={coupon.benefits} />
       <div className="mt-7">
@@ -318,10 +297,21 @@ function CouponTab({
   );
 }
 
-function ShopTab({ shop }: { shop: Shop }) {
+function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${shop.lat},${shop.lng}`;
   return (
     <div className="space-y-6 text-sm">
+      {/* お店の写真(届いたら lib/shops.ts の photo・photos に足す。まだないときは運営にだけ空き枠を出す) */}
+      {(shop.photo || shop.photos.length > 0 || isAdmin) && (
+        <section aria-label="お店の写真" className="space-y-2">
+          <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} className="h-44 rounded-2xl" />
+          <div className="grid grid-cols-3 gap-2">
+            {(shop.photos.length > 0 ? shop.photos : Array.from({ length: shop.photoSlots }, () => undefined)).slice(0, 6).map((src, i) => (
+              <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} className="aspect-square rounded-xl" />
+            ))}
+          </div>
+        </section>
+      )}
       <dl className="grid grid-cols-[5em_1fr] gap-y-3">
         <dt className="text-[#2F3E5C]/60">ジャンル</dt>
         <dd className="font-bold">{shop.genre}</dd>

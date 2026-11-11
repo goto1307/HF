@@ -18,7 +18,9 @@ export type Shop = {
   closed: string | null; // 定休日
   menu: MenuItem[];
   menuNote: string | null; // メニューの注意書き(いつ時点の情報かなど)
-  photo?: string; // public/ に置いた写真のパス
+  photo?: string; // いちばん上に大きく出す写真(public/ に置いた写真のパス。例: "/shops/futagozan/top.jpg")
+  photos: string[]; // 「お店の写真」に並べる写真(public/ に置いた写真のパス)
+  photoSlots: number; // 写真がまだ届いていないとき、運営に見せる空き枠の数
 };
 
 export const SHOPS: Shop[] = [
@@ -34,8 +36,7 @@ export const SHOPS: Shop[] = [
     address: "札幌市北区北15条西4丁目2-16 NRK札幌ビル1F",
     access: "地下鉄南北線 北18条駅から徒歩約5分",
     genre: "海鮮丼・ザンギ",
-    // 細かい時間はお店に確認中。分かっていること(昼は14時まで・夜は17時から)だけを書いている
-    hours: "昼は14:00まで、夜は17:00から（詳しい時間はお店にご確認ください）",
+    hours: "11:00〜14:00、17:00〜22:00",
     closed: "月曜日",
     menu: [
       { name: "サーモンまにあ丼", price: 1200 },
@@ -47,6 +48,10 @@ export const SHOPS: Shop[] = [
       { name: "ザンギ 5個", price: 750 },
       { name: "本日の味噌汁", price: 200 },
     ],
+    // 写真は後で入れる。public/shops/futagozan/ に置いて、photo と photos にパスを書く
+    photo: undefined,
+    photos: [],
+    photoSlots: 4,
     menuNote: "2026年11月時点の店内のメニュー・ポスターから一部を載せています（税込）。丼の多くはご飯大盛り無料です。値段が変わっている場合があります。夜17:00〜19:00はハッピーアワーがあります。",
   },
 ];
