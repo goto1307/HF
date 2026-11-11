@@ -16,7 +16,9 @@ import {
   formatWindows,
   hasEnded,
   jstNow,
+  unlimitedUses,
   usableNow,
+  usedUp,
   type Coupon,
   type CouponClaim,
 } from "@/lib/coupon";
@@ -62,6 +64,8 @@ export default function CouponPage() {
   const [busy, setBusy] = useState(false);
   const [benefit, setBenefit] = useState<string | null>(null);
   const [firstVisit, setFirstVisit] = useState<boolean | null>(null);
+  // 何回でも使えるクーポンで、使ったあとに「もう一度使う」を押したか
+  const [again, setAgain] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -100,20 +104,25 @@ export default function CouponPage() {
   };
 
   const handleUse = async () => {
-    if (!coupon || !benefit || firstVisit === null) return;
+    if (!coupon || !claim || !benefit) return;
+    const firstTime = claim.use_count === 0;
+    if (firstTime && firstVisit === null) return;
     const ok = confirm(
-      `「${benefitName(benefit)}」で使います。\n\nお店の人に画面を見せながら押してください。押すと使用済みになり、元に戻せません。`
+      `「${benefitName(benefit)}」で使います。\n\nお店の人に画面を見せながら押してください。押すと${unlimitedUses(coupon) ? "「使った」と記録され" : "使用済みになり"}、元に戻せません。`
     );
     if (!ok) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("use_coupon", {
       p_coupon: id,
       p_benefit: benefit,
-      p_first_visit: firstVisit,
+      // 2回目からは DB 側で「前にも来た」として記録される
+      p_first_visit: firstTime ? firstVisit : false,
     });
     setBusy(false);
     if (error) { toast(errorMessage(error)); return; }
     setClaim(data as CouponClaim);
+    setAgain(false);
+    setBenefit(null);
   };
 
   const handleReset = async () => {
@@ -122,6 +131,7 @@ export default function CouponPage() {
     if (error) { toast(errorMessage(error)); return; }
     setBenefit(null);
     setFirstVisit(null);
+    setAgain(false);
     setClaim(null);
     toast("受け取り記録を消しました");
   };
@@ -163,10 +173,15 @@ export default function CouponPage() {
   const usable = usableNow(coupon, now);
   const ended = hasEnded(coupon, now);
   const usedToday = claim?.used_at ? jstNow(new Date(claim.used_at)).date === jstNow(now).date : false;
+  const finished = usedUp(coupon, claim);
+  // 何回でも使えるクーポンは、使ってから15分間だけお店に見せる画面を出す(そのあとは次に使う画面に戻る)
+  const justUsed = claim?.used_at ? now.getTime() - new Date(claim.used_at).getTime() < 15 * 60 * 1000 : false;
+  const showUsedScreen = !!claim?.used_at && (finished || (justUsed && !again));
+  const useCount = claim?.use_count ?? 0;
   const whenUsable = `${formatWeekdays(coupon.weekdays)}の${formatWindows(coupon.time_windows)}`;
 
   // ---------- 使用済み(お店の人に見せる画面) ----------
-  if (claim?.used_at) {
+  if (claim?.used_at && showUsedScreen) {
     return (
       <div className={`min-h-screen ${NAVY} text-white`}>
         <Header section={isAdmin ? "coupons" : "market"} />
@@ -194,6 +209,17 @@ export default function CouponPage() {
             {usedToday ? "お店の方へ：上の特典を1つお出しください" : "このクーポンは使用済みです"}
           </p>
           <p className="text-xs text-white/80 mt-5">ご利用ありがとうございました！</p>
+          {!finished && (
+            <div className="mt-8">
+              <p className="text-xs text-white/80">このクーポンは期間中なら何回でも使えます（{useCount}回使用）</p>
+              <button
+                onClick={() => { setAgain(true); setBenefit(null); }}
+                className="mt-2 rounded-full bg-white text-[#1B243A] font-bold px-5 py-2.5 text-sm"
+              >
+                次に来たときに使う
+              </button>
+            </div>
+          )}
           {isAdmin && (
             <button onClick={handleReset} className="mt-8 text-xs text-white/50 underline">
               （運営の動作確認用）受け取りをやり直す
@@ -222,11 +248,11 @@ export default function CouponPage() {
       if (isAdmin) ctaNote = <button onClick={handleClaim} disabled={busy} className="underline">（運営の動作確認用）開始前に受け取って試す</button>;
     } else cta = <button onClick={handleClaim} disabled={busy} className={enabled}>{busy ? "受け取り中..." : "クーポンを受け取る"}</button>;
   } else {
-    const ready = !!benefit && firstVisit !== null;
+    const ready = !!benefit && (useCount > 0 || firstVisit !== null);
     const canUse = ready && (usable || isAdmin);
     cta = (
       <button onClick={handleUse} disabled={!canUse || busy} className={canUse ? enabled : disabled}>
-        {busy ? "処理中..." : !ready ? "特典と来店の回数を選んでください" : !usable && !isAdmin ? "今は使えない時間です" : "お店で使う"}
+        {busy ? "処理中..." : !ready ? (useCount > 0 ? "特典を選んでください" : "特典と来店の回数を選んでください") : !usable && !isAdmin ? "今は使えない時間です" : "お店で使う"}
       </button>
     );
     ctaNote = !usable
@@ -266,7 +292,11 @@ export default function CouponPage() {
           </div>
           <h1 className="mt-2 text-[32px] leading-tight font-extrabold tracking-tight">{coupon.shop_name}</h1>
           <p className="mt-1 text-base font-bold text-[#F2C14E]">{coupon.title}</p>
-          {claim && <p className="mt-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold">受け取り済み</p>}
+          {claim && (
+            <p className="mt-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold">
+              受け取り済み{useCount > 0 && `・${useCount}回使用`}
+            </p>
+          )}
         </div>
 
         {/* ここから下は白地 */}
@@ -276,13 +306,13 @@ export default function CouponPage() {
           {/* 特典(中) */}
           <section className={claim ? "mt-8" : "mt-6"} aria-labelledby="benefit-heading">
             <h2 id="benefit-heading" className="text-xl font-extrabold">
-              {claim ? "使う特典を1つ選ぶ" : "どれか1つが無料"}
+              {claim ? "使う特典を1つ選ぶ" : "特典はどれか1つ"}
             </h2>
             <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
             <BenefitCards benefits={coupon.benefits} selected={benefit} onSelect={claim ? setBenefit : undefined} />
           </section>
 
-          {claim && (
+          {claim && useCount === 0 && (
             <section className="mt-8" aria-labelledby="visit-heading">
               <h2 id="visit-heading" className="text-xl font-extrabold">このお店に来たのは？</h2>
               <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">お店への報告に使います（名前などは伝わりません）。</p>

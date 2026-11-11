@@ -11,6 +11,7 @@ import {
   formatWeekdays,
   formatWindows,
   hasEnded,
+  usedUp,
   type Coupon,
 } from "@/lib/coupon";
 import Header from "@/components/Header";
@@ -19,7 +20,7 @@ import CouponExplorer from "@/components/CouponExplorer";
 import LockPageScroll from "@/components/LockPageScroll";
 import { isAdminEmail } from "@/lib/adminEmails";
 
-type MyClaim = { coupon_id: string; used_at: string | null };
+type MyClaim = { coupon_id: string; used_at: string | null; use_count: number };
 
 // 提携しているお店のクーポンの一覧(migration PART AT)
 export default function CouponsPage() {
@@ -38,7 +39,7 @@ export default function CouponsPage() {
       if (user) {
         const { data: mine } = await supabase
           .from("coupon_claim")
-          .select("coupon_id,used_at")
+          .select("coupon_id,used_at,use_count")
           .eq("user_id", user.id);
         setClaims(Object.fromEntries(((mine as MyClaim[] | null) ?? []).map((c) => [c.coupon_id, c])));
       }
@@ -48,7 +49,7 @@ export default function CouponsPage() {
 
   const status = (c: Coupon) => {
     const mine = claims[c.id];
-    if (mine?.used_at) return { label: "使用済み", tone: "bg-stone-200 text-stone-600" };
+    if (usedUp(c, mine)) return { label: "使用済み", tone: "bg-stone-200 text-stone-600" };
     if (hasEnded(c)) return { label: "終了", tone: "bg-stone-200 text-stone-500" };
     if (mine) return { label: "受け取り済み", tone: "bg-orange-100 text-orange-800" };
     if (claimOpen(c)) return { label: "受け取れます", tone: "bg-yellow-200 text-yellow-900" };

@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { claimOpen, formatDateTime, hasEnded, type Coupon, type CouponClaim } from "@/lib/coupon";
+import { claimOpen, formatDateTime, hasEnded, usedUp, type Coupon, type CouponClaim } from "@/lib/coupon";
 import { SHOPS, type Shop } from "@/lib/shops";
 import { recordCouponView } from "@/lib/couponView";
 import { rememberSource } from "@/lib/visitSource";
@@ -19,7 +19,7 @@ const ShopMap = dynamic(() => import("@/components/ShopMap"), {
   loading: () => <div className="absolute inset-0 bg-[#EEF2F5] animate-pulse" />,
 });
 
-export type MyClaim = Pick<CouponClaim, "coupon_id" | "used_at">;
+export type MyClaim = Pick<CouponClaim, "coupon_id" | "used_at" | "use_count">;
 
 type Props = {
   coupons: Coupon[];
@@ -63,7 +63,11 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
 
   const shop = shops.find((s) => s.id === selectedId) ?? null;
   const coupon = shop ? live.find((c) => shop.couponIds.includes(c.id)) ?? null : null;
-  const boxCount = Object.values(claims).filter((c) => !c.used_at).length;
+  // まだ使えるもの(使い切っていない・終わっていない)を数える
+  const boxCount = Object.values(claims).filter((c) => {
+    const cp = coupons.find((x) => x.id === c.coupon_id);
+    return cp ? !usedUp(cp, c) && !hasEnded(cp) : !c.used_at;
+  }).length;
 
   const select = (id: string | null) => {
     setSelectedId(id);
@@ -83,7 +87,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     setBusy(false);
     if (error) { toast(errorMessage(error)); return; }
     const claim = data as CouponClaim;
-    onClaimed({ coupon_id: claim.coupon_id, used_at: claim.used_at });
+    onClaimed({ coupon_id: claim.coupon_id, used_at: claim.used_at, use_count: claim.use_count });
     setJustClaimed(c.id);
   };
 
@@ -280,7 +284,7 @@ function CouponTab({
 
   let cta: React.ReactNode;
   let note: React.ReactNode = null;
-  if (claim?.used_at) {
+  if (usedUp(coupon, claim)) {
     cta = <span className={disabled}>このクーポンは使用済みです</span>;
   } else if (claim) {
     cta = <Link href={`/coupons/${coupon.id}`} className={enabled}>このクーポンを使う</Link>;
@@ -299,7 +303,7 @@ function CouponTab({
     <div>
       <div className="mb-4"><CouponPeriod coupon={coupon} started={!beforeStart} /></div>
       <p className="text-base font-bold text-[#BA421D]">{coupon.title}</p>
-      <h2 className="mt-1 text-xl font-extrabold">どれか1つが無料</h2>
+      <h2 className="mt-1 text-xl font-extrabold">特典はどれか1つ</h2>
       <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
       <BenefitCards benefits={coupon.benefits} />
       <div className="mt-7">
@@ -356,7 +360,11 @@ function ShopTab({ shop }: { shop: Shop }) {
             {shop.menu.map((m) => (
               <li key={m.name} className="flex items-baseline justify-between gap-3 py-2.5">
                 <span className="font-bold">{m.name}</span>
-                {m.price !== null && <span className="tabular-nums text-[#2F3E5C]/80">{m.price.toLocaleString()}円</span>}
+                {m.price !== null ? (
+                  <span className="tabular-nums text-[#2F3E5C]/80">{m.price.toLocaleString()}円</span>
+                ) : m.note ? (
+                  <span className="text-right text-xs text-[#2F3E5C]/80">{m.note}</span>
+                ) : null}
               </li>
             ))}
           </ul>

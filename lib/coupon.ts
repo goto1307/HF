@@ -1,10 +1,11 @@
 // 飲食店の提携クーポン(migration PART AT)。
-// 受け取り・使用のチェック(期間・曜日・時間帯・1人1回)は DB 側の claim_coupon・use_coupon で行う。
+// 受け取り・使用のチェック(期間・曜日・時間帯・使える回数)は DB 側の claim_coupon・use_coupon で行う。
+// 何回でも使えるクーポン(max_uses_per_user が null)は PART AV から。
 // ここにある判定は、画面の表示(ボタンを押せるか、案内の文)のためのもの。
 
 export const COUPON_COLUMNS =
-  "id,shop_name,title,description,benefits,notes,claim_from,use_from,use_until,weekdays,time_windows,max_claims,active";
-export const CLAIM_COLUMNS = "id,coupon_id,claimed_at,used_at,benefit,first_visit";
+  "id,shop_name,title,description,benefits,notes,claim_from,use_from,use_until,weekdays,time_windows,max_claims,max_uses_per_user,active";
+export const CLAIM_COLUMNS = "id,coupon_id,claimed_at,used_at,benefit,first_visit,use_count";
 
 export type TimeWindow = { from: string; to: string }; // "13:00" のような日本時間
 
@@ -21,6 +22,7 @@ export type Coupon = {
   weekdays: number[]; // 1=月 … 7=日
   time_windows: TimeWindow[];
   max_claims: number | null;
+  max_uses_per_user: number | null; // 1人が使える回数(null = 上限なし)
   active: boolean;
 };
 
@@ -28,9 +30,10 @@ export type CouponClaim = {
   id: number;
   coupon_id: string;
   claimed_at: string;
-  used_at: string | null;
-  benefit: string | null;
+  used_at: string | null; // いちばん最近使った日時
+  benefit: string | null; // いちばん最近選んだ特典
   first_visit: boolean | null;
+  use_count: number; // 使った回数
 };
 
 const WEEKDAY_LABELS = ["", "月", "火", "水", "木", "金", "土", "日"];
@@ -57,6 +60,17 @@ export function usableNow(c: Coupon, now = new Date()) {
 // 受け取れる期間か
 export function claimOpen(c: Coupon, now = new Date()) {
   return now.getTime() >= new Date(c.claim_from).getTime() && jstNow(now).date <= c.use_until;
+}
+
+// もう使えないか(上限の回数まで使い切った)
+export function usedUp(c: Pick<Coupon, "max_uses_per_user">, claim: Pick<CouponClaim, "use_count"> | null | undefined) {
+  if (!claim) return false;
+  return c.max_uses_per_user !== null && claim.use_count >= c.max_uses_per_user;
+}
+
+// 何回でも使えるクーポンか
+export function unlimitedUses(c: Pick<Coupon, "max_uses_per_user">) {
+  return c.max_uses_per_user === null;
 }
 
 export function hasEnded(c: Coupon, now = new Date()) {
