@@ -67,6 +67,7 @@ export default function ShopMap({
   bottomPadding,
   interactive = true,
   attributionClass = "right-1 bottom-1",
+  onMapTap,
 }: {
   shops: Shop[];
   selectedId: string | null;
@@ -74,12 +75,15 @@ export default function ShopMap({
   bottomPadding: number; // 下のシートに隠れる割合(0〜1。ピンがシートの上に見えるように地図をずらす)
   interactive?: boolean; // false: 動かせない小さな地図(クーポンの詳細ページの上に出す)
   attributionClass?: string; // 提供元の文字を置く場所(Tailwind の位置のクラス)
+  onMapTap?: (lat: number, lng: number) => void; // 地図の何もないところを押したとき、その場所の緯度・経度を知らせる
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const markersRef = useRef<Map<string, { marker: MlMarker; el: HTMLElement }>>(new Map());
   const onSelectRef = useRef(onSelect);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  const onMapTapRef = useRef(onMapTap);
+  useEffect(() => { onMapTapRef.current = onMapTap; }, [onMapTap]);
 
   // 地図を作る(最初の1回だけ)
   useEffect(() => {
@@ -117,7 +121,10 @@ export default function ShopMap({
         }
       });
       // 地図の何もないところを押したら、お店の選択を外す
-      map.on("click", () => onSelectRef.current(null));
+      map.on("click", (e) => {
+        onSelectRef.current(null);
+        onMapTapRef.current?.(e.lngLat.lat, e.lngLat.lng);
+      });
 
       for (const s of shops) {
         const el = pinElement(s.name);

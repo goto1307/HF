@@ -47,6 +47,19 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
   const [tab, setTab] = useState<"coupon" | "shop">("coupon");
   const [busy, setBusy] = useState(false);
   const [justClaimed, setJustClaimed] = useState<string | null>(null);
+  // 運営だけ: 地図をタップした場所の緯度・経度を調べる(お店のピンの位置を直すため)
+  const [picking, setPicking] = useState(false);
+
+  const handleMapTap = async (lat: number, lng: number) => {
+    if (!picking) return;
+    const text = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`この場所は ${text}（コピーしました）`, "success");
+    } catch {
+      toast(`この場所は ${text}`, "success");
+    }
+  };
 
   const shop = shops.find((s) => s.id === selectedId) ?? null;
   const coupon = shop ? live.find((c) => shop.couponIds.includes(c.id)) ?? null : null;
@@ -82,7 +95,18 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         onSelect={select}
         bottomPadding={selectedId ? SHEET_RATIO : 0.2}
         attributionClass="right-3 top-[60px]"
+        onMapTap={isAdmin ? handleMapTap : undefined}
       />
+      {isAdmin && (
+        <button
+          onClick={() => setPicking((v) => !v)}
+          className={`absolute left-3 top-[60px] z-10 rounded-full px-3 py-1.5 text-xs font-bold shadow-md ${
+            picking ? "bg-[#F2C14E] text-[#1B243A]" : "bg-white/95 text-[#2F3E5C]"
+          }`}
+        >
+          {picking ? "タップで位置をコピー（終了）" : "（運営）位置を調べる"}
+        </button>
+      )}
 
       {/* 上に浮かべるもの: 件数とクーポンボックス */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
