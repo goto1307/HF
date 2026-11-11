@@ -11,6 +11,13 @@
   --font-sans: var(--font-mplus-rounded);
 }
 
+/* スマホでページの上下の端を引っ張ったときに、ページ全体が伸びて
+   ヘッダーやフッターがずれて見えるのを防ぐ(引っ張って再読み込みする動きも止まる) */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
