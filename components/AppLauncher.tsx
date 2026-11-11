@@ -10,7 +10,6 @@ import { IconX } from "@/components/icons";
 // 開き方: ☰ を押す → 右上から丸く広がる。右上から左下へなぞる → 指の動きに合わせて広がり、離すと開く。
 // ※ いまは運営(管理者)だけの試作(components/Header.tsx から開く)
 
-const NAVY = "#2F3E5C";
 const LINE = "#1B243A";
 const SHU = "#BA421D";
 
@@ -111,20 +110,20 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
       role="dialog"
       aria-modal="true"
       aria-label="HOKUMAのホーム"
-      className="launcher fixed inset-0 z-50 overflow-y-auto text-white"
+      className="launcher fixed inset-0 z-50 overflow-y-auto bg-white text-stone-800"
       data-shown={open}
       data-dragging={dragging}
       aria-hidden={!open}
-      style={{ backgroundColor: NAVY, ...dragStyle }}
+      style={dragStyle}
     >
       <div className="max-w-md mx-auto px-6 pt-4 pb-12">
         <div className="flex items-center justify-between h-12">
-          <p className="text-xl font-extrabold tracking-tight">HOKUMA</p>
+          <p className="text-xl font-extrabold tracking-tight text-orange-700">HOKUMA</p>
           <button
             ref={closeRef}
             onClick={onClose}
             aria-label="閉じる"
-            className="w-10 h-10 -mr-1 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-yellow-300 transition-colors"
+            className="w-10 h-10 -mr-1 flex items-center justify-center rounded-full bg-stone-100 text-stone-600 hover:bg-stone-200 focus-visible:outline-2 focus-visible:outline-orange-700 transition-colors"
           >
             <IconX size={20} />
           </button>
@@ -134,21 +133,20 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
           {tiles.map((t, i) => {
             const isCurrent = t.key === current;
             return (
-              <li key={t.key} className="launcher-tile" style={{ transitionDelay: `${80 + i * 50}ms` }}>
+              <li key={t.key} className="launcher-tile" style={{ transitionDelay: `${40 + i * 30}ms` }}>
                 <Link
                   href={t.href}
                   onClick={onClose}
-                  className="group flex flex-col items-center gap-2.5 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-yellow-300"
+                  className="group flex flex-col items-center gap-2.5 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-700"
                 >
                   <span
-                    className={`w-[84px] h-[84px] rounded-[24px] bg-white flex items-center justify-center transition-transform group-active:scale-95 ${
-                      isCurrent ? "ring-[3px] ring-yellow-300 ring-offset-[3px]" : ""
+                    className={`w-[84px] h-[84px] rounded-[24px] bg-orange-50 border border-orange-100 flex items-center justify-center transition-transform group-active:scale-95 ${
+                      isCurrent ? "ring-[3px] ring-orange-700 ring-offset-[3px] ring-offset-white" : ""
                     }`}
-                    style={isCurrent ? { ["--tw-ring-offset-color" as string]: NAVY } : undefined}
                   >
                     {GLYPHS[t.key]}
                   </span>
-                  <span className="text-sm font-bold">{t.label}</span>
+                  <span className={`text-sm font-bold ${isCurrent ? "text-orange-700" : "text-stone-700"}`}>{t.label}</span>
                   {isCurrent && <span className="sr-only">（いま開いています）</span>}
                 </Link>
               </li>
@@ -156,30 +154,30 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
           })}
         </ul>
 
-        <div className="launcher-tile mt-14 border-t border-white/15 pt-4 text-sm" style={{ transitionDelay: "240ms" }}>
-          <button onClick={() => { onClose(); onShowGuide(); }} className="block w-full text-left py-2.5 font-bold text-white/85 hover:text-white">
+        <div className="launcher-tile mt-14 border-t border-stone-200 pt-4 text-sm" style={{ transitionDelay: "130ms" }}>
+          <button onClick={() => { onClose(); onShowGuide(); }} className="block w-full text-left py-2.5 font-bold text-stone-700 hover:text-orange-700">
             初めての方に
           </button>
-          <button onClick={() => { onClose(); onShowInstall(); }} className="block w-full text-left py-2.5 font-bold text-white/85 hover:text-white">
+          <button onClick={() => { onClose(); onShowInstall(); }} className="block w-full text-left py-2.5 font-bold text-stone-700 hover:text-orange-700">
             ホーム画面に追加
           </button>
-          <a href="https://www.instagram.com/hokuma.official/" target="_blank" rel="noopener noreferrer" className="block py-2.5 font-bold text-white/85 hover:text-white">
+          <a href="https://www.instagram.com/hokuma.official/" target="_blank" rel="noopener noreferrer" className="block py-2.5 font-bold text-stone-700 hover:text-orange-700">
             公式Instagram：@hokuma.official
           </a>
-          <a href="mailto:hokuma.official639@gmail.com" className="block py-2.5 font-bold text-white/85 hover:text-white">
+          <a href="mailto:hokuma.official639@gmail.com" className="block py-2.5 font-bold text-stone-700 hover:text-orange-700">
             お問い合わせ
           </a>
-          <Link href="/terms" onClick={onClose} className="block py-2.5 font-bold text-white/85 hover:text-white">
+          <Link href="/terms" onClick={onClose} className="block py-2.5 font-bold text-stone-700 hover:text-orange-700">
             利用規約
           </Link>
         </div>
 
         {isAdmin && (
-          <details className="launcher-tile mt-6 rounded-2xl bg-white/5 px-4 py-3 text-sm" style={{ transitionDelay: "280ms" }}>
-            <summary className="cursor-pointer font-bold text-white/70">管理者メニュー</summary>
+          <details className="launcher-tile mt-6 rounded-2xl bg-stone-50 px-4 py-3 text-sm" style={{ transitionDelay: "160ms" }}>
+            <summary className="cursor-pointer font-bold text-stone-500">管理者メニュー</summary>
             <div className="mt-2 grid grid-cols-2 gap-x-4">
               {ADMIN_LINKS.map((l) => (
-                <Link key={l.href} href={l.href} onClick={onClose} className="py-2 text-white/85 hover:text-white">
+                <Link key={l.href} href={l.href} onClick={onClose} className="py-2 text-stone-700 hover:text-orange-700">
                   {l.label}
                 </Link>
               ))}
@@ -193,17 +191,17 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
         .launcher {
           visibility: hidden;
           clip-path: circle(0px at ${LAUNCHER_ORIGIN});
-          transition: clip-path 380ms cubic-bezier(.25,.8,.25,1), visibility 0s linear 380ms;
+          transition: clip-path 260ms cubic-bezier(.25,.8,.25,1), visibility 0s linear 260ms;
         }
         .launcher[data-shown="true"] {
           visibility: visible;
           clip-path: circle(150% at ${LAUNCHER_ORIGIN});
-          transition: clip-path 380ms cubic-bezier(.25,.8,.25,1), visibility 0s;
+          transition: clip-path 260ms cubic-bezier(.25,.8,.25,1), visibility 0s;
         }
         .launcher .launcher-tile {
           opacity: 0;
-          transform: translate(10px, -10px) scale(.94);
-          transition: opacity 240ms ease, transform 240ms ease;
+          transform: translate(6px, -6px) scale(.97);
+          transition: opacity 160ms ease, transform 160ms ease;
         }
         .launcher[data-shown="true"] .launcher-tile,
         .launcher[data-dragging="true"] .launcher-tile {

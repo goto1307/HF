@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import Header from "@/components/Header";
+import { PageSkeleton } from "@/components/Skeleton";
 import StarRating from "@/components/StarRating";
 import { IconPackage } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
@@ -158,7 +159,7 @@ export default function SellerProfile() {
     return (
       <div className="min-h-screen bg-stone-50">
         <Header />
-        <div className="p-8 text-center text-stone-400">読み込み中...</div>
+        <PageSkeleton />
       </div>
     );
   }

@@ -2,7 +2,7 @@
 // クーポンの画面(地図のシート・クーポンの詳細ページ)で共通に使う部品。
 // 白地に、文字は紺 #2F3E5C(ブランドの色)、差し色は朱 #BA421D
 
-import { formatDate, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
+import { formatDate, formatDateTime, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
@@ -32,6 +32,18 @@ function IconPin() {
 }
 
 // 使える日・時間・場所を、アイコン付きの行で並べる
+// いつから配られて、いつまで使えるか。特典より先に、いちばん上で見せる
+// started: 配布が始まっているか(時刻は呼び出し側で決める)
+export function CouponPeriod({ coupon, started, ended = false }: { coupon: Coupon; started: boolean; ended?: boolean }) {
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-[#BA421D]/10 px-3.5 py-2.5 text-sm font-bold text-[#BA421D]">
+      <span>{ended ? "終了しました" : started ? "配布中" : `${formatDateTime(coupon.claim_from)}から配布`}</span>
+      <span aria-hidden className="text-[#BA421D]/40">｜</span>
+      <span>{formatDate(coupon.use_until)}まで使える</span>
+    </p>
+  );
+}
+
 export function CouponConditions({ coupon, place }: { coupon: Coupon; place?: { address: string; access: string } }) {
   const rows = [
     { icon: <IconCalendar />, label: "使える日", main: formatWeekdays(coupon.weekdays), sub: `${formatDate(coupon.use_from)}〜${formatDate(coupon.use_until)}` },

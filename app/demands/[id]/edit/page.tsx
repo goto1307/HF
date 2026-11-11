@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthProvider";
 import type { MyDemand } from "@/lib/demand";
 import DemandForm, { type DemandFormValues } from "@/components/DemandForm";
 import Header from "@/components/Header";
+import { PageSkeleton } from "@/components/Skeleton";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
 
@@ -48,7 +49,7 @@ export default function EditDemand() {
     return (
       <div className="min-h-screen bg-stone-50">
         <Header />
-        <div className="p-8 text-center text-stone-400">読み込み中...</div>
+        <PageSkeleton />
       </div>
     );
   }

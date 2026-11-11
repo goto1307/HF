@@ -1,4 +1,5 @@
 "use client";
+import Skeleton, { LoadingLabel } from "@/components/Skeleton";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -33,7 +34,7 @@ export default function MyDemandsCard() {
       </p>
 
       {demands === null ? (
-        <p className="text-xs text-stone-400">読み込み中...</p>
+        <div className="space-y-1.5"><LoadingLabel /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>
       ) : active.length === 0 ? (
         <p className="text-xs text-stone-400 mb-3">受付中の欲しい！はありません。</p>
       ) : (

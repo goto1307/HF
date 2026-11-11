@@ -8,6 +8,7 @@ import {
   DEMAND_COLUMNS,
   formatBudget,
   formatDeadline,
+  deadlineParts,
   isActiveDemand,
   jstToday,
   wantCount,
@@ -16,6 +17,8 @@ import {
   type MyDemand,
 } from "@/lib/demand";
 import Header from "@/components/Header";
+import Skeleton, { LoadingLabel } from "@/components/Skeleton";
+import { BTN_PRIMARY } from "@/lib/ui";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import DemandTutorial from "@/components/DemandTutorial";
 import { IconSearch, IconX } from "@/components/icons";
@@ -204,6 +207,34 @@ function DemandsContent() {
     );
   };
 
+  // 一覧のカード用: 「僕も！」を人数と一体にした小さなボタン。押せないとき(自分の・期限切れ)は人数だけ出す
+  const renderVoteChip = (id: number, canVote: boolean) => {
+    const v = votes[id];
+    const count = wantCount(v);
+    if (!canVote || v?.my_done) {
+      return (
+        <span className="whitespace-nowrap text-[11px] font-bold text-stone-500">
+          {v?.my_done ? "買えた！・" : ""}{count}人が欲しい
+        </span>
+      );
+    }
+    const voted = v?.voted ?? false;
+    return (
+      <button
+        onClick={() => toggleVote(id)}
+        disabled={votingId === id}
+        aria-pressed={voted}
+        aria-label={voted ? `僕も！を取り消す（${count}人が欲しい）` : `僕も！（${count}人が欲しい）`}
+        className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-colors disabled:opacity-50 ${
+          voted ? "border-orange-300 bg-orange-100 text-orange-800" : "border-stone-200 bg-white text-stone-600 hover:border-orange-300 hover:text-orange-700"
+        }`}
+      >
+        <span>僕も！</span>
+        <span className="tabular-nums">{count}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-stone-50">
       <Header />
@@ -294,8 +325,9 @@ function DemandsContent() {
       <main className="max-w-6xl mx-auto px-4 py-4 pb-40">
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <LoadingLabel />
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-28 border border-stone-200 rounded-2xl bg-white animate-pulse" />
+              <Skeleton key={i} className="h-40 rounded-2xl" />
             ))}
           </div>
         ) : visible.length === 0 ? (
@@ -313,45 +345,44 @@ function DemandsContent() {
               const my = mineById.get(d.id);
               const own = my?.is_owner ?? false;
               const dimmed = showMine && my && (!active || my.my_done);
+              const dl = deadlineParts(d.deadline);
               return (
-                <div
-                  key={d.id}
-                  className={`relative flex flex-col border border-stone-200 rounded-2xl bg-white p-3.5 shadow-sm ${dimmed ? "opacity-60" : ""}`}
-                >
-                  <div className="flex items-center gap-1.5 mb-1.5 min-h-[18px]">
-                    {own && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700">自分</span>}
-                    {showMine && my && !own && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700">僕も！</span>
-                    )}
-                    {showMine && my && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{myStatusLabel(my)}</span>
-                    )}
-                  </div>
-                  <p className="font-bold text-sm text-stone-800 break-all line-clamp-2 mb-1">{d.title}</p>
-                  <p className="text-orange-700 font-extrabold text-base tracking-tight">{formatBudget(d.budget)}</p>
-                  <p className="text-[11px] text-stone-400 mt-0.5">{formatDeadline(d.deadline)}</p>
-                  {d.status === "open" && (
-                    <p className="text-[11px] font-bold text-stone-500 mt-1">{wantCount(votes[d.id])}人が欲しい</p>
-                  )}
-                  <div className="mt-auto pt-3 flex flex-col gap-1.5">
-                    {/* 詳細はいちばん押されるので、カードの幅いっぱいの大きいボタンにする */}
+                <div key={d.id} className={`flex flex-col ${dimmed ? "opacity-60" : ""}`}>
+                  {/* ホックマが呟く「欲しい！」なので、吹き出しの形にする。カード全体を押すと詳細が開く */}
+                  <div className="relative flex flex-1 flex-col rounded-2xl border border-stone-200 bg-white shadow-sm">
                     <button
                       onClick={() => openDetail(d.id)}
-                      className="w-full text-sm font-bold text-stone-700 bg-stone-50 border border-stone-200 rounded-full py-2.5 hover:bg-stone-100 transition-colors"
+                      className="flex flex-1 flex-col p-3.5 pb-2 text-left rounded-2xl focus-visible:outline-2 focus-visible:outline-orange-700"
+                      aria-label={`「${d.title}」の詳細を見る`}
                     >
-                      詳細を見る
+                      {(own || (showMine && my)) && (
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          {own && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700">自分</span>}
+                          {showMine && my && !own && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700">僕も！</span>
+                          )}
+                          {showMine && my && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">{myStatusLabel(my)}</span>
+                          )}
+                        </div>
+                      )}
+                      <p className="font-bold text-sm text-stone-900 break-all line-clamp-2 mb-1">{d.title}</p>
+                      <p className="text-orange-700 font-extrabold text-base tracking-tight">{formatBudget(d.budget)}</p>
+                      <p className="mt-1.5 text-xs">
+                        <span className={`font-bold ${dl.soon ? "text-orange-700" : "text-stone-700"}`}>{dl.main}</span>
+                        {dl.sub && <span className="ml-1.5 text-[11px] text-stone-400">{dl.sub}</span>}
+                      </p>
                     </button>
-                    {active && !own && (
-                      <div className="flex gap-1.5">
-                        {renderVoteButton(d.id)}
-                        <Link
-                          href={loginOr(`/sell?demand=${d.id}`)}
-                          className="flex-1 text-center text-xs font-bold text-white bg-orange-700 rounded-full py-2 hover:bg-orange-800 transition-colors"
-                        >
+                    <div className="mt-auto flex items-center gap-1.5 px-3 pb-3.5 pt-1">
+                      {d.status === "open" && renderVoteChip(d.id, active && !own)}
+                      {active && !own && (
+                        <Link href={loginOr(`/sell?demand=${d.id}`)} className={`${BTN_PRIMARY} ml-auto shrink-0 whitespace-nowrap px-3.5 py-2 text-xs`}>
                           応える
                         </Link>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    {/* 吹き出しのしっぽ */}
+                    <span aria-hidden className="absolute -bottom-[7px] left-6 h-3.5 w-3.5 rotate-45 border-b border-r border-stone-200 bg-white" />
                   </div>
                 </div>
               );

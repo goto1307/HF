@@ -56,6 +56,19 @@ export function formatDeadline(deadline: string) {
   return `${m}/${d}まで（${rest}）`;
 }
 
+// 一覧のカード用: 「あと○日」を大きく、日付を小さく出すための2つに分けた表示。
+// 「ずっと(1年以内)」で登録したもの(330日より先)は「ずっと」と出す。今年でない日付は年も付ける
+export function deadlineParts(deadline: string): { main: string; sub: string; soon: boolean } {
+  const [y, m, d] = deadline.split("-").map(Number);
+  const left = daysLeft(deadline);
+  const thisYear = Number(jstToday().slice(0, 4));
+  const date = y === thisYear ? `${m}/${d}まで` : `${y}/${m}/${d}まで`;
+  if (left < 0) return { main: "期限切れ", sub: date, soon: false };
+  if (left === 0) return { main: "今日まで", sub: date, soon: true };
+  if (left > 330) return { main: "ずっと募集中", sub: "", soon: false };
+  return { main: `あと${left}日`, sub: date, soon: left <= 3 };
+}
+
 export function formatBudget(budget: number) {
   return budget === 0 ? "無料なら欲しい" : `¥${budget.toLocaleString()}まで`;
 }

@@ -10,7 +10,7 @@ import { recordCouponView } from "@/lib/couponView";
 import { rememberSource } from "@/lib/visitSource";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
-import { BenefitCards, CouponConditions, CouponNotes } from "@/components/CouponParts";
+import { BenefitCards, CouponConditions, CouponNotes, CouponPeriod } from "@/components/CouponParts";
 import { IconX } from "@/components/icons";
 
 // 地図はブラウザでだけ動くので、サーバーでは描かない
@@ -297,6 +297,7 @@ function CouponTab({
 
   return (
     <div>
+      <div className="mb-4"><CouponPeriod coupon={coupon} started={!beforeStart} /></div>
       <p className="text-base font-bold text-[#BA421D]">{coupon.title}</p>
       <h2 className="mt-1 text-xl font-extrabold">どれか1つが無料</h2>
       <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
