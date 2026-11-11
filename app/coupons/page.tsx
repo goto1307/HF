@@ -16,6 +16,7 @@ import {
 import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import CouponExplorer from "@/components/CouponExplorer";
+import LockPageScroll from "@/components/LockPageScroll";
 import { isAdminEmail } from "@/lib/adminEmails";
 
 type MyClaim = { coupon_id: string; used_at: string | null };
@@ -55,9 +56,11 @@ export default function CouponsPage() {
   };
 
   if (isAdmin) {
-    // 画面いっぱいの地図(下のフッターは地図の下に隠れる)
+    // 画面いっぱいの地図。ページ全体は動かないように固定する
+    // (スマホでページごと引っ張られて、ヘッダーやフッターがずれて見えるのを防ぐ)
     return (
-      <div className="flex h-dvh flex-col bg-[#EEF2F5]">
+      <div className="fixed inset-0 z-30 flex flex-col overscroll-none bg-[#EEF2F5]">
+        <LockPageScroll />
         <Header section="coupons" />
         {loading ? (
           <div className="flex-1 bg-[#E3E9EE] animate-pulse" />
