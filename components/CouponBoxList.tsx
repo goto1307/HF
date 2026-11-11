@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import { benefitName, formatDate, formatDateTime, formatTime, formatWindows, hasEnded, usableNow, type Coupon, type CouponClaim } from "@/lib/coupon";
+import { benefitName, formatDate, formatDateTime, formatTime, formatWindows, hasEnded, usableNow, usedUp, type Coupon, type CouponClaim } from "@/lib/coupon";
 
 // クーポンボックスの一覧(クーポンボックスのページと、HOKUMA のマイページで使う)。
-// 使える順: 使う前で期限内 → 期限切れ → 使用済み
+// 使える順: まだ使えて期限内 → 期限切れ → 使用済み(使える回数を使い切ったもの)
 // theme: "light" は白地のページ(クーポンボックス)、"dark" は紺のページ(マイページ)に置くとき
 export default function CouponBoxList({
   rows,
@@ -30,13 +30,13 @@ export default function CouponBoxList({
     );
   }
 
-  const rank = (r: { claim: CouponClaim; coupon: Coupon }) => (r.claim.used_at ? 2 : hasEnded(r.coupon) ? 1 : 0);
+  const rank = (r: { claim: CouponClaim; coupon: Coupon }) => (usedUp(r.coupon, r.claim) ? 2 : hasEnded(r.coupon) ? 1 : 0);
   const sorted = [...rows].sort((a, b) => rank(a) - rank(b) || a.coupon.use_until.localeCompare(b.coupon.use_until));
 
   return (
     <ul className="space-y-3">
       {sorted.map(({ claim, coupon }) => {
-        const used = !!claim.used_at;
+        const used = usedUp(coupon, claim);
         const ended = !used && hasEnded(coupon);
         const now = !used && !ended && usableNow(coupon);
         return (
@@ -59,14 +59,16 @@ export default function CouponBoxList({
                     used || ended ? (light ? "bg-stone-200" : "bg-white/10") : now ? "bg-[#BA421D] text-white" : "bg-[#F2C14E] text-[#1B243A]"
                   }`}
                 >
-                  {used ? "使用済み" : ended ? "期限切れ" : now ? "いま使えます" : "未使用"}
+                  {used ? "使用済み" : ended ? "期限切れ" : now ? "いま使えます" : claim.use_count > 0 ? `${claim.use_count}回使用` : "未使用"}
                 </span>
               </div>
               {!compact && (
                 <p className={`mt-2 text-xs ${used || ended ? "" : "text-stone-600"}`}>
                   {used
                     ? `${formatDateTime(claim.used_at!)} ${formatTime(claim.used_at!)}に「${benefitName(claim.benefit)}」で使いました`
-                    : `${formatDate(coupon.use_until)}まで・${formatWindows(coupon.time_windows)}`}
+                    : `${formatDate(coupon.use_until)}まで・${formatWindows(coupon.time_windows)}${
+                        claim.used_at ? `（前回 ${formatDateTime(claim.used_at)}「${benefitName(claim.benefit)}」）` : ""
+                      }`}
                 </p>
               )}
             </Link>

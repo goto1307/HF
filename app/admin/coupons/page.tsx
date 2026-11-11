@@ -18,6 +18,7 @@ type CouponStats = {
     views_logged_out: number;
     claims: number;
     uses: number;
+    users_used?: number; // 1回以上使った人数(PART AV から)
     first_visits: number;
     repeat_visits: number;
     lunch: number;
@@ -69,6 +70,7 @@ function reportText(coupon: Coupon, weekDays: Day[], stats: CouponStats) {
     "",
     `【これまでの合計】`,
     `・クーポンを受け取った人：${t.claims}人`,
+    ...(t.users_used !== undefined ? [`・使った人：${t.users_used}人`] : []),
     `・使われた回数：${t.uses}回（初めて来店 ${t.first_visits}人）`,
     ...(stats.benefits.length > 0
       ? [`・選ばれた特典：${stats.benefits.map((b) => `${benefitName(b.benefit)} ${b.uses}回`).join("、")}`]
@@ -192,8 +194,12 @@ export default function AdminCouponsPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
               <Tile label="ページを見た" value={stats.totals.views} note={`うち未ログイン ${stats.totals.views_logged_out}`} />
               <Tile label="受け取った人" value={stats.totals.claims} note={`見た人の ${percent(stats.totals.claims, stats.totals.views)}`} />
-              <Tile label="使った人" value={stats.totals.uses} note={`受け取った人の ${percent(stats.totals.uses, stats.totals.claims)}`} />
-              <Tile label="初めて来店" value={stats.totals.first_visits} note={`前にも来た ${stats.totals.repeat_visits}人`} />
+              <Tile
+                label="使った人"
+                value={stats.totals.users_used ?? stats.totals.uses}
+                note={`受け取った人の ${percent(stats.totals.users_used ?? stats.totals.uses, stats.totals.claims)}・使用 ${stats.totals.uses}回`}
+              />
+              <Tile label="初めて来店" value={stats.totals.first_visits} note={`2回目以降・常連の使用 ${stats.totals.repeat_visits}回`} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               <Tile label="13時台に使用" value={stats.totals.lunch} />
