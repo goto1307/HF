@@ -4,13 +4,26 @@ import { benefitName, formatDate, formatDateTime, formatTime, formatWindows, has
 
 // クーポンボックスの一覧(クーポンボックスのページと、HOKUMA のマイページで使う)。
 // 使える順: 使う前で期限内 → 期限切れ → 使用済み
-export default function CouponBoxList({ rows, compact = false }: { rows: { claim: CouponClaim; coupon: Coupon }[]; compact?: boolean }) {
+// theme: "light" は白地のページ(クーポンボックス)、"dark" は紺のページ(マイページ)に置くとき
+export default function CouponBoxList({
+  rows,
+  compact = false,
+  theme = "dark",
+}: {
+  rows: { claim: CouponClaim; coupon: Coupon }[];
+  compact?: boolean;
+  theme?: "light" | "dark";
+}) {
+  const light = theme === "light";
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/25 p-6 text-center">
+      <div className={`rounded-2xl border border-dashed p-6 text-center ${light ? "border-stone-300" : "border-white/25"}`}>
         <p className="font-bold">まだクーポンがありません</p>
-        <p className="mt-1 text-sm text-white/80">地図からお店を選んで、クーポンを受け取りましょう。</p>
-        <Link href="/coupons" className="mt-4 inline-block rounded-full bg-white px-5 py-2.5 text-sm font-extrabold text-[#1B243A]">
+        <p className={`mt-1 text-sm ${light ? "text-[#2F3E5C]/70" : "text-white/80"}`}>地図からお店を選んで、クーポンを受け取りましょう。</p>
+        <Link
+          href="/coupons"
+          className={`mt-4 inline-block rounded-full px-5 py-2.5 text-sm font-extrabold ${light ? "bg-[#BA421D] text-white" : "bg-white text-[#1B243A]"}`}
+        >
           クーポンの地図を見る
         </Link>
       </div>
@@ -31,7 +44,9 @@ export default function CouponBoxList({ rows, compact = false }: { rows: { claim
             <Link
               href={`/coupons/${coupon.id}`}
               className={`block rounded-2xl p-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E] ${
-                used || ended ? "bg-black/10 text-white/80" : "bg-white text-[#1B243A] hover:bg-stone-50"
+                used || ended
+                  ? light ? "bg-stone-100 text-[#2F3E5C]/55" : "bg-black/10 text-white/80"
+                  : light ? "border border-stone-200 bg-white text-[#2F3E5C] shadow-sm hover:bg-stone-50" : "bg-white text-[#1B243A] hover:bg-stone-50"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -41,7 +56,7 @@ export default function CouponBoxList({ rows, compact = false }: { rows: { claim
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold ${
-                    used || ended ? "bg-white/10" : now ? "bg-[#BA421D] text-white" : "bg-[#F2C14E] text-[#1B243A]"
+                    used || ended ? (light ? "bg-stone-200" : "bg-white/10") : now ? "bg-[#BA421D] text-white" : "bg-[#F2C14E] text-[#1B243A]"
                   }`}
                 >
                   {used ? "使用済み" : ended ? "期限切れ" : now ? "いま使えます" : "未使用"}
