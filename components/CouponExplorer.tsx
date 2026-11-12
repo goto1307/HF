@@ -351,7 +351,7 @@ function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
         <section aria-label="お店の写真" className="space-y-2">
           <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} className="h-44 rounded-2xl" />
           <div className="grid grid-cols-3 gap-2">
-            {(shop.photos.length > 0 ? shop.photos : Array.from({ length: shop.photoSlots }, () => undefined)).slice(0, 6).map((src, i) => (
+            {(shop.photos.length > 0 ? shop.photos : Array.from({ length: shop.photoSlots }, () => undefined)).slice(0, 3).map((src, i) => (
               <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} className="aspect-square rounded-xl" />
             ))}
           </div>

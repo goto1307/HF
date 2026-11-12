@@ -219,7 +219,7 @@ export default function CouponPage() {
             <p className="mt-3 rounded-xl bg-white/10 py-2.5 text-sm font-bold">このクーポンは使用済みです</p>
           )}
           <p className="mt-3 text-xs text-white/80">
-            ご利用ありがとうございました！{!finished && `（期間中は何回でも使えます・${useCount}回使用）`}
+            ご利用ありがとうございました！
           </p>
           {!shop?.benefitPhotos[benefitName(claim.benefit)] && !isAdmin && <div className="flex-1" />}
           {isAdmin && (
