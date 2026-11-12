@@ -131,7 +131,8 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
           </button>
         </div>
 
-        <ul className="mt-10 grid grid-cols-3 gap-x-3">
+        {/* アイコンが2段に増えても下の欄と重ならないよう、2段分の高さをとっておく */}
+        <ul className="mt-10 grid min-h-[272px] grid-cols-3 content-start gap-x-3 gap-y-6">
           {tiles.map((t, i) => {
             const isCurrent = t.key === current;
             return (
@@ -156,7 +157,7 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
           })}
         </ul>
 
-        <div className="launcher-tile mt-14 border-t border-stone-200 pt-4 text-sm" style={{ transitionDelay: "130ms" }}>
+        <div className="launcher-tile mt-8 border-t border-stone-200 pt-4 text-sm" style={{ transitionDelay: "130ms" }}>
           {/* 「初めての方に」は未ログインの人だけ。「ホーム画面に追加」はホーム画面から開いているときは出さない */}
           {!loggedIn && (
             <button onClick={() => { onClose(); onShowGuide(); }} className="block w-full text-left py-2.5 font-bold text-stone-700 hover:text-orange-700">

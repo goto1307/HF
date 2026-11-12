@@ -199,13 +199,17 @@ export default function AdminCouponsPage() {
                 value={stats.totals.users_used ?? stats.totals.uses}
                 note={`受け取った人の ${percent(stats.totals.users_used ?? stats.totals.uses, stats.totals.claims)}・使用 ${stats.totals.uses}回`}
               />
-              <Tile label="初めて来店" value={stats.totals.first_visits} note={`2回目以降・常連の使用 ${stats.totals.repeat_visits}回`} />
+              <Tile
+                label="初めて来店"
+                value={stats.totals.first_visits}
+                note={`使った人の ${percent(stats.totals.first_visits, stats.totals.users_used ?? stats.totals.uses)}・2回目以降・常連の使用 ${stats.totals.repeat_visits}回`}
+              />
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {/* クーポンのリンクから来て登録した人数は、管理者の「集計」の「どこから来たか」で見る */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               <Tile label="13時台に使用" value={stats.totals.lunch} />
               <Tile label="夕方に使用" value={stats.totals.evening} />
               <Tile label="配布開始後に登録して受け取った" value={stats.totals.new_users_claimed} note="クーポンがきっかけの可能性が高い" />
-              <Tile label="クーポンのリンクから来て登録" value={stats.totals.signup_from_coupon_links} note="目印に coupon を含むもの" />
             </div>
 
             <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm mb-6">
