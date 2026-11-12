@@ -24,7 +24,7 @@ export default function CouponBoxList({
           href="/coupons"
           className={`mt-4 inline-block rounded-full px-5 py-2.5 text-sm font-extrabold ${light ? "bg-[#BA421D] text-white" : "bg-white text-[#1B243A]"}`}
         >
-          クーポンの地図を見る
+          クーポンを見る
         </Link>
       </div>
     );

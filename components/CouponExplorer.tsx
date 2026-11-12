@@ -10,7 +10,7 @@ import { recordCouponView } from "@/lib/couponView";
 import { rememberSource } from "@/lib/visitSource";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
-import { BenefitCards, CouponConditions, CouponHeadline, CouponNotes, CouponPeriod, PhotoSlot } from "@/components/CouponParts";
+import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 import { IconX } from "@/components/icons";
 
 // 地図はブラウザでだけ動くので、サーバーでは描かない
@@ -101,6 +101,8 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         bottomPadding={selectedId ? SHEET_RATIO : 0.2}
         attributionClass="right-3 top-[60px]"
         onMapTap={isAdmin ? handleMapTap : undefined}
+        showLocate
+        locateClass="right-3 top-[92px]"
       />
       {isAdmin && (
         <button
@@ -115,13 +117,14 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
 
       {/* 上に浮かべるもの: 件数とクーポンボックス */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
-        <p className="pointer-events-auto rounded-full bg-white/95 px-3.5 py-2 text-sm font-bold text-[#1B243A] shadow-md">
+        {/* 押せない、ただの表示(四角い札) */}
+        <p className="pointer-events-auto rounded-sm bg-white/90 px-2.5 py-1.5 text-xs font-bold text-[#1B243A]">
           現在配布中のクーポン <span className="text-[#BA421D]">{live.length}件</span>
         </p>
         {loggedIn && (
           <Link
             href="/coupons/box"
-            className="pointer-events-auto relative rounded-full bg-[#BA421D] px-3.5 py-2 text-sm font-bold text-white shadow-md"
+            className="pointer-events-auto relative rounded-lg bg-[#BA421D] px-3.5 py-2 text-sm font-extrabold text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform"
           >
             クーポンボックス
             {boxCount > 0 && (
@@ -137,17 +140,16 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
       {!shop && shops.length > 0 && (
         <div className="absolute inset-x-0 bottom-0 z-10 flex gap-3 overflow-x-auto p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
           {shops.map((s) => {
-            const c = live.find((x) => s.couponIds.includes(x.id));
             return (
               <button
                 key={s.id}
                 onClick={() => select(s.id)}
-                className="min-w-[78%] shrink-0 rounded-2xl bg-[#BA421D] p-4 text-left text-white shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
+                className="min-w-[78%] sm:min-w-0 sm:w-auto sm:max-w-sm shrink-0 rounded-2xl bg-[#BA421D] p-4 text-left text-white shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
               >
                 <span className="text-xs text-white/85">{s.genre}</span>
                 <span className="block text-lg font-extrabold leading-tight">{s.name}</span>
                 <span className="mt-1.5 inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">
-                  {c?.title ?? "クーポン"}配布中
+                  クーポン配布中
                 </span>
                 <span className="mt-2 block text-xs text-white/85">押すとクーポンとお店の情報を見られます</span>
               </button>
@@ -280,25 +282,31 @@ function CouponTab({
 
   return (
     <div>
-      <CouponHeadline coupon={coupon} tone="light" />
-      <div className="mt-4 mb-6"><CouponPeriod coupon={coupon} started={!beforeStart} /></div>
-      <h2 className="text-xl font-extrabold">特典はどれか1つ</h2>
+      {/* クーポンのイラスト(届いたら lib/shops.ts の illustration に入れる。まだないときは運営にだけ枠を出す) */}
+      {(shop.illustration || isAdmin) && (
+        <PhotoSlot src={shop.illustration} alt="" isAdmin={isAdmin} className="mb-4 h-36 rounded-2xl" />
+      )}
+      {/* クーポン名(押すとクーポンのページへ)と、そのすぐ下に受け取るボタン */}
+      <CouponHeadline
+        coupon={coupon}
+        tone="light"
+        titleHref={`/coupons/${coupon.id}`}
+        cta={
+          <>
+            {cta}
+            {note && <p className="mt-2 text-center text-xs text-[#2F3E5C]/70">{note}</p>}
+          </>
+        }
+      />
+      <h2 className="mt-7 text-xl font-extrabold">特典</h2>
       <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
-      <BenefitCards benefits={coupon.benefits} />
-      <div className="mt-7">
-        <CouponConditions coupon={coupon} place={{ address: shop.address.replace(/^札幌市北区/, ""), access: shop.access }} />
-      </div>
-      <div className="mt-7">
-        {cta}
-        {note && <p className="mt-2 text-center text-xs text-[#2F3E5C]/70">{note}</p>}
-      </div>
+      <BenefitCards benefits={coupon.benefits} photos={shop.benefitPhotos} isAdmin={isAdmin} />
       <CouponNotes notes={coupon.notes} />
     </div>
   );
 }
 
 function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${shop.lat},${shop.lng}`;
   return (
     <div className="space-y-6 text-sm">
       {/* お店の写真(届いたら lib/shops.ts の photo・photos に足す。まだないときは運営にだけ空き枠を出す) */}
@@ -334,14 +342,6 @@ function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
         )}
       </dl>
 
-      <a
-        href={mapsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full rounded-full border-2 border-[#2F3E5C]/25 py-3 text-center font-extrabold hover:bg-stone-50"
-      >
-        地図アプリで道順を見る
-      </a>
 
       {shop.menu.length > 0 && (
         <section aria-labelledby="menu-heading">

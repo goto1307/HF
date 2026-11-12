@@ -180,7 +180,7 @@ function HomeContent() {
       <Link
         href={`/items/${item.id}`}
         key={item.id}
-        className={`group block rounded-xl overflow-hidden bg-white border border-stone-200/70 shadow-sm hover:shadow-lg transition-shadow ${item.sold ? "opacity-70" : ""}`}
+        className={`group block rounded-xl overflow-hidden bg-white border border-stone-200/70 shadow-sm hover:shadow-lg transition-shadow`}
       >
         <div className="relative aspect-square overflow-hidden bg-stone-100">
           {image ? (
@@ -190,15 +190,15 @@ function HomeContent() {
               // 最初の数件以外は、画面に近づいてから読み込む(最初の表示を速くする)
               loading={index < 6 ? "eager" : "lazy"}
               decoding="async"
-              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${item.sold ? "opacity-40 grayscale" : ""}`}
+              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${item.sold ? "opacity-50" : ""}`}
             />
           ) : (
-            <div className={`w-full h-full bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center text-orange-300 ${item.sold ? "opacity-40 grayscale" : ""}`}>
+            <div className={`w-full h-full bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center text-orange-300 ${item.sold ? "opacity-50" : ""}`}>
               <IconPackage size={28} />
             </div>
           )}
           {item.sold && (
-            <div className="absolute top-1.5 left-1.5 bg-stone-700 text-white text-[10px] sm:text-xs font-extrabold px-2 py-0.5 rounded-full tracking-wider">
+            <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[10px] sm:text-xs font-extrabold px-2 py-0.5 rounded-full shadow-md tracking-wider">
               SOLD OUT
             </div>
           )}
@@ -214,7 +214,7 @@ function HomeContent() {
         </div>
         <div className="px-2 py-1.5 sm:px-2.5 sm:py-2">
           <p className="text-xs sm:text-sm font-bold leading-snug text-stone-800 line-clamp-2 break-all">{item.title}</p>
-          <p className={`mt-0.5 text-sm sm:text-base font-extrabold tracking-tight ${item.sold ? "text-stone-400" : "text-orange-700"}`}>
+          <p className={`mt-0.5 text-sm sm:text-base font-extrabold tracking-tight ${item.sold ? "text-stone-500" : "text-orange-700"}`}>
             {item.price === 0 ? "無料" : `¥${item.price.toLocaleString()}`}
           </p>
         </div>

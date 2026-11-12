@@ -98,6 +98,15 @@ export default function MePage() {
             <li><Link href="/logout" className="block px-4 py-3.5 font-bold text-red-600 hover:bg-orange-50">ログアウト</Link></li>
           </ul>
         </section>
+
+        {/* 非公認の表示と規約(全ページの下に出していたものを、マイページだけに置く) */}
+        <footer className="mt-12 border-t border-stone-200 pt-6 text-center text-xs text-stone-400">
+          <p className="mb-2">HOKUMAは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。</p>
+          <div className="flex justify-center gap-4">
+            <Link href="/terms" className="text-stone-500 hover:text-orange-700 underline transition-colors">利用規約</Link>
+            <Link href="/privacy" className="text-stone-500 hover:text-orange-700 underline transition-colors">プライバシーポリシー</Link>
+          </div>
+        </footer>
       </main>
     </div>
   );

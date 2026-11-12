@@ -84,6 +84,13 @@ export function formatDate(ymd: string) {
   return `${m}/${d}(${WEEKDAY_LABELS[dow === 0 ? 7 : dow]})`;
 }
 
+// "2026-11-17" → "11月17日(火)"(期間を大きく見せるとき用)
+export function formatDateLong(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return `${m}月${d}日(${WEEKDAY_LABELS[dow === 0 ? 7 : dow]})`;
+}
+
 // 日時 → 日本時間の "11/16(月)"
 export function formatDateTime(iso: string) {
   return formatDate(jstNow(new Date(iso)).date);
@@ -98,11 +105,8 @@ export function formatTime(iso: string) {
 export function formatWeekdays(days: number[]) {
   const sorted = [...days].sort((a, b) => a - b);
   if (sorted.length === 7) return "毎日";
-  // 1日だけ休み(定休日)のときは「月曜以外の毎日」のように書く
-  if (sorted.length === 6) {
-    const off = [1, 2, 3, 4, 5, 6, 7].find((d) => !sorted.includes(d))!;
-    return `${WEEKDAY_LABELS[off]}曜以外の毎日`;
-  }
+  // 1日だけ休み(お店の定休日)のときは「営業日全日」と書く
+  if (sorted.length === 6) return "営業日全日";
   const consecutive = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
   if (consecutive && sorted.length >= 3) {
     return `${WEEKDAY_LABELS[sorted[0]]}〜${WEEKDAY_LABELS[sorted[sorted.length - 1]]}`;

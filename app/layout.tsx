@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Link from "next/link";
 import { M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthProvider";
@@ -48,17 +47,6 @@ export default function RootLayout({
           <LastSectionRestore />
           {children}
         </AuthProvider>
-        <footer className="text-center text-xs text-stone-400 py-6 px-4 border-t border-stone-200 bg-stone-50">
-          <p className="mb-2">HOKUMAは北海道大学非公認の、学生個人が運営する非公式サービスです。北海道大学とは関係ありません。</p>
-          <div className="flex justify-center gap-4">
-            <Link href="/terms" className="text-stone-500 hover:text-orange-700 underline transition-colors">
-              利用規約
-            </Link>
-            <Link href="/privacy" className="text-stone-500 hover:text-orange-700 underline transition-colors">
-              プライバシーポリシー
-            </Link>
-          </div>
-        </footer>
       </body>
     </html>
   );

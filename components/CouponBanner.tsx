@@ -26,7 +26,7 @@ export default function CouponBanner() {
   return (
     <Link
       href={`/coupons/${coupon.id}`}
-      className="mb-3 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-700 text-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
+      className="mb-3 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#B0306A] to-[#7A3393] text-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
     >
       <span className="shrink-0 text-[10px] font-bold bg-white/25 rounded px-1.5 py-0.5">
         {coupon.active ? "PR・提携" : "非公開"}
@@ -37,7 +37,7 @@ export default function CouponBanner() {
           {coupon.title}：{coupon.benefits.join("／")}
         </span>
       </span>
-      <span className="shrink-0 text-xs font-bold bg-white text-orange-700 rounded-full px-3 py-1">受け取る</span>
+      <span className="shrink-0 text-xs font-bold bg-white text-[#7A3393] rounded-full px-3 py-1">受け取る</span>
     </Link>
   );
 }

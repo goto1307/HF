@@ -8,6 +8,7 @@ import { isAdminEmail } from "@/lib/adminEmails";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import DemandBubbles from "@/components/DemandBubbles";
 import InstallGuide from "@/components/InstallGuide";
+import { useIsStandalone } from "@/lib/standalone";
 import AppLauncher from "@/components/AppLauncher";
 import { SECTIONS, type SectionKey } from "@/lib/appSections";
 import { loginPath } from "@/lib/nav";
@@ -48,6 +49,7 @@ function hasVisibleCoupon() {
 // section: いまどのサービスの中か。クーポンのページでは "coupons" にして、フリマ用のタブなどを出さない
 // (いまは運営だけの試作。一般の人にはこれまでどおりフリマのヘッダーを出す)
 export default function Header({ section = "market" }: { section?: SectionKey } = {}) {
+  const standalone = useIsStandalone();
   const { user } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
   const [showGuide, setShowGuide] = useState(false);
@@ -390,18 +392,23 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                       </Link>
                     </>
                   )}
+                  {/* 「初めての方に」は未ログインの人だけ。「ホーム画面に追加」はホーム画面から開いているときは出さない */}
+                  {!user && (
                   <button
                     onClick={() => { setShowMenu(false); setShowGuide(true); }}
                     className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
                     初めての方に
                   </button>
+                  )}
+                  {!standalone && (
                   <button
                     onClick={() => { setShowMenu(false); setShowInstall(true); }}
                     className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
                   >
                     ホーム画面に追加
                   </button>
+                  )}
                   {/* フリマのタブとは分けて、メニューの中に置く(入口はトップのお知らせ・インスタ・お店の張り紙が中心) */}
                   {showCoupons && (
                   <Link
@@ -428,6 +435,21 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                   >
                     お問い合わせはこちら
                   </a>
+                  {/* 画面の下の案内(非公認の表示・規約)はマイページだけに置いたので、メニューからも開けるようにする */}
+                  <Link
+                    href="/terms"
+                    onClick={() => setShowMenu(false)}
+                    className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
+                  >
+                    利用規約
+                  </Link>
+                  <Link
+                    href="/privacy"
+                    onClick={() => setShowMenu(false)}
+                    className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-stone-100 transition-colors border-b border-stone-100"
+                  >
+                    プライバシーポリシー
+                  </Link>
                   {user && (
                     <Link
                       href="/logout"

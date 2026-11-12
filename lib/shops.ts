@@ -21,6 +21,8 @@ export type Shop = {
   photo?: string; // いちばん上に大きく出す写真(public/ に置いた写真のパス。例: "/shops/futagozan/top.jpg")
   photos: string[]; // 「お店の写真」に並べる写真(public/ に置いた写真のパス)
   photoSlots: number; // 写真がまだ届いていないとき、運営に見せる空き枠の数
+  benefitPhotos: Record<string, string>; // 特典の名前(｜より前) → 特典のボタンに入れる写真のパス
+  illustration?: string; // 地図のシートでクーポン名の上に出すイラスト(public/ に置いた画像のパス)
 };
 
 export const SHOPS: Shop[] = [
@@ -43,7 +45,6 @@ export const SHOPS: Shop[] = [
       { name: "まぐろマニア丼", price: 1200 },
       { name: "店主の気まぐれ海鮮ちらし丼", price: 980 },
       { name: "ザンギまにあ丼", price: 950 },
-      { name: "日替わり丼", price: null, note: "900円〜1,900円。昼も夜も2〜5種類" },
       { name: "ザンギ 2個", price: 320 },
       { name: "ザンギ 5個", price: 750 },
       { name: "本日の味噌汁", price: 200 },
@@ -52,7 +53,10 @@ export const SHOPS: Shop[] = [
     photo: undefined,
     photos: [],
     photoSlots: 4,
-    menuNote: "2026年11月時点の店内のメニュー・ポスターから一部を載せています（税込）。丼の多くはご飯大盛り無料です。値段が変わっている場合があります。夜17:00〜19:00はハッピーアワーがあります。",
+    // 例: "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg"
+    benefitPhotos: {},
+    illustration: undefined,
+    menuNote: null,
   },
 ];
 
