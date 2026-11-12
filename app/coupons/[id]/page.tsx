@@ -186,55 +186,44 @@ export default function CouponPage() {
   // ---------- 使用済み(お店の人に見せる画面) ----------
   if (claim?.used_at && showUsedScreen) {
     return (
-      <div className={`min-h-screen ${NAVY} text-white`}>
+      // スクロールしないよう、画面の高さぴったりに収める(写真が残りの高さに合わせて伸び縮みする)
+      <div className={`flex h-[100dvh] flex-col overflow-hidden ${NAVY} text-white`}>
         <Header section={isAdmin ? "coupons" : "market"} />
-        <div className="relative max-w-md mx-auto px-6 pt-8 pb-16 text-center">
+        <div className="relative mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col px-6 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] text-center">
           {/* 右上のバツで、この画面を閉じて戻れる */}
           <button
             onClick={() => goBack(router, "/coupons")}
             aria-label="閉じる"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+            className="absolute right-4 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
           >
             <IconX size={20} />
           </button>
-          <p className="text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
-          <p className="mt-6 text-xs text-white/80">特典</p>
-          {/* 特典の写真(選ぶときと同じもの)。画面の横幅いっぱいに大きく出す */}
-          {(shop?.benefitPhotos[benefitName(claim.benefit)] || isAdmin) && (
-            <div className="-mx-6 mt-2 mb-4">
-              <PhotoSlot
-                src={shop?.benefitPhotos[benefitName(claim.benefit)]}
-                alt={benefitName(claim.benefit)}
-                isAdmin={isAdmin}
-                className="aspect-[4/3]"
-              />
+          <p className="px-10 text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
+          {/* 特典の写真(選ぶときと同じもの)。横幅いっぱいで、高さは画面に残った分だけ */}
+          {shop?.benefitPhotos[benefitName(claim.benefit)] || isAdmin ? (
+            <div className="-mx-6 mt-3 min-h-0 flex-1">
+              <PhotoSlot src={shop?.benefitPhotos[benefitName(claim.benefit)]} alt={benefitName(claim.benefit)} isAdmin={isAdmin} className="h-full" />
             </div>
+          ) : (
+            <div className="flex-1" />
           )}
-          <p className="mt-1 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-3">
+          <p className="mt-1 text-xs text-white/80 pt-3">特典</p>
+          <p className="mx-auto mt-1 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-2.5">
             {benefitName(claim.benefit)}
           </p>
-          <div className="mt-6 rounded-2xl bg-white text-[#1B243A] py-4">
+          <div className="mt-4 rounded-2xl bg-white text-[#1B243A] py-3">
             <p className="text-xs text-stone-500">使った時刻</p>
             <p className="text-2xl font-extrabold">{formatDateTime(claim.used_at)} {formatTime(claim.used_at)}</p>
           </div>
-          {/* お店の方への案内は、運営から直接お店に伝えるので画面には出さない */}
           {!usedToday && finished && (
-            <p className="mt-6 rounded-xl bg-white/10 py-3 text-sm font-bold">このクーポンは使用済みです</p>
+            <p className="mt-3 rounded-xl bg-white/10 py-2.5 text-sm font-bold">このクーポンは使用済みです</p>
           )}
-          <p className="text-xs text-white/80 mt-5">ご利用ありがとうございました！</p>
-          {!finished && (
-            <div className="mt-8">
-              <p className="text-xs text-white/80">このクーポンは期間中なら何回でも使えます（{useCount}回使用）</p>
-              <button
-                onClick={() => { setAgain(true); setBenefit(null); }}
-                className="mt-2 rounded-full bg-white text-[#1B243A] font-bold px-5 py-2.5 text-sm"
-              >
-                次に来たときに使う
-              </button>
-            </div>
-          )}
+          <p className="mt-3 text-xs text-white/80">
+            ご利用ありがとうございました！{!finished && `（期間中は何回でも使えます・${useCount}回使用）`}
+          </p>
+          {!shop?.benefitPhotos[benefitName(claim.benefit)] && !isAdmin && <div className="flex-1" />}
           {isAdmin && (
-            <button onClick={handleReset} className="mt-8 text-xs text-white/50 underline">
+            <button onClick={handleReset} className="mt-2 text-xs text-white/50 underline">
               （運営の動作確認用）受け取りをやり直す
             </button>
           )}
