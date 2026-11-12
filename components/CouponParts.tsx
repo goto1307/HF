@@ -3,6 +3,7 @@
 // 白地に、文字は紺 #2F3E5C(ブランドの色)、差し色は朱 #BA421D
 
 import Link from "next/link";
+import { PHOTO_NO } from "@/lib/shops";
 import { formatDate, formatDateLong, formatDateTime, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -87,13 +88,13 @@ export function BenefitCards({
   return (
     <div>
       <ul className={`grid gap-2.5 ${items.length >= 4 ? "grid-cols-2" : "grid-cols-1"}`} role={onSelect ? "radiogroup" : undefined} aria-label="特典">
-        {items.map((b) => {
+        {items.map((b, i) => {
           const active = selected === b.raw;
           const body = (
             <>
               {/* 特典の写真(写真の下に名前と説明) */}
               {withPhotos && (
-                <PhotoSlot src={photos[b.name]} alt={b.name} isAdmin={isAdmin} className="mb-2 aspect-[4/3] rounded-xl" />
+                <PhotoSlot src={photos[b.name]} alt={b.name} isAdmin={isAdmin} no={PHOTO_NO.benefitFrom + i} className="mb-2 aspect-[4/3] rounded-xl" />
               )}
               <span className={`block ${withPhotos ? "px-1.5" : ""}`}>
                 <span className="block text-[15px] font-extrabold leading-snug">{b.name}</span>
@@ -162,7 +163,7 @@ export function CouponHeadline({
       // eslint-disable-next-line @next/next/no-img-element
       <img src={titleImage} alt={coupon.title} className="block w-full rounded-xl" />
     ) : isAdmin ? (
-      <PhotoSlot isAdmin alt="" label={`${coupon.title}の画像（配置予定）`} className="h-28 rounded-xl" />
+      <PhotoSlot isAdmin alt="" no={PHOTO_NO.couponImage} label={`${coupon.title}の画像（配置予定）`} className="h-28 rounded-xl" />
     ) : (
       <span className="block rounded-xl bg-[#2F3E5C] px-4 py-3 text-[28px] leading-tight font-black tracking-tight text-white">{coupon.title}</span>
     );
@@ -209,12 +210,14 @@ export function PhotoSlot({
   isAdmin,
   className = "",
   label = "写真が入ります",
+  no,
 }: {
   src?: string;
   alt: string;
   isAdmin: boolean;
   className?: string;
   label?: string; // 空き枠に出す文字
+  no?: number; // 空き枠に出す番号(lib/shops.ts の PHOTO_NO)
 }) {
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
@@ -223,7 +226,8 @@ export function PhotoSlot({
   if (!isAdmin) return null;
   return (
     <div className={`flex w-full flex-col items-center justify-center border-2 border-dashed border-[#2F3E5C]/25 bg-stone-50 text-center text-xs font-bold text-[#2F3E5C]/50 ${className}`}>
-      <span>{label}</span>
+      {no !== undefined && <span className="text-3xl font-black leading-none text-[#BA421D]">{no}</span>}
+      <span className={no !== undefined ? "mt-1" : ""}>{label}</span>
       <span className="mt-0.5 font-normal">（運営だけに表示）</span>
     </div>
   );
@@ -235,6 +239,33 @@ export function CouponNotes({ notes }: { notes: string }) {
   return (
     <div className="mt-8 border-t border-stone-200 pt-4">
       <p className="text-xs leading-relaxed text-[#2F3E5C]/70">{notes}</p>
+    </div>
+  );
+}
+
+// クーポンを受け取った直後に出すお知らせ。受け取ってすぐ使う画面には移らず、
+// 「お店で注文するときに使うボタンを押してね」と伝える(家で特典を選んで押してしまわないように)
+export function ClaimedDialog({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="claimed-title"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-[#1B243A] shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <p id="claimed-title" className="text-xl font-extrabold">クーポンを受け取りました</p>
+        <p className="mt-2 text-sm leading-relaxed text-[#2F3E5C]/80">{message}</p>
+        <button
+          autoFocus
+          onClick={onClose}
+          className="mt-5 block w-full rounded-full bg-[#BA421D] py-3.5 font-extrabold text-white"
+        >
+          OK
+        </button>
+      </div>
     </div>
   );
 }
