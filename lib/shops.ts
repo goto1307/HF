@@ -60,6 +60,10 @@ export const SHOPS: Shop[] = [
   },
 ];
 
+// 写真の空き枠に振る番号(写真を送るときに「何番にこの写真」と伝えるため。運営にだけ見える)
+// 1: いちばん上の大きな写真 / 2〜4: お店の情報の小さい写真 / 5〜9: 特典(並び順) / 10: クーポン名の画像
+export const PHOTO_NO = { top: 1, smallFrom: 2, benefitFrom: 5, couponImage: 10 };
+
 export function shopForCoupon(couponId: string): Shop | null {
   return SHOPS.find((s) => s.couponIds.includes(couponId)) ?? null;
 }

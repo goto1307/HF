@@ -16,15 +16,14 @@ import {
   formatWindows,
   hasEnded,
   jstNow,
-  unlimitedUses,
   usableNow,
   usedUp,
   type Coupon,
   type CouponClaim,
 } from "@/lib/coupon";
 import dynamic from "next/dynamic";
-import { shopForCoupon } from "@/lib/shops";
-import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
+import { PHOTO_NO, shopForCoupon } from "@/lib/shops";
+import { BenefitCards, ClaimedDialog, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 
 // 上に出す小さな地図(ブラウザでだけ動く)
 const ShopMap = dynamic(() => import("@/components/ShopMap"), { ssr: false, loading: () => <div className="h-full bg-[#EEF2F5]" /> });
@@ -101,8 +100,9 @@ export default function CouponPage() {
     setBusy(false);
     if (error) { toast(errorMessage(error)); return; }
     setClaim(data as CouponClaim);
-    toast("クーポンを受け取りました");
+    setJustClaimed(true);
   };
+  const [justClaimed, setJustClaimed] = useState(false);
 
   // 「お店で使う」を押したら、まず確認の画面を出す(ブラウザ標準のポップアップではなく、自分で作った画面)
   const [confirming, setConfirming] = useState(false);
@@ -202,7 +202,13 @@ export default function CouponPage() {
           {/* 特典の写真(選ぶときと同じもの)。横幅いっぱいで、高さは画面に残った分だけ */}
           {shop?.benefitPhotos[benefitName(claim.benefit)] || isAdmin ? (
             <div className="-mx-6 mt-3 min-h-0 flex-1">
-              <PhotoSlot src={shop?.benefitPhotos[benefitName(claim.benefit)]} alt={benefitName(claim.benefit)} isAdmin={isAdmin} className="h-full" />
+              <PhotoSlot
+                src={shop?.benefitPhotos[benefitName(claim.benefit)]}
+                alt={benefitName(claim.benefit)}
+                isAdmin={isAdmin}
+                no={PHOTO_NO.benefitFrom + Math.max(0, coupon.benefits.findIndex((b) => benefitName(b) === benefitName(claim.benefit)))}
+                className="h-full"
+              />
             </div>
           ) : (
             <div className="flex-1" />
@@ -218,7 +224,8 @@ export default function CouponPage() {
           {!usedToday && finished && (
             <p className="mt-3 rounded-xl bg-white/10 py-2.5 text-sm font-bold">このクーポンは使用済みです</p>
           )}
-          <p className="mt-3 text-xs text-white/80">
+          <p className="mt-3 rounded-xl bg-white/15 py-2.5 text-base font-extrabold">この画面をお店の人に見せてください</p>
+          <p className="mt-2 text-xs text-white/80">
             ご利用ありがとうございました！
           </p>
           {!shop?.benefitPhotos[benefitName(claim.benefit)] && !isAdmin && <div className="flex-1" />}
@@ -259,7 +266,7 @@ export default function CouponPage() {
     );
     ctaNote = !usable
       ? ended ? "使える期間は終了しました" : `使えるのは${whenUsable}です${isAdmin ? "（運営は動作確認のため押せます）" : ""}`
-      : "店員さんにこの画面を見せながら押してください";
+      : "お店で注文するときに押してください";
   }
 
   return (
@@ -276,7 +283,7 @@ export default function CouponPage() {
         {/* お店の写真(店名は写真に入れる)。まだないときは、運営には写真の枠、利用者には北大との位置関係の地図 */}
         <div className="relative">
           {shop?.photo || (shop && isAdmin) ? (
-            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} className="h-56" />
+            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} className="h-56" />
           ) : shop ? (
             <div className="relative h-56 overflow-hidden bg-[#EEF2F5]">
               <ShopMap shops={[shop]} selectedId={shop.id} onSelect={() => {}} bottomPadding={0} interactive={false} attributionClass="right-1 top-1" />
@@ -352,6 +359,13 @@ export default function CouponPage() {
         </div>
       </main>
 
+      {justClaimed && (
+        <ClaimedDialog
+          message="クーポンボックスに入れました。お店で注文するときに、このページの「お店で使う」を押して使ってください。"
+          onClose={() => setJustClaimed(false)}
+        />
+      )}
+
       {/* 使う前の確認 */}
       {confirming && benefit && (
         <div
@@ -367,9 +381,6 @@ export default function CouponPage() {
             <div className="p-6">
               <p id="use-confirm-title" className="text-xl font-extrabold leading-snug">
                 「{benefitName(benefit)}」で使います
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-[#2F3E5C]/80">
-                お店の人に画面を見せながら押してください。押すと{unlimitedUses(coupon) ? "「使った」と記録され" : "使用済みになり"}、元に戻せません。
               </p>
               <button
                 autoFocus

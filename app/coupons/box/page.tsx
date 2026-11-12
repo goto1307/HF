@@ -39,7 +39,6 @@ export default function CouponBoxPage() {
       <main className="mx-auto max-w-md px-6 pb-16 pt-6">
         <Link href="/coupons" className="text-sm font-bold text-[#2F3E5C]/70 hover:text-[#2F3E5C]">← クーポンの地図へ</Link>
         <h1 className="mt-3 text-[28px] font-extrabold leading-tight">クーポンボックス</h1>
-        <p className="mt-1 text-sm text-[#2F3E5C]/75">受け取ったクーポンです。お店で食券を買ったら、ここから開いて使います。</p>
         <div className="mt-6">
           {rows === null ? (
             <div className="h-28 rounded-2xl bg-stone-100 animate-pulse" />

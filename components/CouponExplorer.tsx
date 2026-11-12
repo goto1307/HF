@@ -2,15 +2,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { claimOpen, formatDateTime, hasEnded, usedUp, type Coupon, type CouponClaim } from "@/lib/coupon";
-import { SHOPS, type Shop } from "@/lib/shops";
+import { PHOTO_NO, SHOPS, type Shop } from "@/lib/shops";
 import { recordCouponView } from "@/lib/couponView";
 import { rememberSource } from "@/lib/visitSource";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
-import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
+import { BenefitCards, ClaimedDialog, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 import { IconX } from "@/components/icons";
 
 // 地図はブラウザでだけ動くので、サーバーでは描かない
@@ -39,7 +38,6 @@ function errorMessage(e: { message?: string } | null) {
 // クーポンのページ(運営だけの試作)。指で動かせる地図に、クーポンが使えるお店のピンを出す。
 // ピンを押すと、下からシートが出て「クーポン」と「お店の情報」を切り替えて見られる
 export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, isAdmin }: Props) {
-  const router = useRouter();
   // 配布中(終わっていない)クーポンがあるお店だけを地図に出す
   const live = useMemo(() => coupons.filter((c) => !hasEnded(c)), [coupons]);
   const shops = useMemo(() => SHOPS.filter((s) => s.couponIds.some((id) => live.some((c) => c.id === id))), [live]);
@@ -118,10 +116,10 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     if (error) { toast(errorMessage(error)); return; }
     const claim = data as CouponClaim;
     onClaimed({ coupon_id: claim.coupon_id, used_at: claim.used_at, use_count: claim.use_count });
-    // 受け取ったら、シートの中ではなくクーポンのページ(1画面)へ移る
-    toast("クーポンを受け取りました", "success");
-    router.push(`/coupons/${c.id}`);
+    // 受け取っても使う画面には移らず、お知らせを出す。閉じるとシートのボタンが「このクーポンを使う」に変わる
+    setJustClaimed(true);
   };
+  const [justClaimed, setJustClaimed] = useState(false);
 
   return (
     <div className="relative flex-1 overflow-hidden">
@@ -155,7 +153,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         {loggedIn && (
           <Link
             href="/coupons/box"
-            className="pointer-events-auto relative rounded-lg bg-[#BA421D] px-3.5 py-2 text-sm font-extrabold text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform"
+            className="pointer-events-auto relative rounded-lg bg-[#BA421D] px-3.5 py-2 text-sm font-extrabold text-white"
           >
             クーポンボックス
             {boxCount > 0 && (
@@ -275,6 +273,13 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         </section>
       )}
 
+      {justClaimed && (
+        <ClaimedDialog
+          message="クーポンボックスに入れました。お店で注文するときに「このクーポンを使う」を押して使ってください。"
+          onClose={() => setJustClaimed(false)}
+        />
+      )}
+
       <style>{`@keyframes sheet-up { from { transform: translateY(40%); opacity: .6; } to { transform: none; opacity: 1; } }`}</style>
     </div>
   );
@@ -308,7 +313,7 @@ function CouponTab({
     cta = <span className={disabled}>このクーポンは使用済みです</span>;
   } else if (claim) {
     cta = <Link href={`/coupons/${coupon.id}`} className={enabled}>このクーポンを使う</Link>;
-    note = "クーポンボックスに入っています。お店で食券を買ったら開いてください";
+    note = "クーポンボックスにも入っています。お店で注文するときに押してください";
   } else if (!loggedIn) {
     cta = <Link href={loginPath()} className={enabled}>ログインして受け取る</Link>;
     note = <Link href="/join" className="underline">はじめての方は新規登録（無料・北大のメールアドレス）</Link>;
@@ -349,10 +354,10 @@ function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
       {/* お店の写真(届いたら lib/shops.ts の photo・photos に足す。まだないときは運営にだけ空き枠を出す) */}
       {(shop.photo || shop.photos.length > 0 || isAdmin) && (
         <section aria-label="お店の写真" className="space-y-2">
-          <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} className="h-44 rounded-2xl" />
+          <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} className="h-44 rounded-2xl" />
           <div className="grid grid-cols-3 gap-2">
             {(shop.photos.length > 0 ? shop.photos : Array.from({ length: shop.photoSlots }, () => undefined)).slice(0, 3).map((src, i) => (
-              <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} className="aspect-square rounded-xl" />
+              <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} no={PHOTO_NO.smallFrom + i} className="aspect-square rounded-xl" />
             ))}
           </div>
         </section>
