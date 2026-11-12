@@ -104,14 +104,17 @@ export default function CouponPage() {
     toast("クーポンを受け取りました");
   };
 
-  const handleUse = async () => {
+  // 「お店で使う」を押したら、まず確認の画面を出す(ブラウザ標準のポップアップではなく、自分で作った画面)
+  const [confirming, setConfirming] = useState(false);
+  const handleUse = () => {
+    if (!coupon || !claim || !benefit) return;
+    if (claim.use_count === 0 && firstVisit === null) return;
+    setConfirming(true);
+  };
+  const doUse = async () => {
+    setConfirming(false);
     if (!coupon || !claim || !benefit) return;
     const firstTime = claim.use_count === 0;
-    if (firstTime && firstVisit === null) return;
-    const ok = confirm(
-      `「${benefitName(benefit)}」で使います。\n\nお店の人に画面を見せながら押してください。押すと${unlimitedUses(coupon) ? "「使った」と記録され" : "使用済みになり"}、元に戻せません。`
-    );
-    if (!ok) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("use_coupon", {
       p_coupon: id,
@@ -196,14 +199,16 @@ export default function CouponPage() {
           </button>
           <p className="text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
           <p className="mt-6 text-xs text-white/80">特典</p>
-          {/* 特典の写真(選ぶときと同じもの) */}
+          {/* 特典の写真(選ぶときと同じもの)。画面の横幅いっぱいに大きく出す */}
           {(shop?.benefitPhotos[benefitName(claim.benefit)] || isAdmin) && (
-            <PhotoSlot
-              src={shop?.benefitPhotos[benefitName(claim.benefit)]}
-              alt={benefitName(claim.benefit)}
-              isAdmin={isAdmin}
-              className="mx-auto mt-2 mb-3 aspect-[4/3] max-w-[240px] rounded-xl"
-            />
+            <div className="-mx-6 mt-2 mb-4">
+              <PhotoSlot
+                src={shop?.benefitPhotos[benefitName(claim.benefit)]}
+                alt={benefitName(claim.benefit)}
+                isAdmin={isAdmin}
+                className="aspect-[4/3]"
+              />
+            </div>
           )}
           <p className="mt-1 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-3">
             {benefitName(claim.benefit)}
@@ -357,6 +362,40 @@ export default function CouponPage() {
           )}
         </div>
       </main>
+
+      {/* 使う前の確認 */}
+      {confirming && benefit && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="use-confirm-title"
+          onClick={() => setConfirming(false)}
+          onKeyDown={(e) => e.key === "Escape" && setConfirming(false)}
+        >
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-white text-[#1B243A] shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <PhotoSlot src={shop?.benefitPhotos[benefitName(benefit)]} alt={benefitName(benefit)} isAdmin={false} className="aspect-[16/9]" />
+            <div className="p-6">
+              <p id="use-confirm-title" className="text-xl font-extrabold leading-snug">
+                「{benefitName(benefit)}」で使います
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-[#2F3E5C]/80">
+                お店の人に画面を見せながら押してください。押すと{unlimitedUses(coupon) ? "「使った」と記録され" : "使用済みになり"}、元に戻せません。
+              </p>
+              <button
+                autoFocus
+                onClick={doUse}
+                className="mt-5 block w-full rounded-full bg-[#BA421D] py-3.5 font-extrabold text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform"
+              >
+                使う
+              </button>
+              <button onClick={() => setConfirming(false)} className="mt-3 block w-full rounded-full border-2 border-stone-200 py-3 font-extrabold text-[#2F3E5C]">
+                やめる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ボタンは画面の下に固定 */}
       <div className="fixed inset-x-0 bottom-0 z-10 bg-white/95 backdrop-blur border-t border-stone-200">
