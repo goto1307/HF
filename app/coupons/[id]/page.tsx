@@ -24,7 +24,7 @@ import {
 } from "@/lib/coupon";
 import dynamic from "next/dynamic";
 import { shopForCoupon } from "@/lib/shops";
-import { BenefitCards, CouponConditions, CouponHeadline, CouponNotes, CouponPeriod, PhotoSlot } from "@/components/CouponParts";
+import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 
 // 上に出す小さな地図(ブラウザでだけ動く)
 const ShopMap = dynamic(() => import("@/components/ShopMap"), { ssr: false, loading: () => <div className="h-full bg-[#EEF2F5]" /> });
@@ -169,7 +169,6 @@ export default function CouponPage() {
   }
 
   const shop = shopForCoupon(coupon.id);
-  const place = shop ? { address: shop.address.replace(/^札幌市北区/, ""), access: shop.access } : undefined;
   const usable = usableNow(coupon, now);
   const ended = hasEnded(coupon, now);
   const usedToday = claim?.used_at ? jstNow(new Date(claim.used_at)).date === jstNow(now).date : false;
@@ -265,7 +264,14 @@ export default function CouponPage() {
     <div className="min-h-screen bg-white text-[#2F3E5C]">
       <Header section={isAdmin ? "coupons" : "market"} />
       <main className="max-w-md mx-auto pb-40">
-        {/* いちばん上: お店の写真。まだないときは、運営には写真の枠、利用者には北大との位置関係の地図 */}
+        {/* いちばん上: 戻る */}
+        <div className="px-4 py-2">
+          <button onClick={() => goBack(router, "/coupons")} className="px-1 py-1.5 text-sm font-bold text-[#2F3E5C]/80 hover:text-[#2F3E5C]">
+            ← 戻る
+          </button>
+        </div>
+
+        {/* お店の写真(店名は写真に入れる)。まだないときは、運営には写真の枠、利用者には北大との位置関係の地図 */}
         <div className="relative">
           {shop?.photo || (shop && isAdmin) ? (
             <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} className="h-56" />
@@ -280,49 +286,40 @@ export default function CouponPage() {
           )}
         </div>
 
-        {/* 店名のところだけ朱色 */}
-        <div className="-mt-6 relative rounded-t-[28px] bg-[#BA421D] px-6 pb-6 pt-6 text-white">
-          <button onClick={() => goBack(router, "/coupons")} className="-ml-1 mb-3 px-1 py-1 text-sm font-bold text-white/90 hover:text-white">
-            ← 戻る
-          </button>
-          {/* 店名(大) */}
-          <div className="flex flex-wrap items-center gap-2">
+        {/* クーポン名と使える時間(朱色の地) */}
+        <div className="bg-[#BA421D] px-6 pb-7 pt-5 text-white">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-bold bg-white/20 rounded px-1.5 py-0.5">PR・提携</span>
             {!coupon.active && <span className="text-[10px] font-bold bg-[#F2C14E] text-[#1B243A] rounded px-1.5 py-0.5">非公開・運営だけに表示中</span>}
           </div>
-          <p className="mt-2 text-base font-extrabold text-[#F2C14E]">{coupon.shop_name}</p>
-          {/* クーポン名と使える時間をいちばん大きく */}
-          <div className="mt-1">
-            <CouponHeadline coupon={coupon} />
-          </div>
-          {claim && (
-            <p className="mt-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold">
-              受け取り済み{useCount > 0 && `・${useCount}回使用`}
-            </p>
-          )}
+          <CouponHeadline coupon={coupon} />
         </div>
 
         {/* ここから下は白地 */}
         <div className="px-6">
           {/* いつから・いつまで(いちばん上) */}
-          {!claim && <div className="mt-6"><CouponPeriod coupon={coupon} started={!beforeStart} ended={ended} /></div>}
           {/* 特典(中) */}
-          <section className={claim ? "mt-8" : "mt-6"} aria-labelledby="benefit-heading">
+          <section className="mt-7" aria-labelledby="benefit-heading">
             <h2 id="benefit-heading" className="text-xl font-extrabold">
-              {claim ? "使う特典を1つ選ぶ" : "特典はどれか1つ"}
+              {claim ? "特典を1つ選んでください" : "特典"}
             </h2>
             <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
-            <BenefitCards benefits={coupon.benefits} selected={benefit} onSelect={claim ? setBenefit : undefined} />
+            <BenefitCards
+              benefits={coupon.benefits}
+              selected={benefit}
+              onSelect={claim ? setBenefit : undefined}
+              photos={shop?.benefitPhotos}
+              isAdmin={isAdmin}
+            />
           </section>
 
           {claim && useCount === 0 && (
             <section className="mt-8" aria-labelledby="visit-heading">
-              <h2 id="visit-heading" className="text-xl font-extrabold">このお店に来たのは？</h2>
-              <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">お店への報告に使います（名前などは伝わりません）。</p>
+              <h2 id="visit-heading" className="mb-4 text-xl font-extrabold">このお店に来たのは初めてですか？</h2>
               <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-labelledby="visit-heading">
                 {[
                   { v: true, label: "はじめて" },
-                  { v: false, label: "前にも来た" },
+                  { v: false, label: "前にも来たことがある" },
                 ].map((o) => (
                   <button
                     key={o.label}
@@ -336,23 +333,6 @@ export default function CouponPage() {
                   >
                     {o.label}
                   </button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* 条件(小) */}
-          <section className="mt-8" aria-label="使える日時と場所">
-            <CouponConditions coupon={coupon} place={place} />
-          </section>
-
-          {/* お店の写真(届いたら lib/shops.ts の photos に足す) */}
-          {shop && (shop.photos.length > 0 || isAdmin) && (
-            <section className="mt-8" aria-labelledby="photos-heading">
-              <h2 id="photos-heading" className="text-xl font-extrabold">お店の写真</h2>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {(shop.photos.length > 0 ? shop.photos : Array.from({ length: shop.photoSlots }, () => undefined)).map((src, i) => (
-                  <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} className="aspect-square rounded-2xl" />
                 ))}
               </div>
             </section>

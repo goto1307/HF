@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { sectionOf, type SectionKey } from "@/lib/appSections";
 import { loginPath } from "@/lib/nav";
 import { IconX } from "@/components/icons";
+import { useIsStandalone } from "@/lib/standalone";
 
 // ☰ から開く、HOKUMA のホーム画面。サービス(フリマ・クーポン)とマイページのアイコンが並ぶ。
 // 開き方: ☰ を押す → 右上から丸く広がる。右上から左下へなぞる → 指の動きに合わせて広がり、離すと開く。
@@ -77,6 +78,7 @@ const ADMIN_LINKS = [
 ];
 
 export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdmin, onShowGuide, onShowInstall }: Props) {
+  const standalone = useIsStandalone();
   const pathname = usePathname();
   const current = sectionOf(pathname);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -155,12 +157,17 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
         </ul>
 
         <div className="launcher-tile mt-14 border-t border-stone-200 pt-4 text-sm" style={{ transitionDelay: "130ms" }}>
-          <button onClick={() => { onClose(); onShowGuide(); }} className="block w-full text-left py-2.5 font-bold text-stone-700 hover:text-orange-700">
-            初めての方に
-          </button>
-          <button onClick={() => { onClose(); onShowInstall(); }} className="block w-full text-left py-2.5 font-bold text-stone-700 hover:text-orange-700">
-            ホーム画面に追加
-          </button>
+          {/* 「初めての方に」は未ログインの人だけ。「ホーム画面に追加」はホーム画面から開いているときは出さない */}
+          {!loggedIn && (
+            <button onClick={() => { onClose(); onShowGuide(); }} className="block w-full text-left py-2.5 font-bold text-stone-700 hover:text-orange-700">
+              初めての方に
+            </button>
+          )}
+          {!standalone && (
+            <button onClick={() => { onClose(); onShowInstall(); }} className="block w-full text-left py-2.5 font-bold text-stone-700 hover:text-orange-700">
+              ホーム画面に追加
+            </button>
+          )}
           <a href="https://www.instagram.com/hokuma.official/" target="_blank" rel="noopener noreferrer" className="block py-2.5 font-bold text-stone-700 hover:text-orange-700">
             公式Instagram：@hokuma.official
           </a>
@@ -169,6 +176,9 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
           </a>
           <Link href="/terms" onClick={onClose} className="block py-2.5 font-bold text-stone-700 hover:text-orange-700">
             利用規約
+          </Link>
+          <Link href="/privacy" onClick={onClose} className="block py-2.5 font-bold text-stone-700 hover:text-orange-700">
+            プライバシーポリシー
           </Link>
         </div>
 

@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Map as MlMap, Marker as MlMarker } from "maplibre-gl";
 import type { Shop } from "@/lib/shops";
+import { toast } from "@/lib/toast";
 
 // 指で動かせる地図(MapLibre GL ＋ OpenFreeMap の無料の地図。APIキー・料金なし)。
 // 提携店の場所に「クーポン配布中！」のピンを立て、押すと onSelect でお店を知らせる。
@@ -54,6 +55,7 @@ function pinElement(label: string) {
   el.className = "hokuma-pin";
   el.setAttribute("aria-label", `${label}（クーポン配布中）`);
   el.innerHTML = `
+    <span class="hokuma-pin__balloon" aria-hidden="true">クーポン配布中</span>
     <span class="hokuma-pin__dot" aria-hidden="true"></span>
     <span class="hokuma-pin__name"></span>`;
   el.querySelector(".hokuma-pin__name")!.textContent = label;
@@ -68,6 +70,8 @@ export default function ShopMap({
   interactive = true,
   attributionClass = "right-1 bottom-1",
   onMapTap,
+  showLocate = false,
+  locateClass = "right-3 top-[60px]",
 }: {
   shops: Shop[];
   selectedId: string | null;
@@ -76,6 +80,8 @@ export default function ShopMap({
   interactive?: boolean; // false: 動かせない小さな地図(クーポンの詳細ページの上に出す)
   attributionClass?: string; // 提供元の文字を置く場所(Tailwind の位置のクラス)
   onMapTap?: (lat: number, lng: number) => void; // 地図の何もないところを押したとき、その場所の緯度・経度を知らせる
+  showLocate?: boolean; // 「現在地」ボタンを出すか
+  locateClass?: string; // 「現在地」ボタンを置く場所(Tailwind の位置のクラス)
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -84,6 +90,8 @@ export default function ShopMap({
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   const onMapTapRef = useRef(onMapTap);
   useEffect(() => { onMapTapRef.current = onMapTap; }, [onMapTap]);
+  const meRef = useRef<MlMarker | null>(null); // 現在地の青い点
+  const [locating, setLocating] = useState(false);
 
   // 地図を作る(最初の1回だけ)
   useEffect(() => {
@@ -140,6 +148,8 @@ export default function ShopMap({
     })();
     return () => {
       cancelled = true;
+      meRef.current?.remove();
+      meRef.current = null;
       markers.forEach(({ marker }) => marker.remove());
       markers.clear();
       mapRef.current?.remove();
@@ -165,12 +175,59 @@ export default function ShopMap({
     });
   }, [selectedId, shops, bottomPadding, interactive]);
 
+  // 現在地: 押した人にだけ位置情報の許可を求め、地図に青い点を出す。
+  // 位置は利用者のスマホの中で使うだけで、HOKUMA のサーバーには送らず、保存もしない
+  const locate = () => {
+    if (!("geolocation" in navigator)) { toast("この端末では現在地を使えません"); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setLocating(false);
+        const map = mapRef.current;
+        if (!map) return;
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const inside = lng >= BOUNDS[0][0] && lng <= BOUNDS[1][0] && lat >= BOUNDS[0][1] && lat <= BOUNDS[1][1];
+        if (!inside) { toast("北大の近くにいないため、地図に現在地を出せません"); return; }
+        const maplibregl = await import("maplibre-gl");
+        if (!meRef.current) {
+          const el = document.createElement("div");
+          el.className = "hokuma-me";
+          el.setAttribute("aria-label", "現在地");
+          meRef.current = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+        } else {
+          meRef.current.setLngLat([lng, lat]);
+        }
+        map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 16), duration: 500 });
+      },
+      (err) => {
+        setLocating(false);
+        toast(err.code === err.PERMISSION_DENIED ? "位置情報の利用が許可されていません（端末の設定で変えられます）" : "現在地を取得できませんでした");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
+
   return (
     <>
       {/* MapLibre が中の div に position: relative を付けるので、外側の div で大きさを決める */}
       <div className="absolute inset-0">
         <div ref={boxRef} className="h-full w-full" role="region" aria-label="北大まわりのクーポンが使えるお店の地図" />
       </div>
+      {showLocate && interactive && (
+        <button
+          type="button"
+          onClick={locate}
+          disabled={locating}
+          className={`absolute z-10 flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-[#2F3E5C] shadow-md border border-stone-200 active:translate-y-px ${locateClass}`}
+        >
+          <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="#2B7BE4" strokeWidth={2.4} strokeLinecap="round" aria-hidden>
+            <circle cx="12" cy="12" r="3.5" fill="#2B7BE4" stroke="none" />
+            <circle cx="12" cy="12" r="7.5" />
+            <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />
+          </svg>
+          {locating ? "取得中..." : "現在地"}
+        </button>
+      )}
       {/* 地図の提供元(無料で使う条件。消さないこと) */}
       <p className={`pointer-events-auto absolute z-[5] rounded bg-white/80 px-1.5 py-0.5 text-[9px] leading-tight text-stone-600 ${attributionClass}`}>
         <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="underline">OpenFreeMap</a>{" "}
@@ -190,6 +247,22 @@ export default function ShopMap({
           text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
         }
         .hokuma-pin.is-active .hokuma-pin__dot { transform: scale(1.3); }
+        /* ピンの上の吹き出し(ピンの位置がずれないように、浮かせて置く) */
+        .hokuma-pin { position: relative; }
+        .hokuma-pin__balloon {
+          position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%);
+          white-space: nowrap; background: #BA421D; color: #fff; font-size: 11px; font-weight: 800;
+          padding: 3px 8px; border-radius: 8px; box-shadow: 0 2px 6px rgba(27,36,58,.3);
+        }
+        .hokuma-pin__balloon::after {
+          content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+          border: 5px solid transparent; border-top-color: #BA421D;
+        }
+        /* 現在地の青い点 */
+        .hokuma-me {
+          width: 16px; height: 16px; border-radius: 999px; background: #2B7BE4; border: 3px solid #fff;
+          box-shadow: 0 0 0 6px rgba(43,123,228,.2), 0 2px 6px rgba(27,36,58,.3);
+        }
         @media (prefers-reduced-motion: reduce) { .hokuma-pin__dot { transition: none; } }
       `}</style>
     </>

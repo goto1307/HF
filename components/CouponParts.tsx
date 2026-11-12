@@ -2,7 +2,8 @@
 // クーポンの画面(地図のシート・クーポンの詳細ページ)で共通に使う部品。
 // 白地に、文字は紺 #2F3E5C(ブランドの色)、差し色は朱 #BA421D
 
-import { formatDate, formatDateTime, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
+import Link from "next/link";
+import { formatDate, formatDateLong, formatDateTime, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
@@ -71,11 +72,16 @@ export function BenefitCards({
   benefits,
   selected = null,
   onSelect,
+  photos = {},
+  isAdmin = false,
 }: {
   benefits: string[];
   selected?: string | null;
   onSelect?: (raw: string) => void;
+  photos?: Record<string, string>; // 特典の名前 → 写真(lib/shops.ts の benefitPhotos)
+  isAdmin?: boolean; // 写真がまだないとき、運営にだけ空き枠を出す
 }) {
+  const withPhotos = Object.keys(photos).length > 0 || isAdmin;
   const items = benefits.map(parseBenefit);
   const cautions = items.filter((b) => b.caution);
   return (
@@ -85,12 +91,18 @@ export function BenefitCards({
           const active = selected === b.raw;
           const body = (
             <>
-              <span className="block text-[15px] font-extrabold leading-snug">{b.name}</span>
-              {b.detail && <span className="block mt-1 text-xs leading-snug text-[#2F3E5C]/75">{b.detail}</span>}
-              {b.caution && <span className="mt-1.5 inline-block text-[10px] font-bold rounded px-1.5 py-0.5 bg-[#F2C14E] text-[#1B243A]">注意あり</span>}
+              {/* 特典の写真(写真の下に名前と説明) */}
+              {withPhotos && (
+                <PhotoSlot src={photos[b.name]} alt={b.name} isAdmin={isAdmin} className="mb-2 aspect-[4/3] rounded-xl" />
+              )}
+              <span className={`block ${withPhotos ? "px-1.5" : ""}`}>
+                <span className="block text-[15px] font-extrabold leading-snug">{b.name}</span>
+                {b.detail && <span className="block mt-1 text-xs leading-snug text-[#2F3E5C]/75">{b.detail}</span>}
+                {b.caution && <span className="mt-1.5 inline-block text-[10px] font-bold rounded px-1.5 py-0.5 bg-[#F2C14E] text-[#1B243A]">注意あり</span>}
+              </span>
             </>
           );
-          const base = "block h-full min-h-[64px] w-full rounded-2xl px-4 py-3 text-left transition-colors";
+          const base = `block h-full min-h-[64px] w-full rounded-2xl text-left transition-colors ${withPhotos ? "p-2 pb-3" : "px-4 py-3"}`;
           return (
             <li key={b.raw}>
               {onSelect ? (
@@ -123,16 +135,42 @@ export function BenefitCards({
   );
 }
 
-// クーポンのいちばん上に置く大きな見出し。
-// 「空きコマクーポン」は使える時間そのものが売りなので、名前のすぐ下に時間を大きく出す。
-// tone: "dark" は朱色の背景の上、"light" は白地の上に置くとき
-export function CouponHeadline({ coupon, tone = "dark" }: { coupon: Coupon; tone?: "dark" | "light" }) {
-  const dark = tone === "dark";
+// クーポンのいちばん上に置く見出し(クーポン名・使える時間・曜日と期間)。
+// tone: "dark" は朱色の背景の上(クーポンのページ。時間を大きく強調)、
+//       "light" は白地の上(地図のシート。クーポン名を朱色の帯に白抜き、時間はふつうの大きさ)
+// titleHref: クーポン名を押したときに開くページ。cta: クーポン名のすぐ下に置くボタン
+export function CouponHeadline({
+  coupon,
+  tone = "dark",
+  titleHref,
+  cta,
+}: {
+  coupon: Coupon;
+  tone?: "dark" | "light";
+  titleHref?: string;
+  cta?: React.ReactNode;
+}) {
+  const period = `${formatDateLong(coupon.use_from)}〜${formatDateLong(coupon.use_until)}`;
+  if (tone === "light") {
+    const title = <span className="block rounded-xl bg-[#BA421D] px-4 py-3 text-[28px] leading-tight font-black tracking-tight text-white">{coupon.title}</span>;
+    return (
+      <div>
+        {titleHref ? <Link href={titleHref} className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA421D] rounded-xl">{title}</Link> : <h2>{title}</h2>}
+        {cta && <div className="mt-3">{cta}</div>}
+        <dl className="mt-4 grid grid-cols-[4.5em_1fr] gap-y-1.5 text-sm">
+          <dt className="font-bold text-[#2F3E5C]/60">使える時間</dt>
+          <dd className="font-extrabold tabular-nums">{formatWindows(coupon.time_windows)}</dd>
+          <dt className="font-bold text-[#2F3E5C]/60">使える日</dt>
+          <dd className="font-extrabold">{formatWeekdays(coupon.weekdays)}<span className="block font-bold text-[#2F3E5C]/75">{period}</span></dd>
+        </dl>
+      </div>
+    );
+  }
   return (
     <div>
-      <h1 className={`text-[40px] leading-[1.1] font-black tracking-tight ${dark ? "text-white" : "text-[#BA421D]"}`}>{coupon.title}</h1>
-      <div className={`mt-4 rounded-2xl px-4 py-3 ${dark ? "bg-white text-[#1B243A]" : "bg-[#BA421D] text-white"}`}>
-        <p className={`text-xs font-bold ${dark ? "text-[#BA421D]" : "text-white/85"}`}>使える時間</p>
+      <h1 className="text-[40px] leading-[1.1] font-black tracking-tight text-white">{coupon.title}</h1>
+      <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-[#1B243A]">
+        <p className="text-xs font-bold text-[#BA421D]">使える時間</p>
         {coupon.time_windows.length === 0 ? (
           <p className="text-3xl font-black">営業時間中</p>
         ) : (
@@ -145,12 +183,8 @@ export function CouponHeadline({ coupon, tone = "dark" }: { coupon: Coupon; tone
           </ul>
         )}
       </div>
-      <p className={`mt-3 text-lg font-extrabold ${dark ? "text-white" : "text-[#2F3E5C]"}`}>
-        {formatWeekdays(coupon.weekdays)}
-        <span className={`ml-2 text-sm font-bold ${dark ? "text-white/80" : "text-[#2F3E5C]/70"}`}>
-          {formatDate(coupon.use_from)}〜{formatDate(coupon.use_until)}
-        </span>
-      </p>
+      <p className="mt-3 text-lg font-extrabold text-white">{formatWeekdays(coupon.weekdays)}</p>
+      <p className="text-sm font-bold text-white/85">{period}</p>
     </div>
   );
 }
