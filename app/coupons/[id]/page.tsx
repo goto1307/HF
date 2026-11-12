@@ -34,6 +34,7 @@ import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { goBack, loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import { IconX } from "@/components/icons";
 
 // 1秒ごとに進む時計。使用済みの画面に出して、スクリーンショットの使い回しと見分けられるようにする
 function useNow() {
@@ -184,25 +185,32 @@ export default function CouponPage() {
     return (
       <div className={`min-h-screen ${NAVY} text-white`}>
         <Header section={isAdmin ? "coupons" : "market"} />
-        <div className="max-w-md mx-auto px-6 pt-8 pb-16 text-center">
+        <div className="relative max-w-md mx-auto px-6 pt-8 pb-16 text-center">
+          {/* 右上のバツで、この画面を閉じて戻れる */}
+          <button
+            onClick={() => goBack(router, "/coupons")}
+            aria-label="閉じる"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+          >
+            <IconX size={20} />
+          </button>
           <p className="text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
           <p className="mt-6 text-xs text-white/80">特典</p>
+          {/* 特典の写真(選ぶときと同じもの) */}
+          {(shop?.benefitPhotos[benefitName(claim.benefit)] || isAdmin) && (
+            <PhotoSlot
+              src={shop?.benefitPhotos[benefitName(claim.benefit)]}
+              alt={benefitName(claim.benefit)}
+              isAdmin={isAdmin}
+              className="mx-auto mt-2 mb-3 aspect-[4/3] max-w-[240px] rounded-xl"
+            />
+          )}
           <p className="mt-1 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-3">
             {benefitName(claim.benefit)}
           </p>
           <div className="mt-6 rounded-2xl bg-white text-[#1B243A] py-4">
             <p className="text-xs text-stone-500">使った時刻</p>
             <p className="text-2xl font-extrabold">{formatDateTime(claim.used_at)} {formatTime(claim.used_at)}</p>
-          </div>
-          <div className="mt-4 flex items-center justify-center gap-2 text-sm">
-            {/* 動いていることで、スクリーンショットではないと分かるようにする */}
-            <span className="relative flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-[#F2C14E] opacity-70 animate-ping motion-reduce:animate-none" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-[#F2C14E]" />
-            </span>
-            <span className="font-bold tabular-nums">
-              現在 {jstNow(now).time}:{String(now.getSeconds()).padStart(2, "0")}
-            </span>
           </div>
           {/* お店の方への案内は、運営から直接お店に伝えるので画面には出さない */}
           {!usedToday && finished && (

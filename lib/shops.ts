@@ -22,7 +22,7 @@ export type Shop = {
   photos: string[]; // 「お店の写真」に並べる写真(public/ に置いた写真のパス)
   photoSlots: number; // 写真がまだ届いていないとき、運営に見せる空き枠の数
   benefitPhotos: Record<string, string>; // 特典の名前(｜より前) → 特典のボタンに入れる写真のパス
-  illustration?: string; // 地図のシートでクーポン名の上に出すイラスト(public/ に置いた画像のパス)
+  couponImage?: string; // 地図のシートで、クーポン名の代わりに出す画像(「空きコマクーポン」のデザイン。public/ に置いた画像のパス)
 };
 
 export const SHOPS: Shop[] = [
@@ -55,7 +55,7 @@ export const SHOPS: Shop[] = [
     photoSlots: 4,
     // 例: "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg"
     benefitPhotos: {},
-    illustration: undefined,
+    couponImage: undefined,
     menuNote: null,
   },
 ];
