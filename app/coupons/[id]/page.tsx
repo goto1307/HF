@@ -283,7 +283,7 @@ export default function CouponPage() {
         {/* お店の写真(店名は写真に入れる)。まだないときは、運営には写真の枠、利用者には北大との位置関係の地図 */}
         <div className="relative">
           {shop?.photo || (shop && isAdmin) ? (
-            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} className="h-56" />
+            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} position={shop.photoPosition} className="h-56" />
           ) : shop ? (
             <div className="relative h-56 overflow-hidden bg-[#EEF2F5]">
               <ShopMap shops={[shop]} selectedId={shop.id} onSelect={() => {}} bottomPadding={0} interactive={false} attributionClass="right-1 top-1" />

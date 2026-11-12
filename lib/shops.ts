@@ -18,6 +18,7 @@ export type Shop = {
   closed: string | null; // 定休日
   menu: MenuItem[];
   menuNote: string | null; // メニューの注意書き(いつ時点の情報かなど)
+  photoPosition?: string; // いちばん上の写真のどこを見せるか(CSS の object-position。例: "50% 12%")
   photo?: string; // いちばん上に大きく出す写真(public/ に置いた写真のパス。例: "/shops/futagozan/top.jpg")
   photos: string[]; // 「お店の写真」に並べる写真(public/ に置いた写真のパス)
   photoSlots: number; // 写真がまだ届いていないとき、運営に見せる空き枠の数
@@ -50,8 +51,9 @@ export const SHOPS: Shop[] = [
       { name: "本日の味噌汁", price: 200 },
     ],
     // 写真は後で入れる。public/shops/futagozan/ に置いて、photo と photos にパスを書く
-    photo: undefined,
-    photos: [],
+    photo: "/shops/futagozan/top.jpg", // 1番: 店の外観(看板)
+    photoPosition: "50% 12%", // 横長の枠で看板が切れないよう、上のほうを見せる
+    photos: ["/shops/futagozan/salmon-don.jpg", "/shops/futagozan/interior.jpg"], // 2番: サーモン丼、3番: 店内
     photoSlots: 3,
     // 例: "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg"
     benefitPhotos: {},

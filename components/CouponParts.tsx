@@ -211,6 +211,7 @@ export function PhotoSlot({
   className = "",
   label = "写真が入ります",
   no,
+  position,
 }: {
   src?: string;
   alt: string;
@@ -218,10 +219,11 @@ export function PhotoSlot({
   className?: string;
   label?: string; // 空き枠に出す文字
   no?: number; // 空き枠に出す番号(lib/shops.ts の PHOTO_NO)
+  position?: string; // 写真のどこを見せるか(object-position)
 }) {
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} className={`block w-full object-cover ${className}`} />;
+    return <img src={src} alt={alt} style={position ? { objectPosition: position } : undefined} className={`block w-full object-cover ${className}`} />;
   }
   if (!isAdmin) return null;
   return (
