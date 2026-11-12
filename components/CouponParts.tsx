@@ -144,23 +144,36 @@ export function CouponHeadline({
   tone = "dark",
   titleHref,
   cta,
+  titleImage,
+  isAdmin = false,
 }: {
   coupon: Coupon;
   tone?: "dark" | "light";
   titleHref?: string;
   cta?: React.ReactNode;
+  titleImage?: string; // light のとき、クーポン名の代わりに出す画像(lib/shops.ts の couponImage)
+  isAdmin?: boolean;
 }) {
   const period = `${formatDateLong(coupon.use_from)}〜${formatDateLong(coupon.use_until)}`;
   if (tone === "light") {
-    const title = <span className="block rounded-xl bg-[#BA421D] px-4 py-3 text-[28px] leading-tight font-black tracking-tight text-white">{coupon.title}</span>;
+    // クーポン名は画像にする予定(受け取るボタンと同じ色で見分けにくいため)。
+    // 画像が届くまでは、運営には「配置予定」の枠、利用者には紺の帯に白抜きの文字を出す
+    const title = titleImage ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={titleImage} alt={coupon.title} className="block w-full rounded-xl" />
+    ) : isAdmin ? (
+      <PhotoSlot isAdmin alt="" label={`${coupon.title}の画像（配置予定）`} className="h-28 rounded-xl" />
+    ) : (
+      <span className="block rounded-xl bg-[#2F3E5C] px-4 py-3 text-[28px] leading-tight font-black tracking-tight text-white">{coupon.title}</span>
+    );
     return (
       <div>
         {titleHref ? <Link href={titleHref} className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA421D] rounded-xl">{title}</Link> : <h2>{title}</h2>}
         {cta && <div className="mt-3">{cta}</div>}
-        <dl className="mt-4 grid grid-cols-[4.5em_1fr] gap-y-1.5 text-sm">
-          <dt className="font-bold text-[#2F3E5C]/60">使える時間</dt>
+        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+          <dt className="whitespace-nowrap font-bold text-[#2F3E5C]/60">使える時間</dt>
           <dd className="font-extrabold tabular-nums">{formatWindows(coupon.time_windows)}</dd>
-          <dt className="font-bold text-[#2F3E5C]/60">使える日</dt>
+          <dt className="whitespace-nowrap font-bold text-[#2F3E5C]/60">使える日</dt>
           <dd className="font-extrabold">{formatWeekdays(coupon.weekdays)}<span className="block font-bold text-[#2F3E5C]/75">{period}</span></dd>
         </dl>
       </div>
@@ -190,7 +203,19 @@ export function CouponHeadline({
 }
 
 // 写真を入れる枠。写真がまだないときは、運営にだけ「ここに写真が入ります」と出す(利用者には何も出さない)
-export function PhotoSlot({ src, alt, isAdmin, className = "" }: { src?: string; alt: string; isAdmin: boolean; className?: string }) {
+export function PhotoSlot({
+  src,
+  alt,
+  isAdmin,
+  className = "",
+  label = "写真が入ります",
+}: {
+  src?: string;
+  alt: string;
+  isAdmin: boolean;
+  className?: string;
+  label?: string; // 空き枠に出す文字
+}) {
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt={alt} className={`block w-full object-cover ${className}`} />;
@@ -198,7 +223,7 @@ export function PhotoSlot({ src, alt, isAdmin, className = "" }: { src?: string;
   if (!isAdmin) return null;
   return (
     <div className={`flex w-full flex-col items-center justify-center border-2 border-dashed border-[#2F3E5C]/25 bg-stone-50 text-center text-xs font-bold text-[#2F3E5C]/50 ${className}`}>
-      <span>写真が入ります</span>
+      <span>{label}</span>
       <span className="mt-0.5 font-normal">（運営だけに表示）</span>
     </div>
   );

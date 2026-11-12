@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -68,6 +68,37 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     return cp ? !usedUp(cp, c) && !hasEnded(cp) : !c.used_at;
   }).length;
 
+  // シートを下へなぞって閉じる。80px 以上下げて離したら閉じ、それより少なければ元の位置に戻す
+  const sheetRef = useRef<HTMLElement>(null);
+  const drag = useRef<{ startY: number; dy: number; id: number } | null>(null);
+  const dragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    // ボタン(閉じる・タブ)を押したときは、なぞる動きとして扱わない
+    if ((e.target as HTMLElement).closest("button, a")) return;
+    drag.current = { startY: e.clientY, dy: 0, id: e.pointerId };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (sheetRef.current) sheetRef.current.style.transition = "none";
+  };
+  const dragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    const el = sheetRef.current;
+    if (!d || !el || e.pointerId !== d.id) return;
+    d.dy = Math.max(0, e.clientY - d.startY);
+    el.style.transform = `translateY(${d.dy}px)`;
+  };
+  const dragEnd = () => {
+    const d = drag.current;
+    const el = sheetRef.current;
+    drag.current = null;
+    if (!d || !el) return;
+    el.style.transition = "transform 200ms ease-out";
+    if (d.dy > 80) {
+      el.style.transform = "translateY(100%)";
+      setTimeout(() => select(null), 190);
+    } else {
+      el.style.transform = "";
+    }
+  };
+
   const select = (id: string | null) => {
     setSelectedId(id);
     setTab("coupon");
@@ -99,10 +130,10 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         selectedId={selectedId}
         onSelect={select}
         bottomPadding={selectedId ? SHEET_RATIO : 0.2}
-        attributionClass="right-3 top-[60px]"
+        attributionClass="right-1 bottom-1"
         onMapTap={isAdmin ? handleMapTap : undefined}
         showLocate
-        locateClass="right-3 top-[92px]"
+        locateClass="right-3 top-[64px]"
       />
       {isAdmin && (
         <button
@@ -138,7 +169,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
 
       {/* 何も選んでいないとき: 下にお店のカードを小さく出す(押すとシートが開く) */}
       {!shop && shops.length > 0 && (
-        <div className="absolute inset-x-0 bottom-0 z-10 flex gap-3 overflow-x-auto p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="absolute inset-x-0 bottom-4 z-10 flex gap-3 overflow-x-auto p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
           {shops.map((s) => {
             return (
               <button
@@ -167,10 +198,18 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
       {/* お店を選んだとき: 下からシート */}
       {shop && (
         <section
+          ref={sheetRef}
           aria-label={`${shop.name}の情報`}
-          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto rounded-t-[28px] bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
+          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto overscroll-contain rounded-t-[28px] bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
         >
-          <div className="sticky top-0 z-10">
+          {/* 上の部分(つまみ・店名・タブ)を下へなぞると閉じる */}
+          <div
+            className="sticky top-0 z-10 touch-none"
+            onPointerDown={dragStart}
+            onPointerMove={dragMove}
+            onPointerUp={dragEnd}
+            onPointerCancel={dragEnd}
+          >
             {/* 店名のところだけ朱色 */}
             <div className="rounded-t-[28px] bg-[#BA421D] px-6 pb-5 pt-2.5 text-white">
               <div className="mx-auto h-1.5 w-10 rounded-full bg-white/35" aria-hidden />
@@ -282,15 +321,13 @@ function CouponTab({
 
   return (
     <div>
-      {/* クーポンのイラスト(届いたら lib/shops.ts の illustration に入れる。まだないときは運営にだけ枠を出す) */}
-      {(shop.illustration || isAdmin) && (
-        <PhotoSlot src={shop.illustration} alt="" isAdmin={isAdmin} className="mb-4 h-36 rounded-2xl" />
-      )}
       {/* クーポン名(押すとクーポンのページへ)と、そのすぐ下に受け取るボタン */}
       <CouponHeadline
         coupon={coupon}
         tone="light"
         titleHref={`/coupons/${coupon.id}`}
+        titleImage={shop.couponImage}
+        isAdmin={isAdmin}
         cta={
           <>
             {cta}
