@@ -56,7 +56,9 @@ export const SHOPS: Shop[] = [
     photos: ["/shops/futagozan/salmon-don.jpg", "/shops/futagozan/interior.jpg"], // 2番: サーモン丼、3番: 店内
     photoSlots: 3,
     // 例: "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg"
-    benefitPhotos: {},
+    benefitPhotos: {
+      "ザンギ増量": "/shops/futagozan/zangi.jpg", // 6番
+    },
     couponImage: undefined,
     menuNote: null,
   },
