@@ -32,9 +32,9 @@ export default function CouponBanner() {
         {coupon.active ? "PR・提携" : "非公開"}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xs opacity-90">{coupon.shop_name}</span>
+        {/* 特典を全部並べると見切れるので、短く「店名 クーポン配布中」だけにする */}
         <span className="block text-sm font-black truncate">
-          {coupon.title}：{coupon.benefits.join("／")}
+          {coupon.shop_name}　クーポン配布中
         </span>
       </span>
       <span className="shrink-0 text-xs font-bold bg-white text-[#7A3393] rounded-full px-3 py-1">受け取る</span>

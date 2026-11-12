@@ -52,7 +52,7 @@ export const SHOPS: Shop[] = [
     // 写真は後で入れる。public/shops/futagozan/ に置いて、photo と photos にパスを書く
     photo: undefined,
     photos: [],
-    photoSlots: 4,
+    photoSlots: 3,
     // 例: "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg"
     benefitPhotos: {},
     couponImage: undefined,
