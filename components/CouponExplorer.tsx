@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +29,19 @@ type Props = {
 };
 
 const SHEET_RATIO = 0.72; // シートの高さ(地図の高さに対する割合)。max-h-[72%] と合わせる
+// パソコンなど横に広い画面(md = 幅768px以上)では、シートを下からではなく右側の縦長のパネルで出す。
+// 幅は下の md:w-[400px] と合わせる(地図をずらす量に使う)
+const PANEL_WIDTH = 400;
+const WIDE_QUERY = "(min-width: 768px)";
+function subscribeWide(cb: () => void) {
+  const mq = window.matchMedia(WIDE_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+// 横に広い画面かどうか(サーバーで描くときはスマホとして扱う)
+function useWide() {
+  return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE_QUERY).matches, () => false);
+}
 
 function errorMessage(e: { message?: string } | null) {
   const m = e?.message ?? "";
@@ -120,6 +133,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     setJustClaimed(true);
   };
   const [justClaimed, setJustClaimed] = useState(false);
+  const wide = useWide();
 
   return (
     <div className="relative flex-1 overflow-hidden">
@@ -127,11 +141,12 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         shops={shops}
         selectedId={selectedId}
         onSelect={select}
-        bottomPadding={selectedId ? SHEET_RATIO : 0.2}
+        bottomPadding={selectedId && !wide ? SHEET_RATIO : 0.2}
+        rightPadding={selectedId && wide ? PANEL_WIDTH + 12 : 0}
         attributionClass="right-1 bottom-1"
         onMapTap={isAdmin ? handleMapTap : undefined}
         showLocate
-        locateClass="right-3 top-[64px]"
+        locateClass={selectedId ? "right-3 top-[64px] md:right-[424px]" : "right-3 top-[64px]"}
       />
       {isAdmin && (
         <button
@@ -193,12 +208,12 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         </div>
       )}
 
-      {/* お店を選んだとき: 下からシート */}
+      {/* お店を選んだとき: スマホは下からシート。md 以上(パソコン)は右側に縦長のパネル(上のクーポンボックスは隠さない) */}
       {shop && (
         <section
           ref={sheetRef}
           aria-label={`${shop.name}の情報`}
-          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto overscroll-contain rounded-t-[28px] bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
+          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto overscroll-contain rounded-t-[28px] md:inset-x-auto md:right-3 md:top-[60px] md:bottom-3 md:w-[400px] md:max-h-none md:rounded-[28px] bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
         >
           {/* 上の部分(つまみ・店名・タブ)を下へなぞると閉じる */}
           <div
