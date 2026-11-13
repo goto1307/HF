@@ -5805,3 +5805,34 @@ update public.coupon set
   )
 where id = 'futagozan-1'
   and exists (select 1 from unnest(benefits) as b where b like 'パルプンテ｜%');
+
+-- ============================================================
+-- PART BA: クーポンを使える時間に余裕を持たせる(画面に出す時間はそのまま)
+-- ============================================================
+-- ギリギリに来た人も使えるように、使える時間の前後に余裕を付けられるようにする。
+-- time_windows の1つ1つに use_from・use_to を書くと、実際に使えるのはその時間になる
+-- (書かなければ今までどおり from〜to)。画面に出す時間(from〜to)は変えない。
+-- ふたごザン: 画面は 13:00〜14:00・17:00〜19:00 のまま、使えるのは 12:45〜14:10・17:00〜19:15
+-- (lib/coupon.ts の usableNow() と同じ決まり)。何度実行しても大丈夫
+
+create or replace function public.coupon_usable_now(c public.coupon)
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select public.jst_today() between c.use_from and c.use_until
+     and extract(isodow from (now() at time zone 'Asia/Tokyo'))::smallint = any (c.weekdays)
+     and (
+       jsonb_array_length(c.time_windows) = 0
+       or exists (
+         select 1 from jsonb_array_elements(c.time_windows) w
+         where (now() at time zone 'Asia/Tokyo')::time >= coalesce(w ->> 'use_from', w ->> 'from')::time
+           and (now() at time zone 'Asia/Tokyo')::time <  coalesce(w ->> 'use_to', w ->> 'to')::time
+       )
+     );
+$$;
+
+update public.coupon set
+  time_windows = '[{"from":"13:00","to":"14:00","use_from":"12:45","use_to":"14:10"},{"from":"17:00","to":"19:00","use_from":"17:00","use_to":"19:15"}]'
+where id = 'futagozan-1';
