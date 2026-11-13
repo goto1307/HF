@@ -125,7 +125,7 @@ export function BenefitCards({
           );
         })}
       </ul>
-      {/* 注意書きのある特典(パルプンテなど)は、特典のすぐ下に出す */}
+      {/* 注意書きのある特典(店主のおまかせ一品など)は、特典のすぐ下に出す */}
       {cautions.map((b) => (
         <p key={b.raw} className="mt-3 flex gap-2 rounded-xl bg-[#F2C14E]/20 border border-[#F2C14E] px-3 py-2.5 text-xs leading-relaxed text-[#1B243A]">
           <span aria-hidden className="font-extrabold text-[#BA421D]">!</span>
