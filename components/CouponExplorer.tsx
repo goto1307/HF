@@ -80,24 +80,53 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     return cp ? !usedUp(cp, c) && !hasEnded(cp) : !c.used_at;
   }).length;
 
-  // シートを下へなぞって閉じる。80px 以上下げて離したら閉じ、それより少なければ元の位置に戻す
+  // スマホのシートは、上の部分(つまみ・店名・タブ)をなぞって動かす。
+  // - 上へ 60px 以上なぞって離す → 画面いっぱいに広げる(クーポンをスクロールせずに見られる)
+  // - 下へ 80px 以上なぞって離す → 広げているときは元の高さに戻し、元の高さのときは閉じる
+  // - つまみ(灰色のバー)を軽く押す → 広げる/戻すを切り替える
+  const [expanded, setExpanded] = useState(false);
   const sheetRef = useRef<HTMLElement>(null);
-  const drag = useRef<{ startY: number; dy: number; id: number } | null>(null);
+  const drag = useRef<{ startY: number; dy: number; id: number; startH: number; onHandle: boolean } | null>(null);
+  const clearDragStyle = (el: HTMLElement) => {
+    el.style.height = "";
+    el.style.maxHeight = "";
+    el.style.transform = "";
+  };
   const dragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     // ボタン(閉じる・タブ)を押したときは、なぞる動きとして扱わない
     if ((e.target as HTMLElement).closest("button, a")) return;
-    // パソコンの横のパネルは、なぞって閉じない(×ボタンで閉じる)
+    // パソコンの横のパネルは、なぞって動かさない(×ボタンで閉じる)
     if (window.matchMedia(WIDE_QUERY).matches) return;
-    drag.current = { startY: e.clientY, dy: 0, id: e.pointerId };
+    const el = sheetRef.current;
+    if (!el) return;
+    drag.current = {
+      startY: e.clientY,
+      dy: 0,
+      id: e.pointerId,
+      startH: el.offsetHeight,
+      onHandle: !!(e.target as HTMLElement).closest("[data-sheet-handle]"),
+    };
     e.currentTarget.setPointerCapture(e.pointerId);
-    if (sheetRef.current) sheetRef.current.style.transition = "none";
+    el.style.transition = "none";
   };
   const dragMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     const el = sheetRef.current;
     if (!d || !el || e.pointerId !== d.id) return;
-    d.dy = Math.max(0, e.clientY - d.startY);
-    el.style.transform = `translateY(${d.dy}px)`;
+    d.dy = e.clientY - d.startY;
+    if (d.dy < 0) {
+      // 上へ: 指に合わせてシートを高くする(広げているときは、それ以上は高くしない)
+      el.style.transform = "";
+      if (!expanded) {
+        el.style.maxHeight = "none";
+        el.style.height = `${d.startH - d.dy}px`;
+      }
+    } else {
+      // 下へ: シートごと下げる
+      el.style.height = "";
+      el.style.maxHeight = "";
+      el.style.transform = `translateY(${d.dy}px)`;
+    }
   };
   const dragEnd = () => {
     const d = drag.current;
@@ -105,17 +134,30 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     drag.current = null;
     if (!d || !el) return;
     el.style.transition = "transform 200ms ease-out";
-    if (d.dy > 80) {
+    // ほとんど動かさずに、つまみを押しただけのとき
+    if (Math.abs(d.dy) < 6) {
+      clearDragStyle(el);
+      if (d.onHandle) setExpanded((v) => !v);
+      return;
+    }
+    if (d.dy < -60) {
+      clearDragStyle(el);
+      setExpanded(true);
+    } else if (d.dy > 80 && expanded) {
+      clearDragStyle(el);
+      setExpanded(false);
+    } else if (d.dy > 80) {
       el.style.transform = "translateY(100%)";
       setTimeout(() => select(null), 190);
     } else {
-      el.style.transform = "";
+      clearDragStyle(el);
     }
   };
 
   const select = (id: string | null) => {
     setSelectedId(id);
     setTab("coupon");
+    setExpanded(false);
   };
 
   // シートを開いたら「見た」を記録する(ブラウザごとに1回)
@@ -217,7 +259,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         <section
           ref={sheetRef}
           aria-label={`${shop.name}の情報`}
-          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto overscroll-contain rounded-t-[28px] md:inset-x-auto md:left-0 md:top-0 md:w-[400px] md:max-h-none md:rounded-none bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] md:shadow-[8px_0_24px_rgba(27,36,58,.2)] animate-[sheet-up_260ms_ease-out] md:animate-[panel-in_220ms_ease-out] motion-reduce:animate-none"
+          className={`absolute inset-x-0 bottom-0 z-20 ${expanded ? "top-2 max-h-none" : "max-h-[72%]"} overflow-y-auto overscroll-contain rounded-t-[28px] md:inset-x-auto md:left-0 md:top-0 md:w-[400px] md:max-h-none md:rounded-none bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] md:shadow-[8px_0_24px_rgba(27,36,58,.2)] animate-[sheet-up_260ms_ease-out] md:animate-[panel-in_220ms_ease-out] motion-reduce:animate-none`}
         >
           {/* 上の部分(つまみ・店名・タブ)を下へなぞると閉じる */}
           <div
@@ -230,7 +272,10 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
             {/* 店名のところだけ朱色 */}
             <div className="rounded-t-[28px] md:rounded-none bg-[#BA421D] px-6 pb-5 pt-2.5 md:pt-5 text-white">
               {/* つまみ(なぞって閉じる印)はスマホだけ */}
-              <div className="mx-auto h-1.5 w-10 rounded-full bg-white/35 md:hidden" aria-hidden />
+              {/* 上へなぞる・押すと広がる。押しやすいよう、見た目より広い範囲を反応させる */}
+              <div data-sheet-handle className="-mx-6 -mt-2.5 cursor-grab px-6 pb-1 pt-2.5 md:hidden" aria-hidden>
+                <div className="mx-auto h-1.5 w-10 rounded-full bg-white/35" />
+              </div>
               <div className="mt-3 md:mt-0 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2 text-xs text-white/90">
