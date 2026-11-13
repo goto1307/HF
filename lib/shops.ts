@@ -57,8 +57,10 @@ export const SHOPS: Shop[] = [
     photoPosition: "50% 12%", // 横長の枠で看板が切れないよう、上のほうを見せる
     photos: ["/shops/futagozan/salmon-don.jpg", "/shops/futagozan/interior.jpg"], // 2番: サーモン丼、3番: 店内
     photoSlots: 3,
-    // 例: "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg"
     benefitPhotos: {
+      // 5番。写真ではなく、フォント「Yuji Boku」(SIL Open Font License 1.1。商用利用可)で文字を並べた画像。
+      // 画像生成AIの絵ではない。実物の特盛の写真が手に入ったら差し替える
+      "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg",
       "ザンギ増量": "/shops/futagozan/zangi.jpg", // 6番
       // 8番。名前を「昆布茶1杯」→「あっつアツ昆布茶」に変えた(PART BB)。SQL の実行前後どちらでも出るよう両方に付ける
       "あっつアツ昆布茶": "/shops/futagozan/konbucha.jpg",
