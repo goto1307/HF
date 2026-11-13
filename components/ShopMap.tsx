@@ -67,6 +67,7 @@ export default function ShopMap({
   selectedId,
   onSelect,
   bottomPadding,
+  leftPadding = 0,
   interactive = true,
   attributionClass = "right-1 bottom-1",
   onMapTap,
@@ -77,6 +78,7 @@ export default function ShopMap({
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   bottomPadding: number; // 下のシートに隠れる割合(0〜1。ピンがシートの上に見えるように地図をずらす)
+  leftPadding?: number; // 左のパネルに隠れる幅(px。パソコンでピンがパネルの右に見えるようにずらす)
   interactive?: boolean; // false: 動かせない小さな地図(クーポンの詳細ページの上に出す)
   attributionClass?: string; // 提供元の文字を置く場所(Tailwind の位置のクラス)
   onMapTap?: (lat: number, lng: number) => void; // 地図の何もないところを押したとき、その場所の緯度・経度を知らせる
@@ -170,10 +172,10 @@ export default function ShopMap({
       center: [shop.lng, shop.lat],
       zoom: Math.max(map.getZoom(), 16),
       // 上の浮かんだボタンと、下のシートの間にピンが来るようにする
-      padding: { top: 70, bottom: Math.round(h * bottomPadding), left: 0, right: 0 },
+      padding: { top: 70, bottom: Math.round(h * bottomPadding), left: leftPadding, right: 0 },
       duration: 500,
     });
-  }, [selectedId, shops, bottomPadding, interactive]);
+  }, [selectedId, shops, bottomPadding, leftPadding, interactive]);
 
   // 現在地: 押した人にだけ位置情報の許可を求め、地図に青い点を出す。
   // 位置は利用者のスマホの中で使うだけで、HOKUMA のサーバーには送らず、保存もしない
