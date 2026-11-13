@@ -17,7 +17,7 @@ import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/componen
 import { loginPath, goBack } from "@/lib/nav";
 import { toast } from "@/lib/toast";
 import ItemThumb from "@/components/ItemThumb";
-import { thumbUrl } from "@/lib/thumb";
+import { isOwnImageUrl, thumbUrl } from "@/lib/thumb";
 
 type Item = {
   id: number;
@@ -396,7 +396,8 @@ export default function ItemDetail() {
                 <img
                   src={gallery[activeImage]}
                   alt={item.title}
-                  style={{ backgroundImage: `url("${thumbUrl(gallery[activeImage])}")`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
+                  // HOKUMA の写真置き場の写真のときだけ(よそのURLを背景に読み込まない)
+                  style={isOwnImageUrl(gallery[activeImage]) ? { backgroundImage: `url("${thumbUrl(gallery[activeImage])}")`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" } : undefined}
                   className={`block w-full aspect-[4/3] bg-stone-100 object-contain ${item.sold ? "opacity-50" : ""}`}
                 />
               </button>
