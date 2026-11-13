@@ -212,6 +212,7 @@ export function PhotoSlot({
   label = "写真が入ります",
   no,
   position,
+  eager = false,
 }: {
   src?: string;
   alt: string;
@@ -220,10 +221,11 @@ export function PhotoSlot({
   label?: string; // 空き枠に出す文字
   no?: number; // 空き枠に出す番号(lib/shops.ts の PHOTO_NO)
   position?: string; // 写真のどこを見せるか(object-position)
+  eager?: boolean; // true: すぐ読み込む(画面のいちばん上の写真)。false: 画面に近づいてから読み込む
 }) {
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} style={position ? { objectPosition: position } : undefined} className={`block w-full object-cover ${className}`} />;
+    return <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" style={position ? { objectPosition: position } : undefined} className={`block w-full object-cover ${className}`} />;
   }
   if (!isAdmin) return null;
   return (

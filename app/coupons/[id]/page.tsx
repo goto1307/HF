@@ -35,11 +35,12 @@ import { goBack, loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
 import { IconX } from "@/components/icons";
 
-// 1秒ごとに進む時計。使用済みの画面に出して、スクリーンショットの使い回しと見分けられるようにする
+// 進む時計(使える時間か・使ってから15分たったかの判定に使う)
 function useNow() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    // 時計は「今使える時間か」などの判定にしか使わないので、15秒ごとで十分(1秒ごとだと画面全体を描き直して重くなる)
+    const id = setInterval(() => setNow(new Date()), 15000);
     return () => clearInterval(id);
   }, []);
   return now;
@@ -213,8 +214,7 @@ export default function CouponPage() {
           ) : (
             <div className="flex-1" />
           )}
-          <p className="mt-1 text-xs text-white/80 pt-3">特典</p>
-          <p className="mx-auto mt-1 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-2.5">
+          <p className="mx-auto mt-4 inline-block rounded-2xl bg-[#F2C14E] text-[#1B243A] text-3xl font-extrabold px-6 py-2.5">
             {benefitName(claim.benefit)}
           </p>
           <div className="mt-4 rounded-2xl bg-white text-[#1B243A] py-3">
@@ -225,9 +225,6 @@ export default function CouponPage() {
             <p className="mt-3 rounded-xl bg-white/10 py-2.5 text-sm font-bold">このクーポンは使用済みです</p>
           )}
           <p className="mt-3 rounded-xl bg-white/15 py-2.5 text-base font-extrabold">この画面をお店の人に見せてください</p>
-          <p className="mt-2 text-xs text-white/80">
-            ご利用ありがとうございました！
-          </p>
           {!shop?.benefitPhotos[benefitName(claim.benefit)] && !isAdmin && <div className="flex-1" />}
           {isAdmin && (
             <button onClick={handleReset} className="mt-2 text-xs text-white/50 underline">
@@ -283,7 +280,7 @@ export default function CouponPage() {
         {/* お店の写真(店名は写真に入れる)。まだないときは、運営には写真の枠、利用者には北大との位置関係の地図 */}
         <div className="relative">
           {shop?.photo || (shop && isAdmin) ? (
-            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} position={shop.photoPosition} className="h-56" />
+            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} position={shop.photoPosition} eager className="h-56" />
           ) : shop ? (
             <div className="relative h-56 overflow-hidden bg-[#EEF2F5]">
               <ShopMap shops={[shop]} selectedId={shop.id} onSelect={() => {}} bottomPadding={0} interactive={false} attributionClass="right-1 top-1" />
