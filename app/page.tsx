@@ -12,6 +12,7 @@ import HokkumaMascot from "@/components/HokkumaMascot";
 import { IconPackage, IconHeart, IconX, IconMenu } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import ItemThumb from "@/components/ItemThumb";
 
 const categories = ["すべて", "教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["すべて", "北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -190,7 +191,7 @@ function HomeContent() {
       >
         <div className="relative aspect-square overflow-hidden bg-stone-100">
           {image ? (
-            <img
+            <ItemThumb
               src={image}
               alt=""
               // 最初の数件以外は、画面に近づいてから読み込む(最初の表示を速くする)

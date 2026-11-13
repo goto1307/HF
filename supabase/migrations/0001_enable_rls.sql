@@ -5738,3 +5738,53 @@ where id = 'futagozan-1';
 update public.coupon set
   notes = '店内でお食事の方のみ使えます（テイクアウトは対象外です）。期間中は何回でも使えます（1回の使用につき、特典は1つです）。ハッピーアワー（17:00〜19:00）と一緒に使えます。月曜日は定休日です。'
 where id = 'futagozan-1';
+
+-- ============================================================
+-- PART AY: 一覧用の小さい写真(サムネイル)を置く場所 thumbs/ を守る
+-- ============================================================
+-- 商品の写真は、一覧では images バケットの thumbs/<元のファイル名> にある小さい写真を出す
+-- (lib/thumb.ts、components/ItemThumb.tsx)。写真のファイル名は公開URLから分かるので、
+-- このままだと、他人の商品の写真と同じ名前で thumbs/ に別の画像を先に置かれると、
+-- 一覧にその画像が出てしまう。そこで thumbs/ に置けるのを
+--   ・元の写真をアップロードした本人
+--   ・管理者(古い写真のサムネイルをまとめて作る /admin/thumbs のため)
+-- だけにする。それ以外の場所(ふつうの写真・アイコン)のアップロードは今までどおり。
+-- 何度実行しても大丈夫
+
+-- thumbs/xxx.jpg を置いてよいか(元の xxx.jpg を自分が上げたか、管理者か)。
+-- storage.objects は利用者からは読めないので、SECURITY DEFINER の関数の中で確かめる
+create or replace function public.can_upload_thumb(p_name text)
+returns boolean
+language sql
+security definer
+set search_path = public, storage
+stable
+as $$
+  select p_name like 'thumbs/%'
+    and (
+      public.is_admin()
+      or exists (
+        select 1 from storage.objects o
+        where o.bucket_id = 'images'
+          and o.name = substring(p_name from 8)
+          and coalesce(o.owner_id, o.owner::text) = auth.uid()::text
+      )
+    );
+$$;
+
+revoke all on function public.can_upload_thumb(text) from public;
+grant execute on function public.can_upload_thumb(text) to authenticated;
+
+-- ふつうの写真・アイコン: thumbs/ 以外なら今までどおり誰でも(ログインしていれば)置ける
+drop policy if exists "images_insert_authenticated" on storage.objects;
+create policy "images_insert_authenticated"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'images' and name not like 'thumbs/%');
+
+-- サムネイル: 元の写真を上げた本人か管理者だけ
+drop policy if exists "images_insert_thumbs" on storage.objects;
+create policy "images_insert_thumbs"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'images' and public.can_upload_thumb(name));

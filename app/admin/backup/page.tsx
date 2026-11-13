@@ -66,6 +66,7 @@ export default function AdminBackup() {
           <h2 className="text-2xl font-bold">データバックアップ</h2>
           <div className="flex gap-3">
             <Link href="/admin/log" className="text-sm font-bold text-orange-700 hover:underline">操作ログへ</Link>
+            <Link href="/admin/thumbs" className="text-sm font-bold text-orange-700 hover:underline">一覧用の写真を作る</Link>
           </div>
         </div>
 
