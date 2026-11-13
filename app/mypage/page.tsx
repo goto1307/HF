@@ -72,43 +72,53 @@ export default function MyPage() {
       return;
     }
 
+    const uid = user.id;
     const fetchData = async () => {
-      const { data: myItems } = await supabase
-        .from("item")
-        .select(ITEM_COLUMNS)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (myItems) setItems(myItems);
+      // 以前は下の読み込みを1つずつ順番に待っていて(データベースはシンガポールにあり1回0.1〜0.6秒)、
+      // マイページが出るまで合計1.5〜3秒かかっていた。順番に関係ないので、全部同時に読む
+      const [itemsRes, reviewsRes, purchasedRes, unreadRes, blockedRes, profileRes] = await Promise.all([
+        supabase
+          .from("item")
+          .select(ITEM_COLUMNS)
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("review")
+          .select("*")
+          .eq("seller_id", uid)
+          .order("created_at", { ascending: false }),
+        // buyer_id は購入(mark_item_sold)時にセットされ、cancel_purchase等の
+        // キャンセルで null に戻る。以前はメッセージ履歴から算出していたため、
+        // キャンセル済みの取引が「購入した商品」に残り続けるバグがあった。
+        // buyer_id は一般ユーザーが直接読めないため、自分の購入分だけ返す関数を使う
+        supabase.rpc("my_purchased_items"),
+        // 個別チャットの未読: 「取引相手からメッセージが届きました」の未読の通知がある取引
+        // (文言は DB の notify_on_new_message() が作るものと一致させること)
+        supabase
+          .from("notification")
+          .select("item_id")
+          .eq("user_id", uid)
+          .eq("read", false)
+          .like("message", "%取引相手からメッセージが届きました%"),
+        supabase
+          .from("blocked_user")
+          .select("blocked_id")
+          .eq("blocker_id", uid)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("profile")
+          .select("bio,gender,age")
+          .eq("user_id", uid)
+          .maybeSingle(),
+      ]);
 
-      const { data: myReviews } = await supabase
-        .from("review")
-        .select("*")
-        .eq("seller_id", user.id)
-        .order("created_at", { ascending: false });
-      if (myReviews) setReviews(myReviews);
+      if (itemsRes.data) setItems(itemsRes.data);
+      if (reviewsRes.data) setReviews(reviewsRes.data);
+      if (purchasedRes.data) setPurchases(purchasedRes.data);
+      setUnreadChatItems(new Set((unreadRes.data ?? []).map((r) => r.item_id).filter((id): id is number => id !== null)));
 
-      // buyer_id は購入(mark_item_sold)時にセットされ、cancel_purchase等の
-      // キャンセルで null に戻る。以前はメッセージ履歴から算出していたため、
-      // キャンセル済みの取引が「購入した商品」に残り続けるバグがあった。
-      // buyer_id は一般ユーザーが直接読めないため、自分の購入分だけ返す関数を使う
-      const { data: purchasedItems } = await supabase.rpc("my_purchased_items");
-      if (purchasedItems) setPurchases(purchasedItems);
-
-      // 個別チャットの未読: 「取引相手からメッセージが届きました」の未読の通知がある取引
-      // (文言は DB の notify_on_new_message() が作るものと一致させること)
-      const { data: unreadRows } = await supabase
-        .from("notification")
-        .select("item_id")
-        .eq("user_id", user.id)
-        .eq("read", false)
-        .like("message", "%取引相手からメッセージが届きました%");
-      setUnreadChatItems(new Set((unreadRows ?? []).map((r) => r.item_id).filter((id): id is number => id !== null)));
-
-      const { data: blockedRows } = await supabase
-        .from("blocked_user")
-        .select("blocked_id")
-        .eq("blocker_id", user.id)
-        .order("created_at", { ascending: false });
+      // ブロックした人のニックネームは、ブロックした人の一覧がわかってから読む
+      const blockedRows = blockedRes.data;
       if (blockedRows && blockedRows.length > 0) {
         const ids = blockedRows.map((r) => r.blocked_id);
         const { data: blockedItems } = await supabase.from("item").select("user_id,nickname").in("user_id", ids);
@@ -116,11 +126,7 @@ export default function MyPage() {
         setBlockedUsers(ids.map((id) => ({ blocked_id: id, nickname: nicknameById.get(id) ?? null })));
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profile")
-        .select("bio,gender,age")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data: profileData, error: profileError } = profileRes;
       if (profileError) {
         setProfileAvailable(false);
       } else if (profileData) {
@@ -132,7 +138,9 @@ export default function MyPage() {
       setDataLoading(false);
     };
     fetchData();
-  }, [authLoading, user, router]);
+    // user そのものではなく user?.id で見る(同じ人のまま、ログイン情報が裏で更新されたときに読み直さない)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id, router]);
 
   const loading = authLoading || dataLoading;
 
