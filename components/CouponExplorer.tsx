@@ -29,7 +29,8 @@ type Props = {
 };
 
 const SHEET_RATIO = 0.72; // シートの高さ(地図の高さに対する割合)。max-h-[72%] と合わせる
-// パソコンなど横に広い画面(md = 幅768px以上)では、シートを下からではなく右側の縦長のパネルで出す。
+// パソコンなど横に広い画面(md = 幅768px以上)では、シートを下からではなく、
+// Googleマップのように左端に上から下までの縦長のパネルで出す。
 // 幅は下の md:w-[400px] と合わせる(地図をずらす量に使う)
 const PANEL_WIDTH = 400;
 const WIDE_QUERY = "(min-width: 768px)";
@@ -85,6 +86,8 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
   const dragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     // ボタン(閉じる・タブ)を押したときは、なぞる動きとして扱わない
     if ((e.target as HTMLElement).closest("button, a")) return;
+    // パソコンの横のパネルは、なぞって閉じない(×ボタンで閉じる)
+    if (window.matchMedia(WIDE_QUERY).matches) return;
     drag.current = { startY: e.clientY, dy: 0, id: e.pointerId };
     e.currentTarget.setPointerCapture(e.pointerId);
     if (sheetRef.current) sheetRef.current.style.transition = "none";
@@ -142,16 +145,16 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         selectedId={selectedId}
         onSelect={select}
         bottomPadding={selectedId && !wide ? SHEET_RATIO : 0.2}
-        rightPadding={selectedId && wide ? PANEL_WIDTH + 12 : 0}
+        leftPadding={selectedId && wide ? PANEL_WIDTH : 0}
         attributionClass="right-1 bottom-1"
         onMapTap={isAdmin ? handleMapTap : undefined}
         showLocate
-        locateClass={selectedId ? "right-3 top-[64px] md:right-[424px]" : "right-3 top-[64px]"}
+        locateClass="right-3 top-[64px]"
       />
       {isAdmin && (
         <button
           onClick={() => setPicking((v) => !v)}
-          className={`absolute left-3 top-[60px] z-10 rounded-full px-3 py-1.5 text-xs font-bold shadow-md ${
+          className={`absolute left-3 top-[60px] z-10 ${shop ? "md:left-[412px]" : ""} rounded-full px-3 py-1.5 text-xs font-bold shadow-md ${
             picking ? "bg-[#F2C14E] text-[#1B243A]" : "bg-white/95 text-[#2F3E5C]"
           }`}
         >
@@ -160,7 +163,8 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
       )}
 
       {/* 上に浮かべるもの: 件数とクーポンボックス */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
+      {/* パソコンでパネルが開いている間は、パネルの右側に寄せる */}
+      <div className={`pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3 ${shop ? "md:pl-[412px]" : ""}`}>
         {/* 押せない、ただの表示(四角い札) */}
         <p className="pointer-events-auto rounded-sm bg-white/90 px-2.5 py-1.5 text-xs font-bold text-[#1B243A]">
           現在配布中のクーポン <span className="text-[#BA421D]">{live.length}件</span>
@@ -208,12 +212,12 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         </div>
       )}
 
-      {/* お店を選んだとき: スマホは下からシート。md 以上(パソコン)は右側に縦長のパネル(上のクーポンボックスは隠さない) */}
+      {/* お店を選んだとき: スマホは下からシート。md 以上(パソコン)は左端に上から下までの縦長のパネル */}
       {shop && (
         <section
           ref={sheetRef}
           aria-label={`${shop.name}の情報`}
-          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto overscroll-contain rounded-t-[28px] md:inset-x-auto md:right-3 md:top-[60px] md:bottom-3 md:w-[400px] md:max-h-none md:rounded-[28px] bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] animate-[sheet-up_260ms_ease-out] motion-reduce:animate-none"
+          className="absolute inset-x-0 bottom-0 z-20 max-h-[72%] overflow-y-auto overscroll-contain rounded-t-[28px] md:inset-x-auto md:left-0 md:top-0 md:w-[400px] md:max-h-none md:rounded-none bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] md:shadow-[8px_0_24px_rgba(27,36,58,.2)] animate-[sheet-up_260ms_ease-out] md:animate-[panel-in_220ms_ease-out] motion-reduce:animate-none"
         >
           {/* 上の部分(つまみ・店名・タブ)を下へなぞると閉じる */}
           <div
@@ -224,9 +228,10 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
             onPointerCancel={dragEnd}
           >
             {/* 店名のところだけ朱色 */}
-            <div className="rounded-t-[28px] bg-[#BA421D] px-6 pb-5 pt-2.5 text-white">
-              <div className="mx-auto h-1.5 w-10 rounded-full bg-white/35" aria-hidden />
-              <div className="mt-3 flex items-start justify-between gap-3">
+            <div className="rounded-t-[28px] md:rounded-none bg-[#BA421D] px-6 pb-5 pt-2.5 md:pt-5 text-white">
+              {/* つまみ(なぞって閉じる印)はスマホだけ */}
+              <div className="mx-auto h-1.5 w-10 rounded-full bg-white/35 md:hidden" aria-hidden />
+              <div className="mt-3 md:mt-0 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2 text-xs text-white/90">
                     {shop.genre}
@@ -295,7 +300,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         />
       )}
 
-      <style>{`@keyframes sheet-up { from { transform: translateY(40%); opacity: .6; } to { transform: none; opacity: 1; } }`}</style>
+      <style>{`@keyframes sheet-up { from { transform: translateY(40%); opacity: .6; } to { transform: none; opacity: 1; } } @keyframes panel-in { from { transform: translateX(-24px); opacity: .6; } to { transform: none; opacity: 1; } }`}</style>
     </div>
   );
 }
