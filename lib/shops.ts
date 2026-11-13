@@ -60,6 +60,9 @@ export const SHOPS: Shop[] = [
     // 例: "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg"
     benefitPhotos: {
       "ザンギ増量": "/shops/futagozan/zangi.jpg", // 6番
+      // 8番。名前を「昆布茶1杯」→「あっつアツ昆布茶」に変えた(PART BB)。SQL の実行前後どちらでも出るよう両方に付ける
+      "あっつアツ昆布茶": "/shops/futagozan/konbucha.jpg",
+      "昆布茶1杯": "/shops/futagozan/konbucha.jpg",
     },
     couponImage: undefined,
     menuNote: null,

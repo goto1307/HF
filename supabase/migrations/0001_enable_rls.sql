@@ -5836,3 +5836,21 @@ $$;
 update public.coupon set
   time_windows = '[{"from":"13:00","to":"14:00","use_from":"12:45","use_to":"14:10"},{"from":"17:00","to":"19:00","use_from":"17:00","use_to":"19:15"}]'
 where id = 'futagozan-1';
+
+-- ============================================================
+-- PART BB: ふたごザンの特典「昆布茶1杯」を「あっつアツ昆布茶」に名前を変える
+-- ============================================================
+-- 出淵さんの依頼。説明(あたたかい昆布茶を1杯サービスします)・ほかの特典・並びは変えない。
+-- 特典の写真は lib/shops.ts の benefitPhotos(public/shops/futagozan/konbucha.jpg)。
+-- 何度実行しても大丈夫(2回目以降は置き換えるものがないので何も変わらない)
+update public.coupon set
+  benefits = (
+    select array_agg(
+      case when b like '昆布茶1杯｜%'
+        then 'あっつアツ昆布茶｜あたたかい昆布茶を1杯サービスします'
+        else b end
+      order by ord)
+    from unnest(benefits) with ordinality as t(b, ord)
+  )
+where id = 'futagozan-1'
+  and exists (select 1 from unnest(benefits) as b where b like '昆布茶1杯｜%');
