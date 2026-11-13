@@ -81,27 +81,33 @@ function HomeContent() {
     setHeroDismissed(true);
   };
 
+  // 商品の一覧は、ページを開いたときに1回だけ読む。
+  // (以前はログイン状態がわかるたびに読み直していて、ログイン中の人は同じものを2回読んでいた)
+  // いいねの数も同時に読み始めて、待ち時間を短くする
+  const userId = user?.id ?? null;
   useEffect(() => {
-    const fetchAll = async () => {
+    (async () => {
       const { data } = await supabase.from("item").select(ITEM_COLUMNS).order("created_at", { ascending: false });
       if (data) setItems(data);
-
-      const { data: favData } = await supabase.from("favorite").select("item_id, user_id");
-      if (favData) {
-        const counts: Record<number, number> = {};
-        const mine = new Set<number>();
-        for (const f of favData) {
-          counts[f.item_id] = (counts[f.item_id] || 0) + 1;
-          if (user && f.user_id === user.id) mine.add(f.item_id);
-        }
-        setLikeCounts(counts);
-        setLikedByMe(mine);
-      }
-
       setLoading(false);
-    };
-    fetchAll();
-  }, [user]);
+    })();
+  }, []);
+
+  // いいねの数と、自分がいいねしたもの。ログインした・ログアウトしたときだけ読み直す
+  useEffect(() => {
+    (async () => {
+      const { data: favData } = await supabase.from("favorite").select("item_id, user_id");
+      if (!favData) return;
+      const counts: Record<number, number> = {};
+      const mine = new Set<number>();
+      for (const f of favData) {
+        counts[f.item_id] = (counts[f.item_id] || 0) + 1;
+        if (userId && f.user_id === userId) mine.add(f.item_id);
+      }
+      setLikeCounts(counts);
+      setLikedByMe(mine);
+    })();
+  }, [userId]);
 
   const toggleLike = async (e: React.MouseEvent, itemId: number) => {
     e.preventDefault();

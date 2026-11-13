@@ -11,6 +11,9 @@ const mplusRounded = M_PLUS_Rounded_1c({
   variable: "--font-mplus-rounded",
   subsets: ["latin"],
   weight: ["400", "500", "700", "800"],
+  // 日本語のフォントは細かい部品(数百個)に分かれている。全部を先に読み込むと初回に約3MBになり、
+  // 商品や写真の読み込みが遅れていたため、画面に出る文字の部品だけを読み込むようにする
+  preload: false,
 });
 
 export const metadata: Metadata = {
