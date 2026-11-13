@@ -121,7 +121,7 @@ export function formatWindows(windows: TimeWindow[]) {
 
 // 特典の書き方: 「特典名｜ひとこと｜注意書き」(｜は全角の縦線。ひとこと・注意書きはなくてもよい)
 // 例: "ザンギ増量｜2個注文で+1個、5個注文で+2個"
-//     "パルプンテ｜何が出てくるかはお楽しみ｜変更・キャンセルはできません。好き嫌いやアレルギーがある方はご利用をお控えください"
+//     "店主のおまかせ一品｜何が出てくるかはお楽しみ｜変更・キャンセルはできません。好き嫌いやアレルギーがある方はご利用をお控えください"
 // DB(coupon.benefits)にはこの文字列のまま入れる。使ったときに記録されるのも、この文字列そのもの
 export type Benefit = { raw: string; name: string; detail: string | null; caution: string | null };
 

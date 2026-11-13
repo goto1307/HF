@@ -5788,3 +5788,20 @@ create policy "images_insert_thumbs"
 on storage.objects for insert
 to authenticated
 with check (bucket_id = 'images' and public.can_upload_thumb(name));
+
+-- ============================================================
+-- PART AZ: ふたごザンの特典「パルプンテ」を「店主のおまかせ一品」に名前を変える
+-- ============================================================
+-- 特典の並び・ほかの特典・注意書きは変えない。「パルプンテ｜」で始まる1つだけを置き換える。
+-- 何度実行しても大丈夫(2回目以降は置き換えるものがないので何も変わらない)
+update public.coupon set
+  benefits = (
+    select array_agg(
+      case when b like 'パルプンテ｜%'
+        then '店主のおまかせ一品｜店主のおまかせで、1品出てきます｜内容の変更・キャンセルはできません。アレルギーのある方、好き嫌いの多い方はご利用をお控えください'
+        else b end
+      order by ord)
+    from unnest(benefits) with ordinality as t(b, ord)
+  )
+where id = 'futagozan-1'
+  and exists (select 1 from unnest(benefits) as b where b like 'パルプンテ｜%');
