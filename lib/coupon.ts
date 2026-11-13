@@ -7,7 +7,9 @@ export const COUPON_COLUMNS =
   "id,shop_name,title,description,benefits,notes,claim_from,use_from,use_until,weekdays,time_windows,max_claims,max_uses_per_user,active";
 export const CLAIM_COLUMNS = "id,coupon_id,claimed_at,used_at,benefit,first_visit,use_count";
 
-export type TimeWindow = { from: string; to: string }; // "13:00" のような日本時間
+// "13:00" のような日本時間。from〜to は画面に出す時間(お店と決めた時間)。
+// use_from・use_to があれば、実際に使えるのはその時間(ギリギリに来た人のための余裕。画面には出さない)
+export type TimeWindow = { from: string; to: string; use_from?: string; use_to?: string };
 
 export type Coupon = {
   id: string;
@@ -54,7 +56,7 @@ export function usableNow(c: Coupon, now = new Date()) {
   if (date < c.use_from || date > c.use_until) return false;
   if (!c.weekdays.includes(isoDow)) return false;
   if (c.time_windows.length === 0) return true;
-  return c.time_windows.some((w) => time >= w.from && time < w.to);
+  return c.time_windows.some((w) => time >= (w.use_from ?? w.from) && time < (w.use_to ?? w.to));
 }
 
 // 受け取れる期間か
