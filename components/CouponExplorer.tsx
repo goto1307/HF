@@ -382,6 +382,16 @@ function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
             <dd className="font-bold">{shop.closed}</dd>
           </>
         )}
+        {shop.phone && (
+          <>
+            <dt className="text-[#2F3E5C]/60">電話</dt>
+            <dd>
+              <a href={`tel:${shop.phone.replace(/-/g, "")}`} className="font-bold text-[#BA421D] underline">
+                {shop.phone}
+              </a>
+            </dd>
+          </>
+        )}
       </dl>
 
 

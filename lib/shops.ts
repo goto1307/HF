@@ -16,6 +16,7 @@ export type Shop = {
   genre: string;
   hours: string | null; // 営業時間
   closed: string | null; // 定休日
+  phone: string | null; // 電話番号(押すと電話をかけられる)
   menu: MenuItem[];
   menuNote: string | null; // メニューの注意書き(いつ時点の情報かなど)
   photoPosition?: string; // いちばん上の写真のどこを見せるか(CSS の object-position。例: "50% 12%")
@@ -41,6 +42,7 @@ export const SHOPS: Shop[] = [
     genre: "海鮮丼・ザンギ",
     hours: "11:00〜14:00、17:00〜22:00",
     closed: "月曜日",
+    phone: "011-600-6525",
     menu: [
       { name: "サーモンまにあ丼", price: 1200 },
       { name: "まぐろマニア丼", price: 1200 },
