@@ -8,10 +8,18 @@ import { supabase } from "@/lib/supabase";
 export const THUMB_SIZE = 480; // 一覧の枠(スマホで2列、パソコンで最大4〜5列)の2倍くらい
 const THUMB_QUALITY = 0.8;
 const THUMB_DIR = "thumbs/";
-// 写真のファイル名は毎回ちがう(lib/uploadPath.ts)ので、ブラウザに長く覚えてもらってよい(1年)
-export const LONG_CACHE = "31536000";
+// 写真をブラウザ・配信サーバー(CDN)に覚えてもらう時間(1日)。
+// ファイル名は毎回ちがう(lib/uploadPath.ts)ので長くしても表示は壊れないが、無料プランの Supabase は
+// 写真を消しても配信サーバーの覚えた分をすぐには消せない。不適切な写真を運営が消したとき、
+// 長く残らないように1日にしておく(以前は1時間。1年にすると最長1年残るおそれがある)
+export const LONG_CACHE = "86400";
 
 const PUBLIC_PREFIX = "/storage/v1/object/public/images/";
+
+// images バケットの写真のURLか(利用者が書き換えた、よそのURLではないか)
+export function isOwnImageUrl(url: string): boolean {
+  return url.includes(PUBLIC_PREFIX) && imageNameFromUrl(url) !== null;
+}
 
 // 元の写真の公開URL → サムネイルの公開URL。images バケットの写真でなければ、そのまま返す
 export function thumbUrl(url: string): string {
