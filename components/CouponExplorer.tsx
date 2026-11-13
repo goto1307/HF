@@ -133,7 +133,8 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     const el = sheetRef.current;
     drag.current = null;
     if (!d || !el) return;
-    el.style.transition = "transform 200ms ease-out";
+    // 元の高さに戻すときは、ばねのように跳ね返らせず、その場でぴたっと止める
+    el.style.transition = "none";
     // ほとんど動かさずに、つまみを押しただけのとき
     if (Math.abs(d.dy) < 6) {
       clearDragStyle(el);
@@ -147,6 +148,8 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
       clearDragStyle(el);
       setExpanded(false);
     } else if (d.dy > 80) {
+      // 閉じるときだけ、下へすっと消える動きを付ける
+      el.style.transition = "transform 200ms ease-out";
       el.style.transform = "translateY(100%)";
       setTimeout(() => select(null), 190);
     } else {
@@ -259,7 +262,7 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         <section
           ref={sheetRef}
           aria-label={`${shop.name}の情報`}
-          className={`absolute inset-x-0 bottom-0 z-20 ${expanded ? "top-2 max-h-none" : "max-h-[72%]"} overflow-y-auto overscroll-contain rounded-t-[28px] md:inset-x-auto md:left-0 md:top-0 md:w-[400px] md:max-h-none md:rounded-none bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] md:shadow-[8px_0_24px_rgba(27,36,58,.2)] animate-[sheet-up_260ms_ease-out] md:animate-[panel-in_220ms_ease-out] motion-reduce:animate-none`}
+          className={`absolute inset-x-0 bottom-0 z-20 ${expanded ? "top-2 max-h-none" : "max-h-[72%]"} overflow-y-auto overscroll-none rounded-t-[28px] md:inset-x-auto md:left-0 md:top-0 md:w-[400px] md:max-h-none md:rounded-none bg-white text-[#2F3E5C] shadow-[0_-8px_24px_rgba(27,36,58,.25)] md:shadow-[8px_0_24px_rgba(27,36,58,.2)] animate-[sheet-up_260ms_ease-out] md:animate-[panel-in_220ms_ease-out] motion-reduce:animate-none`}
         >
           {/* 上の部分(つまみ・店名・タブ)を下へなぞると閉じる */}
           <div
