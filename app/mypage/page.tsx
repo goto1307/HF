@@ -18,6 +18,7 @@ import { AVATAR_PRESETS } from "@/lib/avatarPresets";
 import { IconPencil, IconPackage } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import ItemThumb from "@/components/ItemThumb";
 
 type Item = {
   id: number;
@@ -484,7 +485,7 @@ export default function MyPage() {
                     <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                       <Link href={`/items/${item.id}`}>
                         {(item.image_urls?.[0] ?? item.image_url) ? (
-                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
+                          <ItemThumb src={(item.image_urls?.[0] ?? item.image_url)!} alt={item.title} loading="lazy" decoding="async" className="w-full h-32 object-cover" />
                         ) : (
                           <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200"><IconPackage size={32} /></div>
                         )}
@@ -552,7 +553,7 @@ export default function MyPage() {
                     <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                       <Link href={`/items/${item.id}`} className="relative block">
                         {(item.image_urls?.[0] ?? item.image_url) ? (
-                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover" />
+                          <ItemThumb src={(item.image_urls?.[0] ?? item.image_url)!} alt={item.title} loading="lazy" decoding="async" className="w-full h-32 object-cover" />
                         ) : (
                           <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200"><IconPackage size={32} /></div>
                         )}
@@ -594,7 +595,7 @@ export default function MyPage() {
                     <div key={item.id} className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                       <Link href={`/items/${item.id}`} className="relative block">
                         {(item.image_urls?.[0] ?? item.image_url) ? (
-                          <img src={item.image_urls?.[0] ?? item.image_url ?? undefined} alt={item.title} className="w-full h-32 object-cover opacity-50" />
+                          <ItemThumb src={(item.image_urls?.[0] ?? item.image_url)!} alt={item.title} loading="lazy" decoding="async" className="w-full h-32 object-cover opacity-50" />
                         ) : (
                           <div className="bg-orange-50 h-32 flex items-center justify-center text-orange-200 opacity-50"><IconPackage size={32} /></div>
                         )}

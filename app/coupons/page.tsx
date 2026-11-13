@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { preconnect } from "react-dom";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
@@ -31,21 +32,34 @@ export default function CouponsPage() {
   // 地図のページは、いまは運営だけの試作
   const isAdmin = isAdminEmail(user?.email);
 
+  // 地図を出す人(いまは運営だけ)は、クーポンのデータを待たずに、地図のプログラムと地図の部品を
+  // 先に読み始めておく。データが届いたときには地図の準備ができているので、早く出る
+  useEffect(() => {
+    if (!isAdmin) return;
+    preconnect("https://tiles.openfreemap.org");
+    import("@/components/ShopMap").catch(() => {});
+    import("maplibre-gl").catch(() => {});
+    fetch("/maplibre-gl-worker.mjs").catch(() => {});
+  }, [isAdmin]);
+
+  const userId = user?.id ?? null;
   useEffect(() => {
     if (authLoading) return;
     (async () => {
-      const { data } = await supabase.from("coupon").select(COUPON_COLUMNS).order("use_until", { ascending: false });
+      // クーポンと、自分が受け取ったクーポンは、順番に待たずに同時に読む
+      const [{ data }, mineRes] = await Promise.all([
+        supabase.from("coupon").select(COUPON_COLUMNS).order("use_until", { ascending: false }),
+        userId
+          ? supabase.from("coupon_claim").select("coupon_id,used_at,use_count").eq("user_id", userId)
+          : Promise.resolve(null),
+      ]);
       setCoupons((data as Coupon[] | null) ?? []);
-      if (user) {
-        const { data: mine } = await supabase
-          .from("coupon_claim")
-          .select("coupon_id,used_at,use_count")
-          .eq("user_id", user.id);
-        setClaims(Object.fromEntries(((mine as MyClaim[] | null) ?? []).map((c) => [c.coupon_id, c])));
+      if (mineRes) {
+        setClaims(Object.fromEntries(((mineRes.data as MyClaim[] | null) ?? []).map((c) => [c.coupon_id, c])));
       }
       setLoading(false);
     })();
-  }, [authLoading, user]);
+  }, [authLoading, userId]);
 
   const status = (c: Coupon) => {
     const mine = claims[c.id];

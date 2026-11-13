@@ -12,6 +12,7 @@ import ImageCropper from "@/components/ImageCropper";
 import { IconX } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import { LONG_CACHE, uploadThumb } from "@/lib/thumb";
 
 const categories = ["教科書", "自転車", "家電・家具", "衣類", "その他"];
 const AREAS = ["北11条エリア", "工学部棟エリア", "教養棟エリア", "サークル会館エリア", "北24条エリア", "北18条エリア"];
@@ -125,12 +126,15 @@ export default function EditItem() {
     const uploadedUrls: string[] = [];
     for (const file of newImages) {
       const fileName = makeImagePath();
-      const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file);
+      // 写真のファイル名は毎回ちがうので、ブラウザに長く覚えてもらう(2回目から速く出る)
+      const { error: uploadError } = await supabase.storage.from("images").upload(fileName, file, { cacheControl: LONG_CACHE });
       if (uploadError) {
         toast("画像のアップロードに失敗しました");
         setSaving(false);
         return;
       }
+      // 一覧用の小さい写真も作る(失敗しても出品は続ける。一覧では元の写真が出るだけ)
+      await uploadThumb(fileName, file);
       const { data: urlData } = supabase.storage.from("images").getPublicUrl(fileName);
       uploadedUrls.push(urlData.publicUrl);
     }

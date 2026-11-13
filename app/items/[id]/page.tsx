@@ -16,6 +16,7 @@ import { TELECOM_SAFE_MODE } from "@/lib/featureFlags";
 import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/components/icons";
 import { loginPath, goBack } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import ItemThumb from "@/components/ItemThumb";
 
 type Item = {
   id: number;
@@ -409,7 +410,7 @@ export default function ItemDetail() {
                   onClick={() => setActiveImage(i)}
                   className={`w-14 h-14 shrink-0 rounded-lg overflow-hidden border-2 ${activeImage === i ? "border-orange-600" : "border-transparent"}`}
                 >
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <ItemThumb src={url} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
