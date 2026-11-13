@@ -354,7 +354,7 @@ function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
       {/* お店の写真(届いたら lib/shops.ts の photo・photos に足す。まだないときは運営にだけ空き枠を出す) */}
       {(shop.photo || shop.photos.length > 0 || isAdmin) && (
         <section aria-label="お店の写真" className="space-y-2">
-          <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} position={shop.photoPosition} className="h-44 rounded-2xl" />
+          <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} className="aspect-square rounded-2xl" />
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: Math.max(shop.photos.length, isAdmin ? shop.photoSlots : 0) }, (_, i) => shop.photos[i]).slice(0, 3).map((src, i) => (
               <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} no={PHOTO_NO.smallFrom + i} className="aspect-square rounded-xl" />
