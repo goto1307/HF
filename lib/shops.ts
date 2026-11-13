@@ -65,6 +65,10 @@ export const SHOPS: Shop[] = [
       // 8番。名前を「昆布茶1杯」→「あっつアツ昆布茶」に変えた(PART BB)。SQL の実行前後どちらでも出るよう両方に付ける
       "あっつアツ昆布茶": "/shops/futagozan/konbucha.jpg",
       "昆布茶1杯": "/shops/futagozan/konbucha.jpg",
+      // 9番。フォント「Yuji Boku」(SIL Open Font License 1.1)の「？」を朱色で置いた画像(画像生成AIの絵ではない)。
+      // 名前を「パルプンテ」→「店主のおまかせ一品」に変えた(PART AZ)。SQL の実行前後どちらでも出るよう両方に付ける
+      "店主のおまかせ一品": "/shops/futagozan/omakase.jpg",
+      "パルプンテ": "/shops/futagozan/omakase.jpg",
     },
     couponImage: undefined,
     menuNote: null,
