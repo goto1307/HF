@@ -17,6 +17,7 @@ import { IconPackage, IconHeart, IconX, IconWarning, IconStar } from "@/componen
 import { loginPath, goBack } from "@/lib/nav";
 import { toast } from "@/lib/toast";
 import ItemThumb from "@/components/ItemThumb";
+import { thumbUrl } from "@/lib/thumb";
 
 type Item = {
   id: number;
@@ -102,21 +103,22 @@ export default function ItemDetail() {
     fetchAvatars();
   }, [messages, avatarMap]);
 
+  // 商品と購入者は、順番に待たずに同時に読む(以前は商品 → 購入者の順で、待ち時間が2回分かかっていた)。
+  // ログイン状態は user?.id で見る(同じ人のまま読み直さないように)
+  const viewerId = user?.id ?? null;
   useEffect(() => {
     const fetchData = async () => {
-      const { data: itemData } = await supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).maybeSingle();
+      const [{ data: itemData }, buyerRes] = await Promise.all([
+        supabase.from("item").select(ITEM_COLUMNS).eq("id", params.id).maybeSingle(),
+        // 購入者は本人・出品者にだけ返る(それ以外は null)
+        viewerId ? supabase.rpc("get_item_buyer", { p_item_id: Number(params.id) }) : Promise.resolve(null),
+      ]);
       // 削除された・URL が違うなどで見つからないときは、読み込み中のままにせず案内を出す
       if (!itemData) { setNotFound(true); return; }
-      // 購入者は本人・出品者にだけ返る(それ以外は null)
-      let buyerId: string | null = null;
-      if (user) {
-        const { data } = await supabase.rpc("get_item_buyer", { p_item_id: itemData.id });
-        buyerId = data ?? null;
-      }
-      setItem({ ...itemData, buyer_id: buyerId });
+      setItem({ ...itemData, buyer_id: (buyerRes?.data as string | null | undefined) ?? null });
     };
     fetchData();
-  }, [params.id, user]);
+  }, [params.id, viewerId]);
 
   useEffect(() => {
     if (!user) { setMessages([]); return; }
@@ -170,18 +172,17 @@ export default function ItemDetail() {
   useEffect(() => {
     if (!item) return;
     const fetchSellerRating = async () => {
-      const { data } = await supabase.from("review").select("rating").eq("seller_id", item.user_id);
+      // 評価と取引の回数も、同時に読む
+      const [{ data }, { count }] = await Promise.all([
+        supabase.from("review").select("rating").eq("seller_id", item.user_id),
+        supabase.from("item").select("id", { count: "exact", head: true }).eq("user_id", item.user_id).eq("sold", true),
+      ]);
       if (data && data.length > 0) {
         const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
         setSellerRating({ avg, count: data.length });
       } else {
         setSellerRating(null);
       }
-      const { count } = await supabase
-        .from("item")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", item.user_id)
-        .eq("sold", true);
       setSellerDealCount(count ?? 0);
     };
     fetchSellerRating();
@@ -391,7 +392,13 @@ export default function ItemDetail() {
                 className="block w-full cursor-zoom-in"
                 aria-label="画像を拡大表示"
               >
-                <img src={gallery[activeImage]} alt={item.title} className={`block w-full aspect-[4/3] bg-stone-100 object-contain ${item.sold ? "opacity-50" : ""}`} />
+                {/* 大きい写真が届くまでは、一覧で見た小さい写真(すぐ出る)を下に敷いておく */}
+                <img
+                  src={gallery[activeImage]}
+                  alt={item.title}
+                  style={{ backgroundImage: `url("${thumbUrl(gallery[activeImage])}")`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
+                  className={`block w-full aspect-[4/3] bg-stone-100 object-contain ${item.sold ? "opacity-50" : ""}`}
+                />
               </button>
             ) : (
               <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 ${item.sold ? "opacity-50" : ""}`}><IconPackage size={40} /></div>
