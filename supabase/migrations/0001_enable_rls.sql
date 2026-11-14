@@ -5856,10 +5856,9 @@ where id = 'futagozan-1'
   and exists (select 1 from unnest(benefits) as b where b like '昆布茶1杯｜%');
 
 -- ============================================================
--- PART BC: ニックネームに @ などの一部の記号を使えないようにする
+-- PART BC: ニックネームに @ を使えないようにする
 -- ============================================================
--- 使えない記号: " # $ % & ' ( ) ` @ : ; (半角・全角とも)と、‘ ’ “ ”。! や ? などのほかの記号は使える。
--- メールアドレスをそのままニックネームにしてしまう人がいたため(@ を入れられないようにする)。
+-- 使えない文字: @(半角・全角とも)。メールアドレスをそのままニックネームにしてしまう人がいたため。
 -- 画面側の lib/nickname.ts の hasOnlyAllowedChars() と同じ条件にすること。
 -- 新規登録(create_user_nickname)と、マイページでの変更(update_own_nickname)の両方で確かめる。
 -- すでに登録されているニックネームは変えない(次に変えるときから、このルールになる)。
@@ -5870,7 +5869,7 @@ returns boolean
 language sql
 immutable
 as $$
-  select coalesce(p_nickname, '') !~ '["#$%&''()`@:;＂＃＄％＆＇（）｀＠：；‘’“”]';
+  select coalesce(p_nickname, '') !~ '[@＠]';
 $$;
 
 -- 新規登録時に正式なニックネームを作る(PART V のものに、文字のチェックを足した)
@@ -5887,7 +5886,7 @@ begin
     raise exception 'このニックネームは使用できません';
   end if;
   if not public.nickname_chars_ok(v_nickname) then
-    raise exception 'ニックネームに使えない記号が入っています（メールアドレスはニックネームにできません）';
+    raise exception 'ニックネームに使えない文字が含まれています（@）';
   end if;
   insert into public.user_nickname (user_id, nickname) values (new.id, v_nickname)
   on conflict (user_id) do nothing;
@@ -5919,7 +5918,7 @@ begin
     raise exception 'このニックネームは使用できません';
   end if;
   if not public.nickname_chars_ok(v_nickname) then
-    raise exception 'ニックネームに次の記号は使えません：" # $ %% & '' ( ) ` @ : ;（メールアドレスはニックネームにできません）';
+    raise exception 'ニックネームに使えない文字が含まれています（@）';
   end if;
 
   select changed_at into v_last from public.nickname_change where user_id = auth.uid();
