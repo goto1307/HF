@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { CLAIM_COLUMNS, COUPON_COLUMNS, type Coupon, type CouponClaim } from "@/lib/coupon";
 import { loginPath } from "@/lib/nav";
+import { isAdminEmail } from "@/lib/adminEmails";
 import Header from "@/components/Header";
 import Skeleton from "@/components/Skeleton";
 import CouponBoxList from "@/components/CouponBoxList";
@@ -65,7 +66,7 @@ export default function MePage() {
             <Link href="/coupons/box" className="text-sm font-bold text-orange-700">すべて見る</Link>
           </div>
           <div className="mt-4">
-            {rows === null ? <Skeleton className="h-24 rounded-2xl" /> : <CouponBoxList rows={rows.slice(0, 3)} compact theme="light" />}
+            {rows === null ? <Skeleton className="h-24 rounded-2xl" /> : <CouponBoxList rows={rows.slice(0, 3)} compact theme="light" isAdmin={isAdminEmail(user?.email)} />}
           </div>
         </section>
 
