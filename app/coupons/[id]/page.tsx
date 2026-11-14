@@ -374,6 +374,8 @@ export default function CouponPage() {
               <p id="use-confirm-title" className="text-xl font-extrabold leading-snug">
                 「{benefitName(benefit)}」で使います
               </p>
+              {/* 1人1回のクーポンなので、押す前に取り消せないことを伝える */}
+              <p className="mt-2 text-sm font-bold text-[#BA421D]">この操作は取り消せません</p>
               <button
                 autoFocus
                 onClick={doUse}
