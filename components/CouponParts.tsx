@@ -68,42 +68,61 @@ export function CouponConditions({ coupon, place }: { coupon: Coupon; place?: { 
   );
 }
 
-// 特典のカード。selectable のときは1つ選べる(お店で使うとき)。そうでなければ見るだけ
+// 特典の一覧。枠で囲まず「名前 → 説明 → 写真」の順にシンプルに並べる。
+// selectable(onSelect あり)のときは1つ選べる(お店で使うとき。左の丸で選んだものがわかる)。
+// size: "large" はクーポンのページ(写真を横幅いっぱい)、"small" は地図のシート(写真を小さく、2列)
 export function BenefitCards({
   benefits,
   selected = null,
   onSelect,
   photos = {},
   isAdmin = false,
+  size = "large",
 }: {
   benefits: string[];
   selected?: string | null;
   onSelect?: (raw: string) => void;
   photos?: Record<string, string>; // 特典の名前 → 写真(lib/shops.ts の benefitPhotos)
   isAdmin?: boolean; // 写真がまだないとき、運営にだけ空き枠を出す
+  size?: "large" | "small";
 }) {
-  const withPhotos = Object.keys(photos).length > 0 || isAdmin;
   const items = benefits.map(parseBenefit);
   const cautions = items.filter((b) => b.caution);
+  const small = size === "small";
   return (
     <div>
-      <ul className={`grid gap-2.5 ${items.length >= 4 ? "grid-cols-2" : "grid-cols-1"}`} role={onSelect ? "radiogroup" : undefined} aria-label="特典">
+      <ul className={small ? "grid grid-cols-2 gap-x-4 gap-y-6" : "space-y-8"} role={onSelect ? "radiogroup" : undefined} aria-label="特典">
         {items.map((b, i) => {
           const active = selected === b.raw;
+          const hasPhoto = !!photos[b.name] || isAdmin;
           const body = (
             <>
-              {/* 特典の写真(写真の下に名前と説明) */}
-              {withPhotos && (
-                <PhotoSlot src={photos[b.name]} alt={b.name} isAdmin={isAdmin} no={PHOTO_NO.benefitFrom + i} className="mb-2 aspect-[4/3] rounded-xl" />
-              )}
-              <span className={`block ${withPhotos ? "px-1.5" : ""}`}>
-                <span className="block text-[15px] font-extrabold leading-snug">{b.name}</span>
-                {b.detail && <span className="block mt-1 text-xs leading-snug text-[#2F3E5C]/75">{b.detail}</span>}
-                {b.caution && <span className="mt-1.5 inline-block text-[10px] font-bold rounded px-1.5 py-0.5 bg-[#F2C14E] text-[#1B243A]">注意あり</span>}
+              <span className="flex items-start gap-2">
+                {/* 選べるときだけ、左に丸(選んだら塗りつぶし) */}
+                {onSelect && (
+                  <span
+                    aria-hidden
+                    className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${active ? "border-[#BA421D]" : "border-stone-300"}`}
+                  >
+                    {active && <span className="h-2.5 w-2.5 rounded-full bg-[#BA421D]" />}
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className={`block font-extrabold leading-snug ${small ? "text-[15px]" : "text-lg"} ${active ? "text-[#BA421D]" : ""}`}>{b.name}</span>
+                  {b.detail && <span className={`block mt-0.5 leading-snug text-[#2F3E5C]/75 ${small ? "text-xs" : "text-sm"}`}>{b.detail}</span>}
+                </span>
               </span>
+              {hasPhoto && (
+                <PhotoSlot
+                  src={photos[b.name]}
+                  alt={b.name}
+                  isAdmin={isAdmin}
+                  no={PHOTO_NO.benefitFrom + i}
+                  className={`mt-2 rounded-xl ${small ? "aspect-[4/3]" : "aspect-[4/3]"} ${onSelect && active ? "ring-2 ring-[#BA421D] ring-offset-2" : ""}`}
+                />
+              )}
             </>
           );
-          const base = `block h-full min-h-[64px] w-full rounded-2xl text-left transition-colors ${withPhotos ? "p-2 pb-3" : "px-4 py-3"}`;
           return (
             <li key={b.raw}>
               {onSelect ? (
@@ -112,14 +131,12 @@ export function BenefitCards({
                   role="radio"
                   aria-checked={active}
                   onClick={() => onSelect(b.raw)}
-                  className={`${base} border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA421D] ${
-                    active ? "border-[#BA421D] bg-[#BA421D]/[0.07] shadow-[inset_0_0_0_1px_#BA421D]" : "border-stone-200 bg-white hover:bg-stone-50"
-                  }`}
+                  className="block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BA421D] rounded-xl"
                 >
                   {body}
                 </button>
               ) : (
-                <div className={`${base} border border-stone-200 bg-stone-50`}>{body}</div>
+                <div>{body}</div>
               )}
             </li>
           );
@@ -127,7 +144,7 @@ export function BenefitCards({
       </ul>
       {/* 注意書きのある特典(店主のおまかせ一品など)は、特典のすぐ下に出す */}
       {cautions.map((b) => (
-        <p key={b.raw} className="mt-3 flex gap-2 rounded-xl bg-[#F2C14E]/20 border border-[#F2C14E] px-3 py-2.5 text-xs leading-relaxed text-[#1B243A]">
+        <p key={b.raw} className="mt-4 flex gap-2 rounded-xl bg-[#F2C14E]/20 px-3 py-2.5 text-xs leading-relaxed text-[#1B243A]">
           <span aria-hidden className="font-extrabold text-[#BA421D]">!</span>
           <span><span className="font-bold">{b.name}：</span>{b.caution}</span>
         </p>
@@ -182,23 +199,16 @@ export function CouponHeadline({
   }
   return (
     <div>
-      <h1 className="text-[40px] leading-[1.1] font-black tracking-tight text-white">{coupon.title}</h1>
-      <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-[#1B243A]">
-        <p className="text-xs font-bold text-[#BA421D]">使える時間</p>
-        {coupon.time_windows.length === 0 ? (
-          <p className="text-3xl font-black">営業時間中</p>
-        ) : (
-          <ul className="mt-0.5">
-            {coupon.time_windows.map((w) => (
-              <li key={w.from} className="text-[34px] leading-tight font-black tabular-nums tracking-tight">
-                {w.from}<span className="mx-1 text-2xl">〜</span>{w.to}
-              </li>
-            ))}
-          </ul>
-        )}
+      <h1 className="text-[32px] leading-[1.15] font-black tracking-tight text-white">{coupon.title}</h1>
+      <div className="mt-3 inline-block rounded-xl bg-white px-3 py-2 text-[#1B243A]">
+        <p className="text-[11px] font-bold text-[#BA421D]">使える時間</p>
+        <p className="text-lg font-black tabular-nums leading-tight">{formatWindows(coupon.time_windows)}</p>
       </div>
-      <p className="mt-3 text-lg font-extrabold text-white">{formatWeekdays(coupon.weekdays)}</p>
-      <p className="text-sm font-bold text-white/85">{period}</p>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <p className="text-sm font-extrabold text-white">{formatWeekdays(coupon.weekdays)}</p>
+        {/* 期限は右下に小さく */}
+        <p className="text-right text-[11px] font-bold text-white/80">{period}</p>
+      </div>
     </div>
   );
 }
