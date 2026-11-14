@@ -235,8 +235,9 @@ export default function CouponPage() {
   }
 
   // ---------- 下に固定するボタン ----------
-  const primary = "block w-full rounded-full py-3.5 text-center font-extrabold transition-transform";
-  const enabled = `${primary} bg-[#BA421D] text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
+  // 押しやすいよう大きめに。影は付けない
+  const primary = "block w-full rounded-full py-5 text-center text-lg font-extrabold";
+  const enabled = `${primary} bg-[#BA421D] text-white active:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
   const disabled = `${primary} bg-stone-200 text-stone-500 cursor-not-allowed`;
   const beforeStart = !claim && !claimOpen(coupon, now) && !ended;
 
@@ -335,7 +336,7 @@ export default function CouponPage() {
                     aria-checked={firstVisit === o.v}
                     onClick={() => setFirstVisit(o.v)}
                     className={`min-h-[52px] rounded-2xl border-2 font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA421D] ${
-                      firstVisit === o.v ? "border-[#BA421D] bg-[#BA421D]/[0.07] text-[#BA421D] shadow-[inset_0_0_0_1px_#BA421D]" : "border-stone-200 bg-white"
+                      firstVisit === o.v ? "border-[#BA421D] bg-[#BA421D]/[0.07] text-[#BA421D]" : "border-stone-200 bg-white"
                     }`}
                   >
                     {o.label}
@@ -379,7 +380,7 @@ export default function CouponPage() {
               <button
                 autoFocus
                 onClick={doUse}
-                className="mt-5 block w-full rounded-full bg-[#BA421D] py-3.5 font-extrabold text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform"
+                className="mt-5 block w-full rounded-full bg-[#BA421D] py-4 text-lg font-extrabold text-white active:opacity-80"
               >
                 使う
               </button>

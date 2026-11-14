@@ -215,17 +215,16 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin }: P
       {!shop && shops.length > 0 && (
         <div className="absolute inset-x-0 bottom-4 z-10 flex gap-3 overflow-x-auto p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
           {shops.map((s) => {
+            // お店の名前ではなく、配っているクーポンの名前を出す
+            const c = live.find((x) => s.couponIds.includes(x.id));
             return (
               <button
                 key={s.id}
                 onClick={() => select(s.id)}
-                className="min-w-[78%] sm:min-w-0 sm:w-auto sm:max-w-sm shrink-0 rounded-2xl bg-[#BA421D] p-4 text-left text-white shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
+                className="min-w-[78%] sm:min-w-0 sm:w-auto sm:max-w-sm shrink-0 rounded-2xl bg-[#BA421D] p-4 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
               >
-                <span className="text-xs text-white/85">{s.genre}</span>
-                <span className="block text-lg font-extrabold leading-tight">{s.name}</span>
-                <span className="mt-1.5 inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">
-                  クーポン配布中
-                </span>
+                <span className="inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">配布中</span>
+                <span className="mt-1 block text-lg font-extrabold leading-tight">{c?.title ?? s.name}</span>
                 <span className="mt-2 block text-xs text-white/85">押すとクーポンとお店の情報を見られます</span>
               </button>
             );
@@ -341,7 +340,7 @@ function CouponTab({
   isAdmin: boolean;
 }) {
   const primary = "block w-full rounded-full py-3.5 text-center font-extrabold";
-  const enabled = `${primary} bg-[#BA421D] text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
+  const enabled = `${primary} bg-[#BA421D] text-white active:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
   const disabled = `${primary} bg-stone-200 text-stone-500 cursor-not-allowed`;
   const beforeStart = !claimOpen(coupon) && !hasEnded(coupon);
 
@@ -378,7 +377,7 @@ function CouponTab({
       />
       <h2 className="mt-7 text-xl font-extrabold">特典</h2>
       <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
-      <BenefitCards benefits={coupon.benefits} photos={shop.benefitPhotos} isAdmin={isAdmin} />
+      <BenefitCards benefits={coupon.benefits} photos={shop.benefitPhotos} isAdmin={isAdmin} size="small" />
       <CouponNotes notes={coupon.notes} />
     </div>
   );

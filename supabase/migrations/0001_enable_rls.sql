@@ -5901,3 +5901,18 @@ update public.coupon set
   max_uses_per_user = 1,
   notes = replace(notes, '期間中は何回でも使えます（1回の使用につき、特典は1つです）。', 'お一人さま期間中1回限りです。')
 where id = 'futagozan-1';
+
+-- ============================================================
+-- PART BD: ふたごザンの特典「ザンギ増量」は、ザンギ単品の注文だけ(丼ものは対象外)
+-- ============================================================
+-- 出淵さんの依頼。「ザンギ増量｜」で始まる特典の説明だけを書きかえる。何度実行しても大丈夫
+update public.coupon set
+  benefits = (
+    select array_agg(
+      case when b like 'ザンギ増量｜%'
+        then 'ザンギ増量｜ザンギを単品で注文した方だけ（丼ものは対象外）。2個注文で+1個、5個注文で+2個'
+        else b end
+      order by ord)
+    from unnest(benefits) with ordinality as t(b, ord)
+  )
+where id = 'futagozan-1';
