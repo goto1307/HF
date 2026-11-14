@@ -63,6 +63,7 @@ export const SHOPS: Shop[] = [
       // 画像生成AIの絵ではない。実物の特盛の写真が手に入ったら差し替える
       "ご飯を特盛に変更": "/shops/futagozan/tokumori.jpg",
       "ザンギ増量": "/shops/futagozan/zangi.jpg", // 6番
+      "炙りサーモンに変更": "/shops/futagozan/aburi-salmon.jpg", // 7番
       // 8番。名前を「昆布茶1杯」→「あっつアツ昆布茶」に変えた(PART BB)。SQL の実行前後どちらでも出るよう両方に付ける
       "あっつアツ昆布茶": "/shops/futagozan/konbucha.jpg",
       "昆布茶1杯": "/shops/futagozan/konbucha.jpg",
