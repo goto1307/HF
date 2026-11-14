@@ -80,14 +80,7 @@ export default function CouponPage() {
           .eq("coupon_id", id)
           .eq("user_id", user.id)
           .maybeSingle();
-        let mineClaim = (mine as CouponClaim | null) ?? null;
-        // 「受け取る」ボタンはなくした。配布中なら、開いたときに自動でクーポンボックスに入れる
-        // (運営は動作確認のため、配布開始前や非公開でも入れる)
-        if (!mineClaim && (claimOpen(data as Coupon) || isAdminEmail(user.email))) {
-          const { data: claimed } = await supabase.rpc("claim_coupon", { p_coupon: id });
-          mineClaim = (claimed as CouponClaim | null) ?? null;
-        }
-        setClaim(mineClaim);
+        setClaim((mine as CouponClaim | null) ?? null);
       } else {
         setClaim(null);
       }
@@ -250,15 +243,16 @@ export default function CouponPage() {
   let cta: React.ReactNode;
   let ctaNote: React.ReactNode = null;
   if (!user) {
-    cta = ended ? <span className={disabled}>配布は終了しました</span> : <Link href={loginPath()} className={enabled}>ログインして使う</Link>;
+    cta = ended ? <span className={disabled}>配布は終了しました</span> : <Link href={loginPath()} className={enabled}>ログインして受け取る</Link>;
     if (!ended) ctaNote = <Link href="/join" className="underline">はじめての方は新規登録（無料・北大のメールアドレス）</Link>;
   } else if (!claim) {
     if (ended) cta = <span className={disabled}>配布は終了しました</span>;
     else if (beforeStart) {
-      cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から使えます</button>;
+      cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から受け取れます</button>;
+      if (isAdmin) ctaNote = <button onClick={handleClaim} disabled={busy} className="underline">（運営の動作確認用）開始前に受け取って試す</button>;
     } else {
-      // ふつうは開いたときに自動でクーポンボックスに入る。うまくいかなかったときだけ、ここから入れ直せる
-      cta = <button onClick={handleClaim} disabled={busy} className={enabled}>{busy ? "準備中..." : "クーポンを使えるようにする"}</button>;
+      // ふつうはクーポンボックスで受け取る。このページから直接来た人も、ここで受け取れる
+      cta = <button onClick={handleClaim} disabled={busy} className={enabled}>{busy ? "受け取り中..." : "クーポンを受け取る"}</button>;
     }
   } else {
     const ready = !!benefit && (useCount > 0 || firstVisit !== null);

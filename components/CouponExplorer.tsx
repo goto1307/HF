@@ -347,17 +347,17 @@ function CouponTab({
 
   let cta: React.ReactNode;
   let note: React.ReactNode = null;
-  // 「受け取る」はなくした(ログインしていれば、配布中のクーポンは自動でクーポンボックスに入る)
+  // 「クーポンを見る」でクーポンボックスへ。受け取るのも、受け取ったものを使うのもクーポンボックスから
   if (usedUp(coupon, claim)) {
     cta = <span className={disabled}>このクーポンは使用済みです</span>;
   } else if (!loggedIn) {
-    cta = <Link href={loginPath()} className={enabled}>ログインして使う</Link>;
+    cta = <Link href={loginPath("/coupons/box")} className={enabled}>ログインしてクーポンを見る</Link>;
     note = <Link href="/join" className="underline">はじめての方は新規登録（無料・北大のメールアドレス）</Link>;
   } else if (beforeStart && !isAdmin) {
     cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から使えます</button>;
   } else {
-    cta = <Link href={`/coupons/${coupon.id}`} className={enabled}>クーポンを見る</Link>;
-    if (claim) note = "クーポンボックスにも入っています";
+    cta = <Link href="/coupons/box" className={enabled}>クーポンを見る</Link>;
+    note = claim ? "受け取り済みです。クーポンボックスから使えます" : "クーポンボックスで受け取れます";
   }
 
   return (
