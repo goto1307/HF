@@ -5854,3 +5854,89 @@ update public.coupon set
   )
 where id = 'futagozan-1'
   and exists (select 1 from unnest(benefits) as b where b like '昆布茶1杯｜%');
+
+-- ============================================================
+-- PART BC: ニックネームに @ などの記号・絵文字を使えないようにする
+-- ============================================================
+-- 使える文字: ひらがな・カタカナ(半角も)・漢字・英数字(全角も)・「ー」「・」「_」「-」・スペース。
+-- 画面側の lib/nickname.ts の hasOnlyAllowedChars() と同じ条件にすること。
+-- 新規登録(create_user_nickname)と、マイページでの変更(update_own_nickname)の両方で確かめる。
+-- すでに登録されているニックネームは変えない(次に変えるときから、このルールになる)。
+-- 何度実行しても大丈夫
+
+create or replace function public.nickname_chars_ok(p_nickname text)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(p_nickname, '') ~ '^[ぁ-ゖァ-ヺー々〆一-龯A-Za-z0-9Ａ-Ｚａ-ｚ０-９ｦ-ﾟ・＿_－ 　-]+$';
+$$;
+
+-- 新規登録時に正式なニックネームを作る(PART V のものに、文字のチェックを足した)
+create or replace function public.create_user_nickname()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nickname text := left(coalesce(nullif(trim(new.raw_user_meta_data ->> 'nickname'), ''), '匿名ユーザー'), 30);
+begin
+  if public.is_reserved_nickname(v_nickname) then
+    raise exception 'このニックネームは使用できません';
+  end if;
+  if not public.nickname_chars_ok(v_nickname) then
+    raise exception 'ニックネームに @ などの記号や絵文字は使えません';
+  end if;
+  insert into public.user_nickname (user_id, nickname) values (new.id, v_nickname)
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+-- マイページでのニックネームの変更(PART V のものに、文字のチェックを足した)
+create or replace function public.update_own_nickname(p_nickname text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nickname text := trim(p_nickname);
+  v_last timestamptz;
+begin
+  if auth.uid() is null then
+    raise exception 'ログインが必要です';
+  end if;
+  if v_nickname is null or char_length(v_nickname) = 0 then
+    raise exception 'ニックネームを入力してください';
+  end if;
+  if char_length(v_nickname) > 30 then
+    raise exception 'ニックネームは30文字以内にしてください';
+  end if;
+  if public.is_reserved_nickname(v_nickname) then
+    raise exception 'このニックネームは使用できません';
+  end if;
+  if not public.nickname_chars_ok(v_nickname) then
+    raise exception 'ニックネームに使えるのは、ひらがな・カタカナ・漢字・英数字と「ー」「・」「_」「-」、スペースだけです（@ などの記号や絵文字は使えません）';
+  end if;
+
+  select changed_at into v_last from public.nickname_change where user_id = auth.uid();
+  if v_last is not null and v_last > now() - interval '7 days' then
+    raise exception 'ニックネームの変更は1週間に1回までです。次に変更できるのは%以降です',
+      to_char((v_last + interval '7 days') at time zone 'Asia/Tokyo', 'FMMM月FMDD日 HH24:MI');
+  end if;
+
+  insert into public.user_nickname (user_id, nickname) values (auth.uid(), v_nickname)
+  on conflict (user_id) do update set nickname = excluded.nickname;
+
+  update public.item set nickname = v_nickname where user_id = auth.uid();
+  update public.message set nickname = v_nickname where user_id = auth.uid();
+  update public.review set reviewer_nickname = v_nickname where reviewer_id = auth.uid();
+
+  insert into public.nickname_change (user_id, changed_at) values (auth.uid(), now())
+  on conflict (user_id) do update set changed_at = excluded.changed_at;
+end;
+$$;
+revoke execute on function public.update_own_nickname(text) from public, anon;
+grant execute on function public.update_own_nickname(text) to authenticated;
