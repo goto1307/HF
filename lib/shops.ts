@@ -56,7 +56,7 @@ export const SHOPS: Shop[] = [
     // 写真は後で入れる。public/shops/futagozan/ に置いて、photo と photos にパスを書く
     photo: "/shops/futagozan/top.jpg", // 1番: 店の外観(看板)
     photoPosition: "50% 12%", // 横長の枠で看板が切れないよう、上のほうを見せる
-    photos: ["/shops/futagozan/salmon-don.jpg", "/shops/futagozan/interior.jpg"], // 2番: サーモン丼、3番: 店内
+    photos: ["/shops/futagozan/salmon-don.jpg", "/shops/futagozan/interior.jpg", "/shops/futagozan/zangi-bowl.jpg"], // 2番: サーモン丼、3番: 店内、4番: ザンギ
     photoSlots: 3,
     benefitPhotos: {
       // 5番。写真ではなく、フォント「Yuji Boku」(SIL Open Font License 1.1。商用利用可)で文字を並べた画像。
