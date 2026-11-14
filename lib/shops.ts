@@ -74,7 +74,7 @@ export const SHOPS: Shop[] = [
     },
     couponImage: undefined,
     // お店のロゴ(正方形)。届いたら public/shops/futagozan/logo.png などに置いて、パスを書く
-    logo: undefined,
+    logo: "/shops/futagozan/logo.png",
     menuNote: null,
   },
 ];
