@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { preconnect } from "react-dom";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { claimOpenCoupons } from "@/lib/couponView";
 import { useAuth } from "@/lib/AuthProvider";
 import {
   COUPON_COLUMNS,
@@ -46,7 +47,9 @@ export default function CouponsPage() {
   useEffect(() => {
     if (authLoading) return;
     (async () => {
-      // クーポンと、自分が受け取ったクーポンは、順番に待たずに同時に読む
+      // 配布中のクーポンを自動でクーポンボックスに入れてから、自分の分を読む
+      if (userId) await claimOpenCoupons();
+      // クーポンと、自分のクーポンボックスの中身は、順番に待たずに同時に読む
       const [{ data }, mineRes] = await Promise.all([
         supabase.from("coupon").select(COUPON_COLUMNS).order("use_until", { ascending: false }),
         userId
@@ -65,8 +68,8 @@ export default function CouponsPage() {
     const mine = claims[c.id];
     if (usedUp(c, mine)) return { label: "使用済み", tone: "bg-stone-200 text-stone-600" };
     if (hasEnded(c)) return { label: "終了", tone: "bg-stone-200 text-stone-500" };
-    if (mine) return { label: "受け取り済み", tone: "bg-orange-100 text-orange-800" };
-    if (claimOpen(c)) return { label: "受け取れます", tone: "bg-yellow-200 text-yellow-900" };
+    if (mine) return { label: "クーポンボックスにあります", tone: "bg-orange-100 text-orange-800" };
+    if (claimOpen(c)) return { label: "配布中", tone: "bg-yellow-200 text-yellow-900" };
     return { label: `${formatDateTime(c.claim_from)}から`, tone: "bg-stone-100 text-stone-600" };
   };
 
@@ -83,7 +86,6 @@ export default function CouponsPage() {
           <CouponExplorer
             coupons={coupons}
             claims={claims}
-            onClaimed={(c) => setClaims((prev) => ({ ...prev, [c.coupon_id]: c }))}
             loggedIn={!!user}
             isAdmin={isAdmin}
           />

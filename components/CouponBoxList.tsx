@@ -25,7 +25,7 @@ export default function CouponBoxList({
     return (
       <div className={`rounded-2xl border border-dashed p-6 text-center ${light ? "border-stone-300" : "border-white/25"}`}>
         <p className="font-bold">まだクーポンがありません</p>
-        <p className={`mt-1 text-sm ${light ? "text-[#2F3E5C]/70" : "text-white/80"}`}>地図からお店を選んで、クーポンを受け取りましょう。</p>
+        <p className={`mt-1 text-sm ${light ? "text-[#2F3E5C]/70" : "text-white/80"}`}>配布中のクーポンは、ここに自動で入ります。</p>
         <Link
           href="/coupons"
           className={`mt-4 inline-block rounded-full px-5 py-2.5 text-sm font-extrabold ${light ? "bg-[#BA421D] text-white" : "bg-white text-[#1B243A]"}`}

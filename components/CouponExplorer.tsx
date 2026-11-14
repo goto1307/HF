@@ -2,14 +2,13 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { supabase } from "@/lib/supabase";
 import { claimOpen, formatDateTime, hasEnded, usedUp, type Coupon, type CouponClaim } from "@/lib/coupon";
 import { PHOTO_NO, SHOPS, type Shop } from "@/lib/shops";
 import { recordCouponView } from "@/lib/couponView";
 import { rememberSource } from "@/lib/visitSource";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
-import { BenefitCards, ClaimedDialog, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
+import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 import { IconX } from "@/components/icons";
 
 // 地図はブラウザでだけ動くので、サーバーでは描かない
@@ -23,7 +22,6 @@ export type MyClaim = Pick<CouponClaim, "coupon_id" | "used_at" | "use_count">;
 type Props = {
   coupons: Coupon[];
   claims: Record<string, MyClaim>;
-  onClaimed: (claim: MyClaim) => void;
   loggedIn: boolean;
   isAdmin: boolean;
 };
@@ -44,20 +42,15 @@ function useWide() {
   return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE_QUERY).matches, () => false);
 }
 
-function errorMessage(e: { message?: string } | null) {
-  const m = e?.message ?? "";
-  return /[ぁ-んァ-ン一-龥]/.test(m) ? m : "うまくいきませんでした。時間をおいてもう一度お試しください。";
-}
 
 // クーポンのページ(運営だけの試作)。指で動かせる地図に、クーポンが使えるお店のピンを出す。
 // ピンを押すと、下からシートが出て「クーポン」と「お店の情報」を切り替えて見られる
-export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, isAdmin }: Props) {
+export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin }: Props) {
   // 配布中(終わっていない)クーポンがあるお店だけを地図に出す
   const live = useMemo(() => coupons.filter((c) => !hasEnded(c)), [coupons]);
   const shops = useMemo(() => SHOPS.filter((s) => s.couponIds.some((id) => live.some((c) => c.id === id))), [live]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"coupon" | "shop">("coupon");
-  const [busy, setBusy] = useState(false);
   // 運営だけ: 地図をタップした場所の緯度・経度を調べる(お店のピンの位置を直すため)
   const [picking, setPicking] = useState(false);
 
@@ -170,17 +163,6 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
     if (!loggedIn) rememberSource("coupon");
   }, [coupon, loggedIn]);
 
-  const handleClaim = async (c: Coupon) => {
-    setBusy(true);
-    const { data, error } = await supabase.rpc("claim_coupon", { p_coupon: c.id });
-    setBusy(false);
-    if (error) { toast(errorMessage(error)); return; }
-    const claim = data as CouponClaim;
-    onClaimed({ coupon_id: claim.coupon_id, used_at: claim.used_at, use_count: claim.use_count });
-    // 受け取っても使う画面には移らず、お知らせを出す。閉じるとシートのボタンが「このクーポンを使う」に変わる
-    setJustClaimed(true);
-  };
-  const [justClaimed, setJustClaimed] = useState(false);
   const wide = useWide();
 
   return (
@@ -328,8 +310,6 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
                   claim={claims[coupon.id]}
                   loggedIn={loggedIn}
                   isAdmin={isAdmin}
-                  busy={busy}
-                  onClaim={() => handleClaim(coupon)}
                 />
               ) : (
                 <p className="text-sm text-[#2F3E5C]/75">このお店のクーポンは、いま配布していません。</p>
@@ -341,12 +321,6 @@ export default function CouponExplorer({ coupons, claims, onClaimed, loggedIn, i
         </section>
       )}
 
-      {justClaimed && (
-        <ClaimedDialog
-          message="クーポンボックスに入れました。お店で注文するときに「このクーポンを使う」を押して使ってください。"
-          onClose={() => setJustClaimed(false)}
-        />
-      )}
 
       <style>{`@keyframes sheet-up { from { transform: translateY(40%); opacity: .6; } to { transform: none; opacity: 1; } } @keyframes panel-in { from { transform: translateX(-24px); opacity: .6; } to { transform: none; opacity: 1; } }`}</style>
     </div>
@@ -359,16 +333,12 @@ function CouponTab({
   claim,
   loggedIn,
   isAdmin,
-  busy,
-  onClaim,
 }: {
   coupon: Coupon;
   shop: Shop;
   claim: MyClaim | undefined;
   loggedIn: boolean;
   isAdmin: boolean;
-  busy: boolean;
-  onClaim: () => void;
 }) {
   const primary = "block w-full rounded-full py-3.5 text-center font-extrabold";
   const enabled = `${primary} bg-[#BA421D] text-white shadow-[0_3px_0_#1B243A] active:translate-y-[2px] active:shadow-[0_1px_0_#1B243A] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
@@ -377,19 +347,17 @@ function CouponTab({
 
   let cta: React.ReactNode;
   let note: React.ReactNode = null;
+  // 「受け取る」はなくした(ログインしていれば、配布中のクーポンは自動でクーポンボックスに入る)
   if (usedUp(coupon, claim)) {
     cta = <span className={disabled}>このクーポンは使用済みです</span>;
-  } else if (claim) {
-    cta = <Link href={`/coupons/${coupon.id}`} className={enabled}>このクーポンを使う</Link>;
-    note = "クーポンボックスにも入っています。お店で注文するときに押してください";
   } else if (!loggedIn) {
-    cta = <Link href={loginPath()} className={enabled}>ログインして受け取る</Link>;
+    cta = <Link href={loginPath()} className={enabled}>ログインして使う</Link>;
     note = <Link href="/join" className="underline">はじめての方は新規登録（無料・北大のメールアドレス）</Link>;
-  } else if (beforeStart) {
-    cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から受け取れます</button>;
-    if (isAdmin) note = <button onClick={onClaim} disabled={busy} className="underline">（運営の動作確認用）開始前に受け取って試す</button>;
+  } else if (beforeStart && !isAdmin) {
+    cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から使えます</button>;
   } else {
-    cta = <button onClick={onClaim} disabled={busy} className={enabled}>{busy ? "受け取り中..." : "クーポンを受け取る"}</button>;
+    cta = <Link href={`/coupons/${coupon.id}`} className={enabled}>クーポンを見る</Link>;
+    if (claim) note = "クーポンボックスにも入っています";
   }
 
   return (
@@ -417,18 +385,60 @@ function CouponTab({
 }
 
 function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
+  // 押した写真を画面いっぱいに大きく出す
+  const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
+  // 写真があるものは押せるようにする(空き枠は押せない)
+  const tappable = (src: string | undefined, alt: string, node: React.ReactNode) =>
+    src ? (
+      <button type="button" onClick={() => setZoom({ src, alt })} aria-label={`${alt}を大きく見る`} className="block w-full">
+        {node}
+      </button>
+    ) : (
+      node
+    );
   return (
     <div className="space-y-6 text-sm">
       {/* お店の写真(届いたら lib/shops.ts の photo・photos に足す。まだないときは運営にだけ空き枠を出す) */}
       {(shop.photo || shop.photos.length > 0 || isAdmin) && (
         <section aria-label="お店の写真" className="space-y-2">
-          <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} className="aspect-square rounded-2xl" />
+          {tappable(
+            shop.photo,
+            `${shop.name}の写真`,
+            <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} className="aspect-square rounded-2xl" />
+          )}
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: Math.max(shop.photos.length, isAdmin ? shop.photoSlots : 0) }, (_, i) => shop.photos[i]).slice(0, 3).map((src, i) => (
-              <PhotoSlot key={src ?? i} src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} no={PHOTO_NO.smallFrom + i} className="aspect-square rounded-xl" />
+              <div key={src ?? i}>
+                {tappable(
+                  src,
+                  `${shop.name}の写真${i + 1}`,
+                  <PhotoSlot src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} no={PHOTO_NO.smallFrom + i} className="aspect-square rounded-xl" />
+                )}
+              </div>
             ))}
           </div>
         </section>
+      )}
+      {zoom && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3"
+          role="dialog"
+          aria-modal="true"
+          aria-label={zoom.alt}
+          onClick={() => setZoom(null)}
+          onKeyDown={(e) => e.key === "Escape" && setZoom(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoom.src} alt={zoom.alt} className="max-h-full max-w-full object-contain" />
+          <button
+            autoFocus
+            onClick={() => setZoom(null)}
+            aria-label="閉じる"
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+          >
+            <IconX size={20} />
+          </button>
+        </div>
       )}
       <dl className="grid grid-cols-[5em_1fr] gap-y-3">
         <dt className="text-[#2F3E5C]/60">ジャンル</dt>
