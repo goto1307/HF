@@ -24,6 +24,7 @@ export type Shop = {
   photos: string[]; // 「お店の写真」に並べる写真(public/ に置いた写真のパス)
   photoSlots: number; // 写真がまだ届いていないとき、運営に見せる空き枠の数
   benefitPhotos: Record<string, string>; // 特典の名前(｜より前) → 特典のボタンに入れる写真のパス
+  logo?: string; // クーポンボックスで、クーポン名の左に出すお店のロゴ(正方形。public/ に置いた画像のパス)
   couponImage?: string; // 地図のシートで、クーポン名の代わりに出す画像(「空きコマクーポン」のデザイン。public/ に置いた画像のパス)
 };
 
@@ -71,6 +72,8 @@ export const SHOPS: Shop[] = [
       "パルプンテ": "/shops/futagozan/omakase.jpg",
     },
     couponImage: undefined,
+    // お店のロゴ(正方形)。届いたら public/shops/futagozan/logo.png などに置いて、パスを書く
+    logo: undefined,
     menuNote: null,
   },
 ];

@@ -43,7 +43,7 @@ export default function CouponBoxPage() {
           {rows === null ? (
             <div className="h-28 rounded-2xl bg-stone-100 animate-pulse" />
           ) : (
-            <CouponBoxList rows={rows} theme="light" />
+            <CouponBoxList rows={rows} theme="light" isAdmin={isAdmin} />
           )}
         </div>
       </main>
