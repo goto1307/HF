@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { claimOpenCoupons } from "@/lib/couponView";
 import { useAuth } from "@/lib/AuthProvider";
 import { CLAIM_COLUMNS, COUPON_COLUMNS, type Coupon, type CouponClaim } from "@/lib/coupon";
 import { loginPath } from "@/lib/nav";
@@ -23,6 +24,8 @@ export default function MePage() {
     if (authLoading) return;
     if (!user) { router.replace(loginPath("/me")); return; }
     (async () => {
+      // 配布中のクーポンを自動でクーポンボックスに入れてから読む
+      await claimOpenCoupons();
       const { data: claims } = await supabase.from("coupon_claim").select(CLAIM_COLUMNS).eq("user_id", user.id);
       const list = (claims as CouponClaim[] | null) ?? [];
       const ids = list.map((c) => c.coupon_id);

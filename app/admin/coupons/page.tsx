@@ -193,11 +193,12 @@ export default function AdminCouponsPage() {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
               <Tile label="ページを見た" value={stats.totals.views} note={`うち未ログイン ${stats.totals.views_logged_out}`} />
-              <Tile label="受け取った人" value={stats.totals.claims} note={`見た人の ${percent(stats.totals.claims, stats.totals.views)}`} />
+              {/* 「受け取る」ボタンはなくなり、ログインしてクーポンの画面を開くと自動でクーポンボックスに入る(PART BC) */}
+              <Tile label="クーポンボックスに入った人" value={stats.totals.claims} note={`見た人の ${percent(stats.totals.claims, stats.totals.views)}`} />
               <Tile
                 label="使った人"
                 value={stats.totals.users_used ?? stats.totals.uses}
-                note={`受け取った人の ${percent(stats.totals.users_used ?? stats.totals.uses, stats.totals.claims)}・使用 ${stats.totals.uses}回`}
+                note={`ボックスに入った人の ${percent(stats.totals.users_used ?? stats.totals.uses, stats.totals.claims)}・使用 ${stats.totals.uses}回`}
               />
               <Tile
                 label="初めて来店"

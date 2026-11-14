@@ -5854,3 +5854,50 @@ update public.coupon set
   )
 where id = 'futagozan-1'
   and exists (select 1 from unnest(benefits) as b where b like '昆布茶1杯｜%');
+
+
+-- ============================================================
+-- PART BC: クーポンを自動でクーポンボックスに入れる ＋ ふたごザンは1人1回に
+-- ============================================================
+-- - claim_open_coupons(): ログインしている人の受け取り記録を、いま配布中のクーポンの分だけまとめて作る
+--   (「受け取る」ボタンをなくし、クーポンの画面を開くと自動でクーポンボックスに入るようにするため)
+--   受け取りの条件(公開中・配布開始後・期間内・人数の上限)は claim_coupon と同じ
+-- - ふたごザンのクーポンを1人1回に(max_uses_per_user = 1)。注意書きもそれに合わせる
+-- 何度実行しても大丈夫
+create or replace function public.claim_open_coupons()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n integer;
+begin
+  if auth.uid() is null then
+    return 0;
+  end if;
+  insert into public.coupon_claim (coupon_id, user_id)
+  select c.id, auth.uid()
+  from public.coupon c
+  where c.active
+    and now() >= c.claim_from
+    and public.jst_today() <= c.use_until
+    and not exists (select 1 from public.coupon_claim x where x.coupon_id = c.id and x.user_id = auth.uid())
+    and (
+      c.max_claims is null or (
+        select count(*) from public.coupon_claim x
+        where x.coupon_id = c.id and not (x.user_id = any (public.staff_ids()))
+      ) < c.max_claims
+    )
+  on conflict (coupon_id, user_id) do nothing;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+revoke execute on function public.claim_open_coupons() from public, anon;
+grant execute on function public.claim_open_coupons() to authenticated;
+
+update public.coupon set
+  max_uses_per_user = 1,
+  notes = replace(notes, '期間中は何回でも使えます（1回の使用につき、特典は1つです）。', 'お一人さま期間中1回限りです。')
+where id = 'futagozan-1';

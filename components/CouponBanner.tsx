@@ -37,7 +37,7 @@ export default function CouponBanner() {
           {coupon.shop_name}　クーポン配布中
         </span>
       </span>
-      <span className="shrink-0 text-xs font-bold bg-white text-[#7A3393] rounded-full px-3 py-1">受け取る</span>
+      <span className="shrink-0 text-xs font-bold bg-white text-[#7A3393] rounded-full px-3 py-1">見る</span>
     </Link>
   );
 }
