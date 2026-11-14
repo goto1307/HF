@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { ITEM_COLUMNS } from "@/lib/itemColumns";
-import { isReservedNickname } from "@/lib/nickname";
+import { nicknameProblem } from "@/lib/nickname";
 import { validateImageFile } from "@/lib/resizeImage";
 import { makeImagePath } from "@/lib/uploadPath";
 import Header from "@/components/Header";
@@ -210,7 +210,8 @@ export default function MyPage() {
     const next = nicknameInput.trim();
     if (!next) { toast("ニックネームを入力してください"); return; }
     if (next === currentNickname) return;
-    if (isReservedNickname(next)) { toast("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
+    const nicknameError = nicknameProblem(next);
+    if (nicknameError) { toast(nicknameError); return; }
     if (!confirm(`ニックネームを「${next}」に変更しますか？\n次に変更できるのは1週間後です。`)) return;
     setSavingNickname(true);
     // 出品・メッセージ・評価に保存されている名前もまとめて書き換える

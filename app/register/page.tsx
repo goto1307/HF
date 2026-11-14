@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 import PasswordInput from "@/components/PasswordInput";
-import { isReservedNickname } from "@/lib/nickname";
+import { nicknameProblem } from "@/lib/nickname";
 import { TERMS_TEXT } from "@/lib/terms";
 import { toast } from "@/lib/toast";
 import { getSource } from "@/lib/visitSource";
@@ -30,8 +30,8 @@ export default function Register() {
 
   const handleRegister = async () => {
     if (!isValidEmail(email)) { toast("北大のメールアドレスを入力してください"); return; }
-    if (!nickname.trim()) { toast("ニックネームを入力してください"); return; }
-    if (isReservedNickname(nickname)) { toast("このニックネームは使用できません（「運営」「公式」などを含む名前は使えません）"); return; }
+    const nicknameError = nicknameProblem(nickname);
+    if (nicknameError) { toast(nicknameError); return; }
     if (!isValidPassword(password)) { toast("パスワードは8文字以上で、数字・アルファベットの大文字・小文字をすべて含めてください"); return; }
     if (!agreed) { toast("利用規約への同意が必要です"); return; }
     setLoading(true);
@@ -41,7 +41,7 @@ export default function Register() {
       password,
       options: {
         // source: 最初に来たときのリンクの目印(lib/visitSource.ts)。管理者の集計にだけ使う
-        data: { nickname, source: getSource() },
+        data: { nickname: nickname.trim(), source: getSource() },
         emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
       },
     });
