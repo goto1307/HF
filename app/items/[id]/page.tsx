@@ -18,6 +18,7 @@ import { loginPath, goBack } from "@/lib/nav";
 import { toast } from "@/lib/toast";
 import ItemThumb from "@/components/ItemThumb";
 import { isOwnImageUrl, thumbUrl } from "@/lib/thumb";
+import { formatChatTime } from "@/lib/chatTime";
 
 type Item = {
   id: number;
@@ -680,14 +681,20 @@ export default function ItemDetail() {
                   <div className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ${msg.user_id === user?.id ? "bg-orange-700 text-white" : "bg-white border border-stone-200 text-stone-700"}`}>
                     {msg.content}
                   </div>
-                  {user && msg.user_id !== user.id && (
-                    <button
-                      onClick={() => { setReportingMessage(msg); setMessageReportReason(""); }}
-                      className="text-[11px] text-stone-400 hover:text-red-500 transition-colors mt-0.5"
-                    >
-                      通報
-                    </button>
-                  )}
+                  <div className={`flex items-center gap-2 mt-0.5 ${msg.user_id === user?.id ? "flex-row-reverse" : "flex-row"}`}>
+                    {/* 送った時刻（例：14:05、昨日 14:05、11/5 14:05）。取引チャットと同じ出し方 */}
+                    <time dateTime={msg.created_at} className="text-[11px] text-stone-400">
+                      {formatChatTime(msg.created_at)}
+                    </time>
+                    {user && msg.user_id !== user.id && (
+                      <button
+                        onClick={() => { setReportingMessage(msg); setMessageReportReason(""); }}
+                        className="text-[11px] text-stone-400 hover:text-red-500 transition-colors"
+                      >
+                        通報
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
