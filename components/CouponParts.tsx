@@ -140,6 +140,7 @@ export function BenefitCards({
   }
 
   // 見るだけのとき(特典の紹介): 名前 → 写真 → 説明 の順。あくまで説明なので控えめの大きさ
+  const fillGap = items.length % 2 === 1 && cautions.length > 0;
   return (
     <div>
       <ul className={small ? "grid grid-cols-2 gap-x-3 gap-y-5" : "grid grid-cols-2 gap-x-4 gap-y-6"} aria-label="特典">
@@ -155,9 +156,20 @@ export function BenefitCards({
             </li>
           );
         })}
+        {/* 特典が奇数(いまは5つ)だと右下が空くので、注意書きはそこ(最後の特典の横)にまとめて置く */}
+        {fillGap && (
+          <li className="space-y-2">
+            {cautions.map((b) => (
+              <p key={b.raw} className="flex gap-1.5 rounded-xl bg-[#F2C14E]/20 px-2.5 py-2 text-[11px] leading-relaxed text-[#1B243A]">
+                <span aria-hidden className="font-extrabold text-[#BA421D]">!</span>
+                <span><span className="font-bold">{b.name}：</span>{b.caution}</span>
+              </p>
+            ))}
+          </li>
+        )}
       </ul>
-      {/* 注意書きのある特典(店主のおまかせ一品など)は、特典のすぐ下に出す */}
-      {cautions.map((b) => (
+      {/* 空きがないときは、特典のすぐ下に出す */}
+      {!fillGap && cautions.map((b) => (
         <p key={b.raw} className="mt-4 flex gap-2 rounded-xl bg-[#F2C14E]/20 px-3 py-2.5 text-xs leading-relaxed text-[#1B243A]">
           <span aria-hidden className="font-extrabold text-[#BA421D]">!</span>
           <span><span className="font-bold">{b.name}：</span>{b.caution}</span>
