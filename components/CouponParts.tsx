@@ -89,55 +89,70 @@ export function BenefitCards({
   const items = benefits.map(parseBenefit);
   const cautions = items.filter((b) => b.caution);
   const small = size === "small";
-  return (
-    <div>
-      <ul className={small ? "grid grid-cols-2 gap-x-4 gap-y-6" : "space-y-8"} role={onSelect ? "radiogroup" : undefined} aria-label="特典">
-        {items.map((b, i) => {
-          const active = selected === b.raw;
-          const hasPhoto = !!photos[b.name] || isAdmin;
-          const body = (
-            <>
-              <span className="flex items-start gap-2">
-                {/* 選べるときだけ、左に丸(選んだら塗りつぶし) */}
-                {onSelect && (
-                  <span
-                    aria-hidden
-                    className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${active ? "border-[#BA421D]" : "border-stone-300"}`}
-                  >
-                    {active && <span className="h-2.5 w-2.5 rounded-full bg-[#BA421D]" />}
-                  </span>
-                )}
-                <span className="min-w-0">
-                  <span className={`block font-extrabold leading-snug ${small ? "text-[15px]" : "text-lg"} ${active ? "text-[#BA421D]" : ""}`}>{b.name}</span>
-                  {b.detail && <span className={`block mt-0.5 leading-snug text-[#2F3E5C]/75 ${small ? "text-xs" : "text-sm"}`}>{b.detail}</span>}
-                </span>
-              </span>
-              {hasPhoto && (
-                <PhotoSlot
-                  src={photos[b.name]}
-                  alt={b.name}
-                  isAdmin={isAdmin}
-                  no={PHOTO_NO.benefitFrom + i}
-                  className={`mt-2 rounded-xl ${small ? "aspect-[4/3]" : "aspect-[4/3]"} ${onSelect && active ? "ring-2 ring-[#BA421D] ring-offset-2" : ""}`}
-                />
-              )}
-            </>
-          );
-          return (
-            <li key={b.raw}>
-              {onSelect ? (
+
+  // 選ぶとき(クーポンのページで使う直前): 1行ずつのリスト。左に写真、真ん中に名前と説明、右に丸。
+  // 縦に長くならず、下まで探しに行かなくて済むようにする
+  if (onSelect) {
+    return (
+      <div>
+        <ul className="space-y-2.5" role="radiogroup" aria-label="特典">
+          {items.map((b, i) => {
+            const active = selected === b.raw;
+            const hasPhoto = !!photos[b.name] || isAdmin;
+            return (
+              <li key={b.raw}>
                 <button
                   type="button"
                   role="radio"
                   aria-checked={active}
                   onClick={() => onSelect(b.raw)}
-                  className="block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BA421D] rounded-xl"
+                  className={`flex w-full items-center gap-3 rounded-2xl border-2 p-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA421D] ${
+                    active ? "border-[#BA421D] bg-[#BA421D]/[0.06]" : "border-stone-200 bg-white"
+                  }`}
                 >
-                  {body}
+                  {hasPhoto && (
+                    <span className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl">
+                      <PhotoSlot src={photos[b.name]} alt="" isAdmin={isAdmin} no={PHOTO_NO.benefitFrom + i} label="" className="h-full" />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-base font-extrabold leading-snug ${active ? "text-[#BA421D]" : ""}`}>{b.name}</span>
+                    {b.detail && <span className="mt-0.5 block text-xs leading-snug text-[#2F3E5C]/75">{b.detail}</span>}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${active ? "border-[#BA421D]" : "border-stone-300"}`}
+                  >
+                    {active && <span className="h-3 w-3 rounded-full bg-[#BA421D]" />}
+                  </span>
                 </button>
-              ) : (
-                <div>{body}</div>
+              </li>
+            );
+          })}
+        </ul>
+        {cautions.map((b) => (
+          <p key={b.raw} className="mt-3 flex gap-2 rounded-xl bg-[#F2C14E]/20 px-3 py-2.5 text-xs leading-relaxed text-[#1B243A]">
+            <span aria-hidden className="font-extrabold text-[#BA421D]">!</span>
+            <span><span className="font-bold">{b.name}：</span>{b.caution}</span>
+          </p>
+        ))}
+      </div>
+    );
+  }
+
+  // 見るだけのとき(特典の紹介): 名前 → 写真 → 説明 の順。あくまで説明なので控えめの大きさ
+  return (
+    <div>
+      <ul className={small ? "grid grid-cols-2 gap-x-3 gap-y-5" : "grid grid-cols-2 gap-x-4 gap-y-6"} aria-label="特典">
+        {items.map((b, i) => {
+          const hasPhoto = !!photos[b.name] || isAdmin;
+          return (
+            <li key={b.raw}>
+              <span className={`block font-extrabold leading-snug ${small ? "text-sm" : "text-[15px]"}`}>{b.name}</span>
+              {hasPhoto && (
+                <PhotoSlot src={photos[b.name]} alt={b.name} isAdmin={isAdmin} no={PHOTO_NO.benefitFrom + i} className="mt-1.5 aspect-[4/3] rounded-xl" />
               )}
+              {b.detail && <span className="mt-1.5 block text-xs leading-snug text-[#2F3E5C]/75">{b.detail}</span>}
             </li>
           );
         })}
@@ -162,8 +177,6 @@ export function CouponHeadline({
   tone = "dark",
   titleHref,
   cta,
-  titleImage,
-  isAdmin = false,
 }: {
   coupon: Coupon;
   tone?: "dark" | "light";
@@ -174,15 +187,12 @@ export function CouponHeadline({
 }) {
   const period = `${formatDateLong(coupon.use_from)}〜${formatDateLong(coupon.use_until)}`;
   if (tone === "light") {
-    // クーポン名は画像にする予定(受け取るボタンと同じ色で見分けにくいため)。
-    // 画像が届くまでは、運営には「配置予定」の枠、利用者には紺の帯に白抜きの文字を出す
-    const title = titleImage ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={titleImage} alt={coupon.title} className="block w-full rounded-xl" />
-    ) : isAdmin ? (
-      <PhotoSlot isAdmin alt="" no={PHOTO_NO.couponImage} label={`${coupon.title}の画像（配置予定）`} className="h-28 rounded-xl" />
-    ) : (
-      <span className="block rounded-xl bg-[#2F3E5C] px-4 py-3 text-[28px] leading-tight font-black tracking-tight text-white">{coupon.title}</span>
+    // 10番の画像の枠はやめて、「空きコマクーポン配布中」のバナーにする(受け取るボタンの朱色と見分けるため紺)
+    const title = (
+      <span className="flex items-center justify-between gap-3 rounded-xl bg-[#2F3E5C] px-4 py-3 text-white">
+        <span className="text-[24px] leading-tight font-black tracking-tight">{coupon.title}</span>
+        <span className="shrink-0 rounded-full bg-[#F2C14E] px-3 py-1 text-sm font-extrabold text-[#1B243A]">配布中</span>
+      </span>
     );
     return (
       <div>

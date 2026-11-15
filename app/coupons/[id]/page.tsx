@@ -21,12 +21,10 @@ import {
   type Coupon,
   type CouponClaim,
 } from "@/lib/coupon";
-import dynamic from "next/dynamic";
 import { PHOTO_NO, shopForCoupon } from "@/lib/shops";
 import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 
 // 上に出す小さな地図(ブラウザでだけ動く)
-const ShopMap = dynamic(() => import("@/components/ShopMap"), { ssr: false, loading: () => <div className="h-full bg-[#EEF2F5]" /> });
 import { rememberSource } from "@/lib/visitSource";
 import { recordCouponView } from "@/lib/couponView";
 import Header from "@/components/Header";
@@ -279,21 +277,7 @@ export default function CouponPage() {
           </button>
         </div>
 
-        {/* お店の写真(店名は写真に入れる)。まだないときは、運営には写真の枠、利用者には北大との位置関係の地図 */}
-        <div className="relative">
-          {shop?.photo || (shop && isAdmin) ? (
-            <PhotoSlot src={shop.photo} alt={`${coupon.shop_name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} position={shop.photoPosition} eager className="h-56" />
-          ) : shop ? (
-            <div className="relative h-56 overflow-hidden bg-[#EEF2F5]">
-              <ShopMap shops={[shop]} selectedId={shop.id} onSelect={() => {}} bottomPadding={0} interactive={false} attributionClass="right-1 top-1" />
-            </div>
-          ) : (
-            <div className="h-40 flex items-end justify-center bg-[#EEF2F5]">
-              <HokkumaMascot size={96} />
-            </div>
-          )}
-        </div>
-
+        {/* いちばん上の写真はなし(運営の希望。クーポンの中身を先に見せる) */}
         {/* クーポン名と使える時間(朱色の地) */}
         <div className="bg-[#BA421D] px-6 pb-7 pt-5 text-white">
           <div className="mb-3 flex flex-wrap items-center gap-2">
