@@ -22,15 +22,29 @@ export default function MePage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace(loginPath("/me")); return; }
+    // 速く出すため: ① 前に開いたときの中身をブラウザに覚えておき、すぐに出す
+    //               ② 自分の受け取り記録とクーポンを、順番に待たずに同時に読む(前は2回続けて待っていた)
+    const cacheKey = `hokuma-me-coupons-${user.id}`;
     (async () => {
-      const { data: claims } = await supabase.from("coupon_claim").select(CLAIM_COLUMNS).eq("user_id", user.id);
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) setRows(JSON.parse(cached));
+      } catch {
+        // 覚えておけないブラウザでは、読み込みを待つだけ
+      }
+      const [{ data: claims }, { data: coupons }] = await Promise.all([
+        supabase.from("coupon_claim").select(CLAIM_COLUMNS).eq("user_id", user.id),
+        supabase.from("coupon").select(COUPON_COLUMNS),
+      ]);
       const list = (claims as CouponClaim[] | null) ?? [];
-      const ids = list.map((c) => c.coupon_id);
-      const { data: coupons } = ids.length
-        ? await supabase.from("coupon").select(COUPON_COLUMNS).in("id", ids)
-        : { data: [] as Coupon[] };
       const byId = new Map(((coupons as Coupon[] | null) ?? []).map((c) => [c.id, c]));
-      setRows(list.filter((c) => byId.has(c.coupon_id)).map((claim) => ({ claim, coupon: byId.get(claim.coupon_id)! })));
+      const next = list.filter((c) => byId.has(c.coupon_id)).map((claim) => ({ claim, coupon: byId.get(claim.coupon_id)! }));
+      setRows(next);
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify(next));
+      } catch {
+        // 何もしない
+      }
     })();
   }, [authLoading, user, router]);
 

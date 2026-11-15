@@ -70,7 +70,7 @@ export default function CouponBoxList({
                         type="button"
                         onClick={() => onClaim?.(coupon.id)}
                         disabled={busyId === coupon.id}
-                        className="shrink-0 rounded-lg bg-[#BA421D] px-3 py-1.5 text-xs font-extrabold text-white disabled:opacity-60"
+                        className="shrink-0 min-h-[44px] min-w-[96px] rounded-xl bg-[#BA421D] px-4 py-2.5 text-sm font-extrabold text-white active:opacity-80 disabled:opacity-60"
                       >
                         {busyId === coupon.id ? "受け取り中..." : "受け取る"}
                       </button>

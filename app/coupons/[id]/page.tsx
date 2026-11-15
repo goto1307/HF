@@ -29,6 +29,7 @@ import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/componen
 import { rememberSource } from "@/lib/visitSource";
 import { recordCouponView } from "@/lib/couponView";
 import Header from "@/components/Header";
+import ScrollTopButton from "@/components/ScrollTopButton";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { goBack, loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
@@ -374,15 +375,20 @@ export default function CouponPage() {
                 onClick={doUse}
                 className="mt-5 block w-full rounded-full bg-[#BA421D] py-4 text-lg font-extrabold text-white active:opacity-80"
               >
-                使う
+                確定する
               </button>
               <button onClick={() => setConfirming(false)} className="mt-3 block w-full rounded-full border-2 border-stone-200 py-3 font-extrabold text-[#2F3E5C]">
-                やめる
+                取り消す
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* 下のほうまで読んだら「↑」でいちばん上へ戻れる(下に固定したボタンの上に出す) */}
+      <div className="fixed bottom-32 right-4 z-20">
+        <ScrollTopButton />
+      </div>
 
       {/* ボタンは画面の下に固定 */}
       <div className="fixed inset-x-0 bottom-0 z-10 bg-white/95 backdrop-blur border-t border-stone-200">
