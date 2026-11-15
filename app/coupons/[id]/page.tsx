@@ -32,7 +32,6 @@ import Header from "@/components/Header";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { goBack, loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
-import { IconX } from "@/components/icons";
 
 // 進む時計(使える時間か・使ってから15分たったかの判定に使う)
 function useNow() {
@@ -188,15 +187,14 @@ export default function CouponPage() {
       <div className={`flex h-[100dvh] flex-col overflow-hidden ${NAVY} text-white`}>
         <Header section={isAdmin ? "coupons" : "market"} />
         <div className="relative mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col px-6 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] text-center">
-          {/* 右上のバツで、この画面を閉じて戻れる */}
+          {/* 右上の「閉じる」で、この画面を閉じて戻れる(バツだけだと見えにくいので文字にする) */}
           <button
             onClick={() => goBack(router, "/coupons")}
-            aria-label="閉じる"
-            className="absolute right-4 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
+            className="absolute right-4 top-3 z-10 rounded-full bg-white px-4 py-2 text-sm font-extrabold text-[#BA421D] active:opacity-80"
           >
-            <IconX size={20} />
+            閉じる
           </button>
-          <p className="px-10 text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
+          <p className="pl-2 pr-24 text-left text-sm font-bold text-white/75">{coupon.shop_name}・{coupon.title}</p>
           {/* 特典の写真(選ぶときと同じもの)。横幅いっぱいで、高さは画面に残った分だけ */}
           {shop?.benefitPhotos[benefitName(claim.benefit)] || isAdmin ? (
             <div className="-mx-6 mt-3 min-h-0 flex-1">
