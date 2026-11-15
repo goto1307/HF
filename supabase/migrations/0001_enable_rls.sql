@@ -5916,3 +5916,20 @@ update public.coupon set
     from unnest(benefits) with ordinality as t(b, ord)
   )
 where id = 'futagozan-1';
+
+
+-- ============================================================
+-- PART BE: ふたごザンの「ザンギ増量」の対象(単品のみ)を注意書きにする
+-- ============================================================
+-- 「特典名｜説明｜注意」の3つ目に入れると、特典の下の黄色い注意と、使う前の確認画面に出る。
+-- 「ザンギ増量｜」で始まる特典だけを書きかえる。何度実行しても大丈夫
+update public.coupon set
+  benefits = (
+    select array_agg(
+      case when b like 'ザンギ増量｜%'
+        then 'ザンギ増量｜2個注文で+1個、5個注文で+2個｜ザンギを単品で注文した方だけが対象です（ザンギ丼などの丼ものは対象外）'
+        else b end
+      order by ord)
+    from unnest(benefits) with ordinality as t(b, ord)
+  )
+where id = 'futagozan-1';

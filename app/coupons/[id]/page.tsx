@@ -9,6 +9,7 @@ import {
   CLAIM_COLUMNS,
   COUPON_COLUMNS,
   benefitName,
+  parseBenefit,
   claimOpen,
   formatDateTime,
   formatTime,
@@ -359,6 +360,13 @@ export default function CouponPage() {
               <p id="use-confirm-title" className="text-xl font-extrabold leading-snug">
                 「{benefitName(benefit)}」で使います
               </p>
+              {/* 注意のある特典(ザンギ増量・店主のおまかせ一品など)は、押す前にもう一度注意を見せる */}
+              {parseBenefit(benefit).caution && (
+                <p className="mt-3 flex gap-2 rounded-xl bg-[#F2C14E]/25 px-3 py-2.5 text-sm leading-relaxed text-[#1B243A]">
+                  <span aria-hidden className="font-extrabold text-[#BA421D]">!</span>
+                  <span>{parseBenefit(benefit).caution}</span>
+                </p>
+              )}
               {/* 1人1回のクーポンなので、押す前に取り消せないことを伝える */}
               <p className="mt-2 text-sm font-bold text-[#BA421D]">この操作は取り消せません</p>
               <button

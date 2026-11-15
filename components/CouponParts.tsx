@@ -2,7 +2,6 @@
 // クーポンの画面(地図のシート・クーポンの詳細ページ)で共通に使う部品。
 // 白地に、文字は紺 #2F3E5C(ブランドの色)、差し色は朱 #BA421D
 
-import Link from "next/link";
 import { PHOTO_NO } from "@/lib/shops";
 import { formatDate, formatDateLong, formatDateTime, formatWeekdays, formatWindows, parseBenefit, type Coupon } from "@/lib/coupon";
 
@@ -175,7 +174,6 @@ export function BenefitCards({
 export function CouponHeadline({
   coupon,
   tone = "dark",
-  titleHref,
   cta,
 }: {
   coupon: Coupon;
@@ -189,14 +187,15 @@ export function CouponHeadline({
   if (tone === "light") {
     // 10番の画像の枠はやめて、「空きコマクーポン配布中」のバナーにする(受け取るボタンの朱色と見分けるため紺)
     const title = (
-      <span className="flex items-center justify-between gap-3 rounded-xl bg-[#2F3E5C] px-4 py-3 text-white">
+      <span className="-mx-6 -mt-5 flex items-center justify-between gap-3 bg-[#2F3E5C] px-6 py-4 text-white">
         <span className="text-[24px] leading-tight font-black tracking-tight">{coupon.title}</span>
         <span className="shrink-0 rounded-full bg-[#F2C14E] px-3 py-1 text-sm font-extrabold text-[#1B243A]">配布中</span>
       </span>
     );
     return (
       <div>
-        {titleHref ? <Link href={titleHref} className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BA421D] rounded-xl">{title}</Link> : <h2>{title}</h2>}
+        {/* バナーは押しても移動しない(シートの幅いっぱいに、角なしで出す) */}
+        <h2>{title}</h2>
         {cta && <div className="mt-3">{cta}</div>}
         <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
           <dt className="whitespace-nowrap font-bold text-[#2F3E5C]/60">使える時間</dt>
