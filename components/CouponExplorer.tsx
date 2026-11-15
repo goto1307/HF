@@ -11,6 +11,7 @@ import { toast } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
 import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 import { IconX } from "@/components/icons";
+import ScrollTopButton from "@/components/ScrollTopButton";
 
 // 地図はブラウザでだけ動くので、サーバーでは描かない
 const ShopMap = dynamic(() => import("@/components/ShopMap"), {
@@ -319,6 +320,10 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
             ) : (
               <ShopTab shop={shop} isAdmin={isAdmin} />
             )}
+          </div>
+          {/* 下のほうまで読んだら「↑」でいちばん上へ戻れる */}
+          <div className="pointer-events-none sticky bottom-4 flex justify-end px-4">
+            <ScrollTopButton target={sheetRef} className="pointer-events-auto" />
           </div>
         </section>
       )}
