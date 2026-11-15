@@ -369,8 +369,8 @@ function CouponTab({
   if (usedUp(coupon, claim)) {
     cta = <span className={disabled}>このクーポンは使用済みです</span>;
   } else if (claim) {
-    cta = <span className={disabled}>受け取り済み</span>;
-    note = "お店でクーポンボックスから使えます";
+    cta = <Link href="/coupons/box" className={enabled}>クーポンボックスを見る</Link>;
+    note = "受け取り済みです。お店でクーポンボックスから使えます";
   } else if (!loggedIn) {
     cta = <Link href={loginPath()} className={enabled}>ログインして受け取る</Link>;
     note = <Link href="/join" className="underline">はじめての方は新規登録（無料・北大のメールアドレス）</Link>;
@@ -405,15 +405,7 @@ function CouponTab({
       <p className="mt-0.5 mb-3 text-xs text-[#2F3E5C]/75">{coupon.description}</p>
       <BenefitCards benefits={coupon.benefits} photos={shop.benefitPhotos} isAdmin={isAdmin} size="small" />
       <CouponNotes notes={coupon.notes} />
-      {/* いちばん下: クーポンボックスへ */}
-      {loggedIn && (
-        <Link
-          href="/coupons/box"
-          className="mt-6 block w-full rounded-full border-2 border-[#BA421D] py-3 text-center font-extrabold text-[#BA421D] active:opacity-80"
-        >
-          クーポンボックスを見る
-        </Link>
-      )}
+
     </div>
   );
 }
