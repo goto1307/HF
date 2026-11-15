@@ -410,55 +410,133 @@ function CouponTab({
   );
 }
 
-function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
-  // 押した写真を画面いっぱいに大きく出す
-  const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
-  // 写真があるものは押せるようにする(空き枠は押せない)
-  const tappable = (src: string | undefined, alt: string, node: React.ReactNode) =>
-    src ? (
-      <button type="button" onClick={() => setZoom({ src, alt })} aria-label={`${alt}を大きく見る`} className="block w-full">
-        {node}
-      </button>
-    ) : (
-      node
-    );
+// 横にスライドして写真を切り替える(スマホは指でなぞる。パソコンは左右のボタン)。
+// 指で動かすのはブラウザの横スクロール(scroll-snap)にまかせる
+function PhotoSlider({
+  photos,
+  alt,
+  index,
+  onIndex,
+  onTap,
+  imgClass,
+  big = false,
+}: {
+  photos: string[];
+  alt: string;
+  index: number;
+  onIndex: (i: number) => void;
+  onTap?: (i: number) => void;
+  imgClass: string;
+  big?: boolean; // 画面いっぱいの拡大表示のとき
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // index が外から変わったら(小さい写真を押したなど)、その写真まで動かす
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const target = index * el.clientWidth;
+    // すっと動かす(なめらかに動かすと、途中の写真で止まってしまうことがあるため)
+    if (Math.abs(el.scrollLeft - target) > 2) el.scrollTo({ left: target, behavior: "auto" });
+  }, [index]);
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    if (i !== index) onIndex(i);
+  };
+  const go = (d: number) => onIndex(Math.min(photos.length - 1, Math.max(0, index + d)));
+  const arrow = `absolute top-1/2 -translate-y-1/2 hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-lg font-black ${
+    big ? "bg-white/20 text-white" : "bg-white/85 text-[#2F3E5C] shadow"
+  }`;
   return (
-    <div className="space-y-6 text-sm">
-      {/* お店の写真(届いたら lib/shops.ts の photo・photos に足す。まだないときは運営にだけ空き枠を出す) */}
-      {(shop.photo || shop.photos.length > 0 || isAdmin) && (
-        <section aria-label="お店の写真" className="space-y-2">
-          {tappable(
-            shop.photo,
-            `${shop.name}の写真`,
-            <PhotoSlot src={shop.photo} alt={`${shop.name}の写真`} isAdmin={isAdmin} no={PHOTO_NO.top} className="aspect-square rounded-2xl" />
-          )}
-          <div className="grid grid-cols-3 gap-2">
-            {Array.from({ length: Math.max(shop.photos.length, isAdmin ? shop.photoSlots : 0) }, (_, i) => shop.photos[i]).slice(0, 3).map((src, i) => (
-              <div key={src ?? i}>
-                {tappable(
-                  src,
-                  `${shop.name}の写真${i + 1}`,
-                  <PhotoSlot src={src} alt={`${shop.name}の写真${i + 1}`} isAdmin={isAdmin} no={PHOTO_NO.smallFrom + i} className="aspect-square rounded-xl" />
-                )}
-              </div>
+    <div className={`relative ${big ? "h-full w-full" : ""}`}>
+      <div ref={ref} onScroll={onScroll} className={`flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${big ? "h-full" : "rounded-2xl"}`}>
+        {photos.map((src, i) => (
+          <div key={src} className={`w-full shrink-0 snap-center ${big ? "flex h-full items-center justify-center" : ""}`}>
+            {onTap ? (
+              <button type="button" onClick={() => onTap(i)} aria-label={`${alt}${i + 1}を大きく見る`} className="block w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt={`${alt}${i + 1}`} loading={i === 0 ? "eager" : "lazy"} decoding="async" className={imgClass} />
+              </button>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={src} alt={`${alt}${i + 1}`} decoding="async" className={imgClass} />
+            )}
+          </div>
+        ))}
+      </div>
+      {photos.length > 1 && (
+        <>
+          {index > 0 && <button type="button" onClick={() => go(-1)} aria-label="前の写真" className={`${arrow} left-2`}>‹</button>}
+          {index < photos.length - 1 && <button type="button" onClick={() => go(1)} aria-label="次の写真" className={`${arrow} right-2`}>›</button>}
+          {/* いま何枚目か(点) */}
+          <div className={`pointer-events-none absolute inset-x-0 flex justify-center gap-1.5 ${big ? "bottom-6" : "bottom-2.5"}`} aria-hidden>
+            {photos.map((src, i) => (
+              <span key={src} className={`h-1.5 rounded-full transition-all ${i === index ? "w-4 bg-white" : "w-1.5 bg-white/60"}`} />
             ))}
           </div>
-        </section>
+        </>
       )}
-      {zoom && (
+    </div>
+  );
+}
+
+function ShopTab({ shop, isAdmin }: { shop: Shop; isAdmin: boolean }) {
+  // お店の写真をまとめて1列に(1番の大きい写真 → 2〜4番)
+  const all = [shop.photo, ...shop.photos].filter((x): x is string => !!x);
+  const [index, setIndex] = useState(0); // 大きい写真の枠で、いま見ている写真
+  const [zoom, setZoom] = useState<number | null>(null); // 画面いっぱいに出している写真
+  return (
+    <div className="space-y-6 text-sm">
+      {/* お店の写真: 大きい枠を横にスライドすると次の写真へ。押すと画面いっぱいに大きく出る。
+          まだ写真がないときは、運営にだけ空き枠を出す(lib/shops.ts の photo・photos に足す) */}
+      {all.length > 0 ? (
+        <section aria-label="お店の写真" className="space-y-2">
+          <PhotoSlider photos={all} alt={`${shop.name}の写真`} index={index} onIndex={setIndex} onTap={(i) => setZoom(i)} imgClass="block aspect-square w-full object-cover" />
+          {/* 小さい写真: 押すと大きい枠がその写真に切り替わる */}
+          {all.length > 1 && (
+            <div className="grid grid-cols-4 gap-2">
+              {all.map((src, i) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => setIndex(i)}
+                  aria-label={`${shop.name}の写真${i + 1}を見る`}
+                  className={`overflow-hidden rounded-lg ${i === index ? "ring-2 ring-[#BA421D] ring-offset-1" : "opacity-70"}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" loading="lazy" decoding="async" className="block aspect-square w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        isAdmin && (
+          <section aria-label="お店の写真" className="space-y-2">
+            <PhotoSlot isAdmin alt="" no={PHOTO_NO.top} className="aspect-square rounded-2xl" />
+          </section>
+        )
+      )}
+      {zoom !== null && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-3"
+          className="fixed inset-0 z-50 bg-black/95"
           role="dialog"
           aria-modal="true"
-          aria-label={zoom.alt}
-          onClick={() => setZoom(null)}
-          onKeyDown={(e) => e.key === "Escape" && setZoom(null)}
+          aria-label={`${shop.name}の写真`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setZoom(null);
+            if (e.key === "ArrowRight") setZoom((z) => (z === null ? z : Math.min(all.length - 1, z + 1)));
+            if (e.key === "ArrowLeft") setZoom((z) => (z === null ? z : Math.max(0, z - 1)));
+          }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={zoom.src} alt={zoom.alt} className="max-h-full max-w-full object-contain" />
+          <PhotoSlider photos={all} alt={`${shop.name}の写真`} index={zoom} onIndex={(i) => setZoom(i)} imgClass="max-h-full max-w-full object-contain" big />
+          <p className="pointer-events-none absolute left-4 top-4 text-sm font-bold text-white/80">
+            {zoom + 1} / {all.length}
+          </p>
           <button
             autoFocus
-            onClick={() => setZoom(null)}
+            onClick={() => { setIndex(zoom); setZoom(null); }}
             aria-label="閉じる"
             className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
           >
