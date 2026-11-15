@@ -8,6 +8,7 @@ import { recordCouponView } from "@/lib/couponView";
 import { rememberSource } from "@/lib/visitSource";
 import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import { supabase } from "@/lib/supabase";
 import { BenefitCards, CouponHeadline, CouponNotes, PhotoSlot } from "@/components/CouponParts";
 import { IconX } from "@/components/icons";
 
@@ -24,6 +25,7 @@ type Props = {
   claims: Record<string, MyClaim>;
   loggedIn: boolean;
   isAdmin: boolean;
+  onClaimed: (claim: MyClaim) => void; // クーポンを受け取ったとき
 };
 
 const SHEET_RATIO = 0.72; // シートの高さ(地図の高さに対する割合)。max-h-[72%] と合わせる
@@ -45,7 +47,7 @@ function useWide() {
 
 // クーポンのページ(運営だけの試作)。指で動かせる地図に、クーポンが使えるお店のピンを出す。
 // ピンを押すと、下からシートが出て「クーポン」と「お店の情報」を切り替えて見られる
-export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin }: Props) {
+export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onClaimed }: Props) {
   // 配布中(終わっていない)クーポンがあるお店だけを地図に出す
   const live = useMemo(() => coupons.filter((c) => !hasEnded(c)), [coupons]);
   const shops = useMemo(() => SHOPS.filter((s) => s.couponIds.some((id) => live.some((c) => c.id === id))), [live]);
@@ -220,7 +222,7 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin }: P
             return (
               <button
                 key={s.id}
-                onClick={() => select(s.id)}
+                onClick={() => { select(s.id); setExpanded(true); }}
                 className="min-w-[78%] sm:min-w-0 sm:w-auto sm:max-w-sm shrink-0 rounded-2xl bg-[#BA421D] p-4 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
               >
                 <span className="inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">配布中</span>
@@ -309,6 +311,7 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin }: P
                   claim={claims[coupon.id]}
                   loggedIn={loggedIn}
                   isAdmin={isAdmin}
+                  onClaimed={onClaimed}
                 />
               ) : (
                 <p className="text-sm text-[#2F3E5C]/75">このお店のクーポンは、いま配布していません。</p>
@@ -332,13 +335,29 @@ function CouponTab({
   claim,
   loggedIn,
   isAdmin,
+  onClaimed,
 }: {
   coupon: Coupon;
   shop: Shop;
   claim: MyClaim | undefined;
   loggedIn: boolean;
   isAdmin: boolean;
+  onClaimed: (claim: MyClaim) => void;
 }) {
+  const [busy, setBusy] = useState(false);
+  // 「クーポンを受け取る」を押すと、その場でクーポンボックスに入る
+  const handleClaim = async () => {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("claim_coupon", { p_coupon: coupon.id });
+    setBusy(false);
+    if (error) {
+      toast(/[ぁ-んァ-ン一-龥]/.test(error.message) ? error.message : "うまくいきませんでした。時間をおいてもう一度お試しください。");
+      return;
+    }
+    const c = data as CouponClaim;
+    onClaimed({ coupon_id: c.coupon_id, used_at: c.used_at, use_count: c.use_count });
+    toast("クーポンボックスに入れました", "success");
+  };
   const primary = "block w-full rounded-full py-3.5 text-center font-extrabold";
   const enabled = `${primary} bg-[#BA421D] text-white active:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
   const disabled = `${primary} bg-stone-200 text-stone-500 cursor-not-allowed`;
@@ -346,17 +365,24 @@ function CouponTab({
 
   let cta: React.ReactNode;
   let note: React.ReactNode = null;
-  // 「クーポンを見る」でクーポンボックスへ。受け取るのも、受け取ったものを使うのもクーポンボックスから
+  // 「クーポンを受け取る」を押すとクーポンボックスに入る。使うのはクーポンボックスから
   if (usedUp(coupon, claim)) {
     cta = <span className={disabled}>このクーポンは使用済みです</span>;
+  } else if (claim) {
+    cta = <span className={disabled}>受け取り済み</span>;
+    note = "お店でクーポンボックスから使えます";
   } else if (!loggedIn) {
-    cta = <Link href={loginPath("/coupons/box")} className={enabled}>ログインしてクーポンを見る</Link>;
+    cta = <Link href={loginPath()} className={enabled}>ログインして受け取る</Link>;
     note = <Link href="/join" className="underline">はじめての方は新規登録（無料・北大のメールアドレス）</Link>;
   } else if (beforeStart && !isAdmin) {
-    cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から使えます</button>;
+    cta = <button disabled aria-disabled className={disabled}>{formatDateTime(coupon.claim_from)}から受け取れます</button>;
   } else {
-    cta = <Link href="/coupons/box" className={enabled}>クーポンを見る</Link>;
-    note = claim ? "受け取り済みです。クーポンボックスから使えます" : "クーポンボックスで受け取れます";
+    cta = (
+      <button onClick={handleClaim} disabled={busy} className={enabled}>
+        {busy ? "受け取り中..." : "クーポンを受け取る"}
+      </button>
+    );
+    note = "受け取ると、クーポンボックスに入ります";
   }
 
   return (
@@ -375,10 +401,19 @@ function CouponTab({
           </>
         }
       />
-      <h2 className="mt-7 text-xl font-extrabold">特典</h2>
-      <p className="mt-1 mb-4 text-sm text-[#2F3E5C]/75">{coupon.description}</p>
+      <h2 className="mt-7 text-base font-extrabold">特典</h2>
+      <p className="mt-0.5 mb-3 text-xs text-[#2F3E5C]/75">{coupon.description}</p>
       <BenefitCards benefits={coupon.benefits} photos={shop.benefitPhotos} isAdmin={isAdmin} size="small" />
       <CouponNotes notes={coupon.notes} />
+      {/* いちばん下: クーポンボックスへ */}
+      {loggedIn && (
+        <Link
+          href="/coupons/box"
+          className="mt-6 block w-full rounded-full border-2 border-[#BA421D] py-3 text-center font-extrabold text-[#BA421D] active:opacity-80"
+        >
+          クーポンボックスを見る
+        </Link>
+      )}
     </div>
   );
 }

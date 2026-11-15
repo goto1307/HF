@@ -85,6 +85,7 @@ export default function CouponsPage() {
             claims={claims}
             loggedIn={!!user}
             isAdmin={isAdmin}
+            onClaimed={(c) => setClaims((prev) => ({ ...prev, [c.coupon_id]: c }))}
           />
         )}
       </div>

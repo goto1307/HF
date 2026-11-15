@@ -1,28 +1,24 @@
 "use client";
 import Link from "next/link";
 import { benefitName, formatDate, formatDateTime, formatTime, formatWindows, hasEnded, usableNow, usedUp, type Coupon, type CouponClaim } from "@/lib/coupon";
-import { shopForCoupon } from "@/lib/shops";
-import { PhotoSlot } from "@/components/CouponParts";
 
 // クーポンボックスの一覧(クーポンボックスのページと、HOKUMA のマイページで使う)。
 // 使える順: まだ使えて期限内 → 期限切れ → 使用済み(使える回数を使い切ったもの)
 // claim が null の行は「まだ受け取っていない配布中のクーポン」。右の小さい札が「受け取る」ボタンになる。
 // 受け取ったあとの行は、押すとクーポンを使う画面へ移る
 // theme: "light" は白地のページ(クーポンボックス)、"dark" は紺のページ(マイページ)に置くとき
-// 左に正方形でお店のロゴを出す(lib/shops.ts の logo)。ロゴがまだないときは、運営には「ロゴが入ります」の空き枠、
-// 利用者にはお店の名前の1文字目を出す
+// 写真・ロゴは出さず、クーポン名だけのすっきりしたカードにする(運営の希望)
 export default function CouponBoxList({
   rows,
   compact = false,
   theme = "dark",
-  isAdmin = false,
   onClaim,
   busyId = null,
 }: {
   rows: { claim: CouponClaim | null; coupon: Coupon }[];
   compact?: boolean;
   theme?: "light" | "dark";
-  isAdmin?: boolean;
+  isAdmin?: boolean; // (いまは使っていない。ロゴを出していたころの名残り)
   onClaim?: (couponId: string) => void; // 「受け取る」を押したとき
   busyId?: string | null; // 受け取り中のクーポン
 }) {
@@ -51,7 +47,6 @@ export default function CouponBoxList({
         const used = usedUp(coupon, claim);
         const ended = !used && hasEnded(coupon);
         const now = !used && !ended && usableNow(coupon);
-        const logo = shopForCoupon(coupon.id)?.logo;
         return (
           <li key={coupon.id}>
             <Wrap
@@ -63,16 +58,6 @@ export default function CouponBoxList({
               }`}
             >
               <div className="flex items-start gap-3">
-                {/* お店のロゴ(正方形) */}
-                <div className={`shrink-0 overflow-hidden rounded-xl ${compact ? "h-14 w-14" : "h-20 w-20"} ${used || ended ? "opacity-60" : ""}`}>
-                  {logo || isAdmin ? (
-                    <PhotoSlot src={logo} alt={`${coupon.shop_name}のロゴ`} isAdmin={isAdmin} label="ロゴ" className="h-full rounded-xl object-contain bg-white" />
-                  ) : (
-                    <span aria-hidden className="flex h-full w-full items-center justify-center bg-[#BA421D]/10 text-2xl font-black text-[#BA421D]">
-                      {coupon.shop_name.slice(0, 1)}
-                    </span>
-                  )}
-                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
