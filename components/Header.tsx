@@ -530,7 +530,9 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
               { href: "/", label: "商品を探す" },
               ...(user ? [{ href: "/mypage#purchased", label: "出品・購入商品" }] : []),
               { href: "/demands", label: "みんなの欲しい！" },
-            ].map((tab) => {
+              // 配布中のクーポンがあるときは、フリマのタブの並びにもクーポンへの入り口を出す
+              ...(showCoupons ? [{ href: "/coupons", label: "クーポン", badge: "配布中" }] : []),
+            ].map((tab: { href: string; label: string; badge?: string }) => {
               const isActive =
                 tab.href === "/" ? pathname === "/"
                 : tab.href === "/demands" ? pathname.startsWith("/demands")
@@ -544,6 +546,11 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                   }`}
                 >
                   {tab.label}
+                  {tab.badge && (
+                    <span className="ml-1 align-middle text-[10px] font-black bg-yellow-300 text-stone-900 rounded-full px-1.5 py-0.5">
+                      {tab.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
