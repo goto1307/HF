@@ -83,17 +83,13 @@ export default function CouponBanner() {
         href={`/coupons?shop=${shop?.id ?? ""}`}
         className="flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-[#B0306A] to-[#7A3393] text-white pl-4 pr-10 py-3 shadow-sm hover:shadow-md transition-shadow"
       >
-        {shop?.illustration && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={shop.illustration} alt="" className="shrink-0 w-14 h-auto" />
-        )}
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="shrink-0 text-[10px] font-bold bg-white/25 rounded px-1.5 py-0.5">{label}</span>
-            <span className="truncate text-sm font-black">{coupon.shop_name}　クーポン配布中</span>
-          </span>
-          <span className="mt-0.5 block text-[11px] text-white/85 truncate">
-            {formatDate(coupon.use_from)}〜{formatDate(coupon.use_until)}・{formatWindows(coupon.time_windows)}
+          <span className="block truncate text-sm font-black">{coupon.shop_name}　クーポン配布中</span>
+          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/85">
+            <span className="shrink-0 text-[10px] font-bold bg-white/25 text-white rounded px-1.5 py-0.5">{label}</span>
+            <span className="truncate">
+              {formatDate(coupon.use_from)}〜{formatDate(coupon.use_until)}・{formatWindows(coupon.time_windows)}
+            </span>
           </span>
         </span>
         <span className="shrink-0 text-xs font-bold bg-white text-[#7A3393] rounded-full px-3 py-1">見る</span>
