@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { COUPON_COLUMNS, claimOpen, hasEnded, type Coupon } from "@/lib/coupon";
+import { shopForCoupon } from "@/lib/shops";
 
 // トップページの商品一覧の上に出す、配布中のクーポンのお知らせ(migration PART AT)。
 // 受け取れる期間のクーポンがないときは何も出さない。広告なので「PR・提携」と必ず表示する
@@ -25,7 +26,8 @@ export default function CouponBanner() {
 
   return (
     <Link
-      href={`/coupons/${coupon.id}`}
+      // 押すと、いきなり使う画面ではなく、クーポンとお店の詳細(クーポンの地図の画面)を開く
+      href={`/coupons?shop=${shopForCoupon(coupon.id)?.id ?? ""}`}
       className="mb-3 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#B0306A] to-[#7A3393] text-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
     >
       <span className="shrink-0 text-[10px] font-bold bg-white/25 rounded px-1.5 py-0.5">

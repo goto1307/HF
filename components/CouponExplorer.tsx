@@ -82,6 +82,14 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
   // - 下へ 80px 以上なぞって離す → 広げているときは元の高さに戻し、元の高さのときは閉じる
   // - つまみ(灰色のバー)を軽く押す → 広げる/戻すを切り替える
   const [expanded, setExpanded] = useState(false);
+  // トップの「〇〇 クーポン配布中」から来たとき(/coupons?shop=お店のID)は、そのお店のクーポンの詳細を最初から開いておく
+  useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get("shop");
+    if (!want || !shops.some((s) => s.id === want)) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedId(want);
+    setExpanded(true);
+  }, [shops]);
   const sheetRef = useRef<HTMLElement>(null);
   const drag = useRef<{ startY: number; dy: number; id: number; startH: number; onHandle: boolean } | null>(null);
   const clearDragStyle = (el: HTMLElement) => {
