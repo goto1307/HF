@@ -31,16 +31,24 @@ export default function ImageCropper({ file, onConfirm, onCancel, title, round }
   }, [file]);
 
   const baseScale = naturalSize ? Math.max(CROP_SIZE / naturalSize.w, CROP_SIZE / naturalSize.h) : 1;
+  // 写真全体が枠に収まる倍率。商品写真は、ここまで縮めて全体を入れられる（余白は白で埋める）。
+  // 丸いプロフィール写真は余白が出ると不自然なので、今までどおり枠いっぱいまで。
+  const minZoom = naturalSize && !round
+    ? Math.min(CROP_SIZE / naturalSize.w, CROP_SIZE / naturalSize.h) / baseScale
+    : 1;
   const scale = baseScale * zoom;
   const displayW = naturalSize ? naturalSize.w * scale : 0;
   const displayH = naturalSize ? naturalSize.h * scale : 0;
 
   const clampPos = useCallback((x: number, y: number, dw: number, dh: number) => {
+    // 写真が枠より大きいときは枠からはみ出す範囲で、小さいときは枠の中で動かせる
     const minX = Math.min(0, CROP_SIZE - dw);
+    const maxX = Math.max(0, CROP_SIZE - dw);
     const minY = Math.min(0, CROP_SIZE - dh);
+    const maxY = Math.max(0, CROP_SIZE - dh);
     return {
-      x: Math.min(0, Math.max(minX, x)),
-      y: Math.min(0, Math.max(minY, y)),
+      x: Math.min(maxX, Math.max(minX, x)),
+      y: Math.min(maxY, Math.max(minY, y)),
     };
   }, []);
 
@@ -92,10 +100,11 @@ export default function ImageCropper({ file, onConfirm, onCancel, title, round }
     canvas.height = OUTPUT_SIZE;
     const ctx = canvas.getContext("2d");
     if (!ctx) { onCancel(); return; }
-    const srcX = -pos.x / scale;
-    const srcY = -pos.y / scale;
-    const srcSize = CROP_SIZE / scale;
-    ctx.drawImage(imgElRef.current, srcX, srcY, srcSize, srcSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    // 縮めたときの余白は白にする
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    const k = OUTPUT_SIZE / CROP_SIZE;
+    ctx.drawImage(imgElRef.current, pos.x * k, pos.y * k, displayW * k, displayH * k);
     canvas.toBlob(
       (blob) => {
         if (!blob) { onCancel(); return; }
@@ -111,7 +120,7 @@ export default function ImageCropper({ file, onConfirm, onCancel, title, round }
       <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-5">
         <p className="font-bold text-sm mb-3 text-center">{title || "画像を調整"}</p>
         <div
-          className={`relative mx-auto overflow-hidden bg-stone-100 touch-none select-none ${round ? "rounded-full" : "rounded-xl"}`}
+          className={`relative mx-auto overflow-hidden ${round ? "bg-stone-100" : "bg-white border border-stone-200"} touch-none select-none ${round ? "rounded-full" : "rounded-xl"}`}
           style={{ width: CROP_SIZE, height: CROP_SIZE, cursor: naturalSize ? "grab" : "default" }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -140,7 +149,7 @@ export default function ImageCropper({ file, onConfirm, onCancel, title, round }
           <IconSearch size={14} className="text-stone-400 shrink-0" />
           <input
             type="range"
-            min={1}
+            min={minZoom}
             max={MAX_ZOOM}
             step={0.05}
             value={zoom}
@@ -149,7 +158,7 @@ export default function ImageCropper({ file, onConfirm, onCancel, title, round }
             disabled={!naturalSize}
           />
         </div>
-        <p className="text-xs text-stone-400 text-center mt-2">ドラッグで位置調整、スライダーで拡大縮小できます</p>
+        <p className="text-xs text-stone-400 text-center mt-2">{round ? "ドラッグで位置調整、スライダーで拡大縮小できます" : "ドラッグで位置調整、スライダーを左にすると写真全体が入ります"}</p>
         <div className="flex gap-2 mt-4">
           <button onClick={onCancel} className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors">
             キャンセル
