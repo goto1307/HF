@@ -75,8 +75,10 @@ export default function CouponsPage() {
   if (showMap) {
     // 画面いっぱいの地図。ページ全体は動かないように固定する
     // (スマホでページごと引っ張られて、ヘッダーやフッターがずれて見えるのを防ぐ)
+    // 地図の外(ヘッダーや下の欄)を2本指で広げると、ページ全体が拡大されたまま戻らなくなる。
+    // 縦横のスクロールだけ許して、ページの拡大は止める(地図の中の拡大・縮小は地図が自分で行う)
     return (
-      <div className="fixed inset-0 z-30 flex flex-col overscroll-none bg-[#EEF2F5]">
+      <div className="fixed inset-0 z-30 flex flex-col overscroll-none bg-[#EEF2F5]" style={{ touchAction: "pan-x pan-y" }}>
         <LockPageScroll />
         {/* ヘッダーのお知らせ(ベル)の一覧が、下のクーポンの欄に隠れないよう、ヘッダーを上の層にする */}
         <div className="relative z-40">
