@@ -209,7 +209,7 @@ export function CouponHeadline({
         {/* ホックマのイラスト(手描き) */}
         {illustration && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={illustration} alt="" className="h-24 w-24 shrink-0 rounded-xl bg-white object-cover" />
+          <img src={illustration} alt="" className="h-24 w-auto shrink-0" />
         )}
       </span>
     );
