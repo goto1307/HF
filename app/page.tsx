@@ -233,8 +233,9 @@ function HomeContent() {
     <div className="min-h-screen bg-stone-50">
       <Header />
 
+      {/* スマホでは情報が多くなりすぎるので、この案内はパソコンの幅だけに出す */}
       {!user && !heroDismissed && (
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#7a1f1f] via-[#a8351f] to-orange-600 text-white shadow-lg">
+        <div className="hidden sm:block relative overflow-hidden bg-gradient-to-br from-[#7a1f1f] via-[#a8351f] to-orange-600 text-white shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)]" aria-hidden />
           <button
             onClick={dismissHero}

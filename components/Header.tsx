@@ -551,8 +551,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
         )}
         {/* 未ログインでも「商品を探す」「みんなの欲しい！」は見られるのでタブを出す(クーポンの中ではフリマのタブは出さない) */}
         {!inCoupons && (
-        // スマホでは情報が多くなりすぎるので、タブはパソコンの幅だけに出す
-        <div className="hidden sm:block border-t border-white/20">
+        <div className="border-t border-white/20">
           <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
             {[
               { href: "/", label: "商品を探す" },
