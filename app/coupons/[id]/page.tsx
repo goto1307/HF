@@ -1,4 +1,5 @@
 "use client";
+import { showClaimed } from "@/lib/claimedNotice";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -100,6 +101,7 @@ export default function CouponPage() {
     setBusy(false);
     if (error) { toast(errorMessage(error)); return; }
     setClaim(data as CouponClaim);
+    showClaimed();
   };
 
   // 「お店で使う」を押したら、まず確認の画面を出す(ブラウザ標準のポップアップではなく、自分で作った画面)
@@ -374,6 +376,7 @@ export default function CouponPage() {
               )}
               {/* 1人1回のクーポンなので、押す前に取り消せないことを伝える */}
               <p className="mt-2 text-sm font-bold text-[#BA421D]">確定すると元に戻せません</p>
+              <p className="mt-2 text-sm text-[#2F3E5C]">混雑時は早めの退店をお願いいたします。</p>
               <button
                 autoFocus
                 onClick={doUse}

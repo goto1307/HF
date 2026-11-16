@@ -5933,3 +5933,21 @@ update public.coupon set
     from unnest(benefits) with ordinality as t(b, ord)
   )
 where id = 'futagozan-1';
+
+-- PART BF: 利用規約の変更(2026/11/17から)を、全員のベル(サイト内通知)にお知らせする
+-- 通知を押したときに開くページを入れられるよう、link 列を足す(サイト内のパス "/..." だけ。画面側でも確かめる)
+alter table public.notification add column if not exists link text;
+
+-- 登録済み(メール確認済み)の全員に1件ずつ送る。同じお知らせがすでにある人には送らないので、何度実行しても重ならない
+insert into public.notification (user_id, message, link, read)
+select u.id,
+       '【お知らせ】11月17日から利用規約が変わります（クーポンのルールの追加など）。押すと変更内容を確認できます。',
+       '/terms',
+       false
+from auth.users u
+where u.email_confirmed_at is not null
+  and not exists (
+    select 1 from public.notification n
+    where n.user_id = u.id and n.link = '/terms'
+      and n.message like '【お知らせ】11月17日から利用規約が変わります%'
+  );
