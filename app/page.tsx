@@ -238,42 +238,30 @@ function HomeContent() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)]" aria-hidden />
           <button
             onClick={dismissHero}
-            className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
+            className="absolute top-1/2 -translate-y-1/2 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 transition-colors"
             aria-label="閉じる"
           >
             <IconX size={15} />
           </button>
-          <div className="absolute -top-24 right-10 w-56 h-56 rounded-full bg-white/10" aria-hidden />
-          <div className="absolute -bottom-20 left-[8%] w-36 h-36 rounded-full bg-white/10" aria-hidden />
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-200/60 to-transparent" aria-hidden />
-          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
-            <div className="max-w-md">
-              <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-extrabold bg-white/15 backdrop-blur-sm border border-white/25 px-3 py-1 rounded-full mb-3 tracking-wide">
-                🐻‍❄️ 北大生限定のフリマ
-              </span>
-              <h1 className="text-xl sm:text-3xl font-extrabold leading-snug mb-2 text-balance tracking-tight">
+          {/* クーポンの帯や商品が見えるよう、小さめの1段にしている */}
+          <div className="relative max-w-6xl mx-auto pl-4 pr-12 sm:px-6 py-3 flex items-center gap-3">
+            <HokkumaMascot size={44} className="shrink-0 drop-shadow-md hidden sm:block" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm sm:text-base font-extrabold leading-snug">
                 <span className="inline-block">いらないが、</span>
-                <span className="inline-block">誰かの「ちょうどいい」</span>
-                <span className="inline-block">になる。</span>
-              </h1>
-              <p className="text-xs sm:text-sm text-amber-50/90 leading-relaxed mb-5">
-                <span className="inline-block">教科書、自転車、部屋のもの。</span>
-                <span className="inline-block">キャンパスの中だけで、</span>
-                <span className="inline-block">ちょうどいい売り買いを。</span>
+                <span className="inline-block">誰かの「ちょうどいい」になる。</span>
               </p>
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <Link href="/join" className="bg-white text-orange-800 px-5 py-2.5 rounded-full font-bold text-sm shadow-md hover:shadow-lg hover:bg-orange-100 transition-all">
-                  新規登録
-                </Link>
-                <Link href="/login" className="border border-white/70 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-white/25 transition-colors">
-                  ログイン
-                </Link>
-                <button onClick={dismissHero} className="text-sm font-bold underline opacity-80 hover:opacity-100 transition-opacity px-2">
-                  登録しないで続ける
-                </button>
-              </div>
+              <p className="text-[11px] sm:text-xs text-amber-50/90">北大生限定のフリマ。教科書、自転車、部屋のもの。</p>
             </div>
-            <HokkumaMascot size={160} className="shrink-0 drop-shadow-2xl hidden sm:block sm:mr-6 lg:mr-16" />
+            <div className="shrink-0 flex items-center gap-1.5">
+              <Link href="/join" className="bg-white text-orange-800 px-3.5 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-md hover:bg-orange-100 transition-colors">
+                新規登録
+              </Link>
+              <Link href="/login" className="hidden sm:inline-block border border-white/70 px-3.5 py-1.5 rounded-full font-bold text-sm hover:bg-white/25 transition-colors">
+                ログイン
+              </Link>
+            </div>
           </div>
         </div>
       )}
