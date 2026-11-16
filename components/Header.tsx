@@ -379,7 +379,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                   <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
                   <p className="text-sm font-bold text-orange-800">クーポンはこちら</p>
                   <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                    右上の家のマークを押すと「クーポン」のページに移動できます。北大近くのお店で使えるクーポンを配っています。
+                    右上の家のマークを押すと「クーポン」のページに移動できます。トップページの「クーポン配布中」の帯からも見られます。北大近くのお店で使えるクーポンを配っています。
                   </p>
                   <div className="flex gap-2 mt-2.5">
                     <button onClick={closeCouponTip} className="flex-1 border border-stone-300 text-stone-600 py-1.5 rounded-full text-xs font-bold hover:bg-stone-100">
