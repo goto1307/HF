@@ -10,7 +10,7 @@ import DemandBubbles from "@/components/DemandBubbles";
 import InstallGuide from "@/components/InstallGuide";
 import { useIsStandalone } from "@/lib/standalone";
 import AppLauncher from "@/components/AppLauncher";
-import { SECTIONS, type SectionKey } from "@/lib/appSections";
+import { SECTIONS, type SectionKey, useAppsOpen } from "@/lib/appSections";
 import { loginPath } from "@/lib/nav";
 import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
@@ -53,6 +53,8 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
   const standalone = useIsStandalone();
   const { user } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
+  // クーポンの地図・☰ のホーム画面などの新しい画面を出すか(運営はいつでも、一般の人は公開日時から)
+  const appsOpen = useAppsOpen(user?.email);
   const [showGuide, setShowGuide] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -68,14 +70,14 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
   const [showLauncher, setShowLauncher] = useState(false);
   const closeLauncher = useCallback(() => setShowLauncher(false), []);
   // フリマ以外のサービス(クーポン・マイページ)では、フリマ用のタブを出さない
-  const inCoupons = isAdmin && section !== "market";
-  const homeHref = isAdmin ? SECTIONS[section].home : "/";
-  const subtitle = isAdmin ? SECTIONS[section].subtitle : "北大生専用のフリマ";
+  const inCoupons = appsOpen && section !== "market";
+  const homeHref = appsOpen ? SECTIONS[section].home : "/";
+  const subtitle = appsOpen ? SECTIONS[section].subtitle : "北大生専用のフリマ";
 
   // 画面の右上から左下へなぞると、指の動きに合わせてホーム画面が広がる。離したときに十分広がっていれば開く(運営だけの試作)
   const [dragRadius, setDragRadius] = useState<number | null>(null);
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!appsOpen) return;
     let start: { x: number; y: number } | null = null;
     let radius = 0;
     const onStart = (e: TouchEvent) => {
@@ -110,7 +112,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
       document.removeEventListener("touchend", onEnd);
       document.removeEventListener("touchcancel", onEnd);
     };
-  }, [isAdmin]);
+  }, [appsOpen]);
 
   useEffect(() => {
     hasVisibleCoupon().then(setShowCoupons);
@@ -313,7 +315,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                   )}
                 </div>
                 <Link
-                  href={isAdmin ? "/me" : "/mypage"}
+                  href={appsOpen ? "/me" : "/mypage"}
                   className="flex items-center gap-1.5 sm:gap-2 bg-white text-orange-700 pl-1.5 pr-1.5 sm:pl-2 sm:pr-4 py-1.5 rounded-full font-bold text-sm hover:bg-orange-100 transition-colors"
                 >
                   {user.user_metadata?.avatar_url ? (
@@ -343,7 +345,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
               </>
             )}
             <div ref={menuRef}>
-              {isAdmin ? (
+              {appsOpen ? (
                 // 運営だけの試作: 目立つ ☰ で、画面いっぱいのホーム画面を開く
                 <button
                   onClick={() => setShowLauncher(true)}
@@ -361,7 +363,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                 <IconMenu size={18} />
               </button>
               )}
-              {showMenu && !isAdmin && (
+              {showMenu && !appsOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
                   {isAdmin && (
                     <>
@@ -513,7 +515,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
         )}
       </header>
 
-      {isAdmin && (
+      {appsOpen && (
         <AppLauncher
           open={showLauncher}
           dragRadius={showLauncher ? null : dragRadius}

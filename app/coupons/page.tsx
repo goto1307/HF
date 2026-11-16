@@ -20,6 +20,7 @@ import HokkumaMascot from "@/components/HokkumaMascot";
 import CouponExplorer from "@/components/CouponExplorer";
 import LockPageScroll from "@/components/LockPageScroll";
 import { isAdminEmail } from "@/lib/adminEmails";
+import { useAppsOpen } from "@/lib/appSections";
 
 type MyClaim = { coupon_id: string; used_at: string | null; use_count: number };
 
@@ -29,18 +30,19 @@ export default function CouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [claims, setClaims] = useState<Record<string, MyClaim>>({});
   const [loading, setLoading] = useState(true);
-  // 地図のページは、いまは運営だけの試作
   const isAdmin = isAdminEmail(user?.email);
+  // 地図のページは、運営はいつでも、一般の人は公開日時(APPS_PUBLIC_AT)から
+  const showMap = useAppsOpen(user?.email);
 
-  // 地図を出す人(いまは運営だけ)は、クーポンのデータを待たずに、地図のプログラムと地図の部品を
+  // 地図を出す人は、クーポンのデータを待たずに、地図のプログラムと地図の部品を
   // 先に読み始めておく。データが届いたときには地図の準備ができているので、早く出る
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!showMap) return;
     preconnect("https://tiles.openfreemap.org");
     import("@/components/ShopMap").catch(() => {});
     import("maplibre-gl").catch(() => {});
     fetch("/maplibre-gl-worker.mjs").catch(() => {});
-  }, [isAdmin]);
+  }, [showMap]);
 
   const userId = user?.id ?? null;
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function CouponsPage() {
     return { label: `${formatDateTime(c.claim_from)}から`, tone: "bg-stone-100 text-stone-600" };
   };
 
-  if (isAdmin) {
+  if (showMap) {
     // 画面いっぱいの地図。ページ全体は動かないように固定する
     // (スマホでページごと引っ張られて、ヘッダーやフッターがずれて見えるのを防ぐ)
     return (
