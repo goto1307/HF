@@ -6,6 +6,7 @@ import NavTracker from "@/components/NavTracker";
 import LastSectionRestore from "@/components/LastSectionRestore";
 import Toaster from "@/components/Toaster";
 import ClaimedOverlay from "@/components/ClaimedOverlay";
+import InAppViewportFix from "@/components/InAppViewportFix";
 import { SITE_URL } from "@/lib/siteUrl";
 
 const mplusRounded = M_PLUS_Rounded_1c({
@@ -45,6 +46,7 @@ export default function RootLayout({
       className={`${mplusRounded.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <InAppViewportFix />
         <NavTracker />
         <Toaster />
         <ClaimedOverlay />
