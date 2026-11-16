@@ -1,6 +1,6 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
-import { closeClaimed, isClaimedOpen, isClaimedOpenOnServer, subscribeClaimed } from "@/lib/claimedNotice";
+import { closeClaimed, getClaimedTitle, isClaimedOpen, isClaimedOpenOnServer, subscribeClaimed } from "@/lib/claimedNotice";
 
 // 「クーポンを受け取る」を押したあとに出す、大きなお知らせ。下にホックマの「いただきます」の絵を出す。
 // 絵は public/hokkuma-itadakimasu.png に置く(まだ置いていないときは、絵なしで文字だけ出す)
@@ -12,7 +12,7 @@ export default function ClaimedOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-5"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-5"
       role="dialog"
       aria-modal="true"
       aria-labelledby="claimed-title"
@@ -24,9 +24,7 @@ export default function ClaimedOverlay() {
         onClick={(e) => e.stopPropagation()}
       >
         <p id="claimed-title" className="text-2xl font-extrabold leading-snug text-[#BA421D]">
-          クーポンボックスに
-          <br />
-          入れました！
+          {getClaimedTitle()}
         </p>
         <p className="mt-3 text-sm leading-relaxed text-[#2F3E5C]">
           お店で、お店の方に画面を見せながら
