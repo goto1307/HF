@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { COUPON_COLUMNS, claimOpen, hasEnded, type Coupon } from "@/lib/coupon";
+import { COUPON_COLUMNS, claimOpen, formatDate, formatWindows, hasEnded, type Coupon } from "@/lib/coupon";
 import { shopForCoupon } from "@/lib/shops";
 
 // トップページの商品一覧の上に出す、配布中のクーポンのお知らせ(migration PART AT)。
@@ -23,23 +23,34 @@ export default function CouponBanner() {
   }, []);
 
   if (!coupon) return null;
+  const shop = shopForCoupon(coupon.id);
 
   return (
     <Link
       // 押すと、いきなり使う画面ではなく、クーポンとお店の詳細(クーポンの地図の画面)を開く
-      href={`/coupons?shop=${shopForCoupon(coupon.id)?.id ?? ""}`}
-      className="mb-3 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#B0306A] to-[#7A3393] text-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow"
+      href={`/coupons?shop=${shop?.id ?? ""}`}
+      className="relative mb-4 flex items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-r from-[#B0306A] to-[#7A3393] text-white pl-5 pr-3 py-4 sm:py-5 shadow-md hover:shadow-lg transition-shadow"
     >
-      <span className="shrink-0 text-[10px] font-bold bg-white/25 rounded px-1.5 py-0.5">
-        {coupon.active ? "PR・提携" : "非公開"}
-      </span>
       <span className="min-w-0 flex-1">
-        {/* 特典を全部並べると見切れるので、短く「店名 クーポン配布中」だけにする */}
-        <span className="block text-sm font-black truncate">
-          {coupon.shop_name}　クーポン配布中
+        <span className="inline-block text-[10px] font-bold bg-white/25 rounded px-1.5 py-0.5">
+          {coupon.active ? "PR・提携" : "非公開"}
+        </span>
+        <span className="mt-1.5 block text-lg sm:text-xl font-black leading-snug">
+          {coupon.shop_name}
+          <br />
+          クーポン配布中
+        </span>
+        <span className="mt-1 block text-xs text-white/85">
+          {formatDate(coupon.use_from)}〜{formatDate(coupon.use_until)}・{formatWindows(coupon.time_windows)}
+        </span>
+        <span className="mt-2.5 inline-block text-sm font-bold bg-white text-[#7A3393] rounded-full px-4 py-1.5">
+          クーポンを見る →
         </span>
       </span>
-      <span className="shrink-0 text-xs font-bold bg-white text-[#7A3393] rounded-full px-3 py-1">見る</span>
+      {shop?.illustration && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={shop.illustration} alt="" className="shrink-0 w-28 sm:w-36 h-auto -mb-4 sm:-mb-5 self-end" />
+      )}
     </Link>
   );
 }

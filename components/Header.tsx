@@ -12,7 +12,7 @@ import { useIsStandalone } from "@/lib/standalone";
 import AppLauncher from "@/components/AppLauncher";
 import { SECTIONS, type SectionKey, useAppsOpen } from "@/lib/appSections";
 import { loginPath } from "@/lib/nav";
-import { IconSearch, IconBell, IconMenu, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
+import { IconSearch, IconBell, IconMenu, IconHome, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
 type Notification = {
   id: number;
@@ -365,13 +365,13 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
             )}
             <div ref={menuRef} className="relative">
               {appsOpen ? (
-                // 目立つ ☰ で、画面いっぱいのホーム画面(フリマ・クーポン・マイページ)を開く
+                // 目立つ家のマークで、画面いっぱいのホーム画面(フリマ・クーポン・マイページ)を開く
                 <button
                   onClick={() => { if (showCouponTip) closeCouponTip(); setShowLauncher(true); }}
-                  className="ml-0.5 w-9 h-9 flex items-center justify-center rounded-xl bg-white text-orange-700 shadow-sm hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
-                  aria-label="HOKUMAのサービス一覧を開く"
+                  className="ml-0.5 w-11 h-11 flex items-center justify-center rounded-2xl bg-white text-orange-700 shadow-sm hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
+                  aria-label="HOKUMAのホーム画面(フリマ・クーポン・マイページ)を開く"
                 >
-                  <IconMenu size={20} />
+                  <IconHome size={26} />
                 </button>
               ) : null}
               {appsOpen && showCouponTip && (
@@ -379,7 +379,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                   <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
                   <p className="text-sm font-bold text-orange-800">クーポンはこちら</p>
                   <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                    右上の ☰ を押すと「クーポン」のページに移動できます。北大近くのお店で使えるクーポンを配っています。
+                    右上の家のマークを押すと「クーポン」のページに移動できます。北大近くのお店で使えるクーポンを配っています。
                   </p>
                   <div className="flex gap-2 mt-2.5">
                     <button onClick={closeCouponTip} className="flex-1 border border-stone-300 text-stone-600 py-1.5 rounded-full text-xs font-bold hover:bg-stone-100">
@@ -530,7 +530,9 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
               { href: "/", label: "商品を探す" },
               ...(user ? [{ href: "/mypage#purchased", label: "出品・購入商品" }] : []),
               { href: "/demands", label: "みんなの欲しい！" },
-            ].map((tab) => {
+              // 配布中のクーポンがあるときは、フリマのタブの並びにもクーポンへの入り口を出す
+              ...(showCoupons ? [{ href: "/coupons", label: "クーポン", badge: "配布中" }] : []),
+            ].map((tab: { href: string; label: string; badge?: string }) => {
               const isActive =
                 tab.href === "/" ? pathname === "/"
                 : tab.href === "/demands" ? pathname.startsWith("/demands")
@@ -544,6 +546,11 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                   }`}
                 >
                   {tab.label}
+                  {tab.badge && (
+                    <span className="ml-1 align-middle text-[10px] font-black bg-yellow-300 text-stone-900 rounded-full px-1.5 py-0.5">
+                      {tab.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
