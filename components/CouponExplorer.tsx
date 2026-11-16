@@ -49,6 +49,16 @@ function useWide() {
 
 // クーポンのページ(運営だけの試作)。指で動かせる地図に、クーポンが使えるお店のピンを出す。
 // ピンを押すと、下からシートが出て「クーポン」と「お店の情報」を切り替えて見られる
+const DETAIL_TIP_KEY = "hokuma-coupon-detail-tip-seen";
+const noopSubscribe = () => () => {};
+function readDetailTipSeen() {
+  try {
+    return localStorage.getItem(DETAIL_TIP_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
 export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onClaimed }: Props) {
   // 配布中(終わっていない)クーポンがあるお店だけを地図に出す
   const live = useMemo(() => coupons.filter((c) => !hasEnded(c)), [coupons]);
@@ -82,6 +92,14 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
   // - 下へ 80px 以上なぞって離す → 広げているときは元の高さに戻し、元の高さのときは閉じる
   // - つまみ(灰色のバー)を軽く押す → 広げる/戻すを切り替える
   const [expanded, setExpanded] = useState(false);
+  // 「詳細はこちら」の吹き出し(下のクーポンのカードを指す)。一度閉じたらブラウザに覚えて出さない
+  const detailTipSeen = useSyncExternalStore(noopSubscribe, readDetailTipSeen, () => true);
+  const [detailTipClosed, setDetailTipClosed] = useState(false);
+  const showDetailTip = !detailTipSeen && !detailTipClosed;
+  const closeDetailTip = () => {
+    try { localStorage.setItem(DETAIL_TIP_KEY, "1"); } catch { /* 覚えられなくても閉じる */ }
+    setDetailTipClosed(true);
+  };
   // トップの「〇〇 クーポン配布中」から来たとき(/coupons?shop=お店のID)は、そのお店のクーポンの詳細を最初から開いておく
   useEffect(() => {
     const want = new URLSearchParams(window.location.search).get("shop");
@@ -225,14 +243,29 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
 
       {/* 何も選んでいないとき: 下にお店のカードを小さく出す(押すとシートが開く) */}
       {!shop && shops.length > 0 && (
-        <div className="absolute inset-x-0 bottom-4 z-10 flex gap-3 overflow-x-auto p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="absolute inset-x-0 bottom-4 z-10">
+          {/* 初めて来た人に、下のカードを押すと詳細が見られることを知らせる(× か、カードを押すと消える) */}
+          {showDetailTip && (
+            <div className="relative ml-3 -mb-1 inline-block whitespace-nowrap rounded-2xl border-2 border-orange-300 bg-white py-3.5 pl-4 pr-10 shadow-lg">
+              <span className="absolute -bottom-1.5 left-8 h-3 w-3 rotate-45 border-b-2 border-r-2 border-orange-300 bg-white" aria-hidden="true" />
+              <p className="text-base font-black leading-snug text-orange-800">詳細はこちら</p>
+              <button
+                onClick={closeDetailTip}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100"
+                aria-label="閉じる"
+              >
+                <IconX size={14} />
+              </button>
+            </div>
+          )}
+        <div className="flex gap-3 overflow-x-auto p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
           {shops.map((s) => {
             // お店の名前ではなく、配っているクーポンの名前を出す
             const c = live.find((x) => s.couponIds.includes(x.id));
             return (
               <button
                 key={s.id}
-                onClick={() => { select(s.id); setExpanded(true); }}
+                onClick={() => { closeDetailTip(); select(s.id); setExpanded(true); }}
                 className="flex min-w-[78%] sm:min-w-0 sm:w-auto sm:max-w-sm shrink-0 items-center gap-3 rounded-2xl bg-[#BA421D] p-3 pr-4 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
               >
                 <span className="min-w-0 flex-1 pl-1">
@@ -247,6 +280,7 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
               </button>
             );
           })}
+        </div>
         </div>
       )}
       {shops.length === 0 && (
