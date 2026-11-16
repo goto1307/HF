@@ -1,7 +1,25 @@
 // HOKUMA の中のサービス(フリマ・クーポンなど)の一覧と、「最後に開いていたサービス」の記録。
 // ☰ から開くホーム画面(components/AppLauncher.tsx)と、
 // アプリを開き直したときに前回のサービスから始める仕組み(components/LastSectionRestore.tsx)で使う。
-// ※ いまは運営(管理者)だけに出している試作。一般公開するときは、これを使っている画面の isAdmin の条件を外す
+// 運営(管理者)には先に出していた。一般の人には APPS_PUBLIC_AT から出す(useAppsOpen)
+import { useSyncExternalStore } from "react";
+import { isAdminEmail } from "@/lib/adminEmails";
+
+// クーポン(地図)・☰ のホーム画面・マイページのハブを、一般の人にも出し始める日時
+export const APPS_PUBLIC_AT = "2026-11-17T00:00:00+09:00";
+
+const noopSubscribe = () => () => {};
+
+// 新しい画面(クーポンの地図・☰ のホーム画面など)を見せるか。運営はいつでも、一般の人は公開日時から。
+// サーバーで作る最初の画面では false にして、ブラウザで今の時刻を見て切り替える(表示のずれを防ぐ)
+export function useAppsOpen(email: string | null | undefined) {
+  const publicNow = useSyncExternalStore(
+    noopSubscribe,
+    () => Date.now() >= Date.parse(APPS_PUBLIC_AT),
+    () => false,
+  );
+  return isAdminEmail(email) || publicNow;
+}
 
 export type SectionKey = "market" | "coupons" | "account";
 

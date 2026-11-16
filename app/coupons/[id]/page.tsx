@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
+import { useAppsOpen } from "@/lib/appSections";
 import {
   CLAIM_COLUMNS,
   COUPON_COLUMNS,
@@ -57,6 +58,7 @@ export default function CouponPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
+  const appsOpen = useAppsOpen(user?.email);
   const now = useNow();
 
   const [coupon, setCoupon] = useState<Coupon | null>(null);
@@ -146,7 +148,7 @@ export default function CouponPage() {
   if (loading || authLoading) {
     return (
       <div className={`min-h-screen ${NAVY}`}>
-        <Header section={isAdmin ? "coupons" : "market"} />
+        <Header section={appsOpen ? "coupons" : "market"} />
         <div className="max-w-md mx-auto">
           <div className="h-52 bg-[#E3E9EE] animate-pulse" />
           <div className="p-6 space-y-3">
@@ -161,7 +163,7 @@ export default function CouponPage() {
   if (!coupon) {
     return (
       <div className={`min-h-screen ${NAVY} text-white`}>
-        <Header section={isAdmin ? "coupons" : "market"} />
+        <Header section={appsOpen ? "coupons" : "market"} />
         <div className="flex flex-col items-center py-20 px-6 text-center">
           <HokkumaMascot size={88} className="mb-4" />
           <p className="font-bold">このクーポンは見つかりませんでした</p>
@@ -188,7 +190,7 @@ export default function CouponPage() {
     return (
       // スクロールしないよう、画面の高さぴったりに収める(写真が残りの高さに合わせて伸び縮みする)
       <div className={`flex h-[100dvh] flex-col overflow-hidden ${NAVY} text-white`}>
-        <Header section={isAdmin ? "coupons" : "market"} />
+        <Header section={appsOpen ? "coupons" : "market"} />
         <div className="relative mx-auto flex w-full max-w-md min-h-0 flex-1 flex-col px-6 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] text-center">
           {/* いちばん上の行: 左にクーポン名、右に「閉じる」(写真と重ならないよう、写真の上の行に並べる) */}
           <div className="flex items-center justify-between gap-3">
@@ -272,7 +274,7 @@ export default function CouponPage() {
 
   return (
     <div className="min-h-screen bg-white text-[#2F3E5C]">
-      <Header section={isAdmin ? "coupons" : "market"} />
+      <Header section={appsOpen ? "coupons" : "market"} />
       <main className="max-w-md mx-auto pb-40">
         {/* いちばん上: 戻る */}
         <div className="px-4 py-2">

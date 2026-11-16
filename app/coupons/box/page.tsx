@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { isAdminEmail } from "@/lib/adminEmails";
+import { useAppsOpen } from "@/lib/appSections";
 import { CLAIM_COLUMNS, COUPON_COLUMNS, claimOpen, hasEnded, type Coupon, type CouponClaim } from "@/lib/coupon";
 import { toast } from "@/lib/toast";
 import { loginPath } from "@/lib/nav";
@@ -17,6 +18,7 @@ import CouponBoxList from "@/components/CouponBoxList";
 export default function CouponBoxPage() {
   const { user, loading: authLoading } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
+  const appsOpen = useAppsOpen(user?.email);
   const router = useRouter();
   const [rows, setRows] = useState<{ claim: CouponClaim | null; coupon: Coupon }[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export default function CouponBoxPage() {
 
   return (
     <div className="min-h-screen bg-white text-[#2F3E5C]">
-      <Header section={isAdmin ? "coupons" : "market"} />
+      <Header section={appsOpen ? "coupons" : "market"} />
       <main className="mx-auto max-w-md px-6 pb-16 pt-6">
         <Link href="/coupons" className="text-sm font-bold text-[#2F3E5C]/70 hover:text-[#2F3E5C]">← クーポンの地図へ</Link>
         <h1 className="mt-3 text-[28px] font-extrabold leading-tight">クーポンボックス</h1>
