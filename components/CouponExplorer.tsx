@@ -49,11 +49,13 @@ function useWide() {
 
 // クーポンのページ(運営だけの試作)。指で動かせる地図に、クーポンが使えるお店のピンを出す。
 // ピンを押すと、下からシートが出て「クーポン」と「お店の情報」を切り替えて見られる
+// 登録前(ログインしていない)と、ログインしたあとで別々に覚える(登録したあとにもう一度出すため)
 const DETAIL_TIP_KEY = "hokuma-coupon-detail-tip-seen";
+const GUEST_DETAIL_TIP_KEY = "hokuma-coupon-detail-tip-guest-seen";
 const noopSubscribe = () => () => {};
-function readDetailTipSeen() {
+function readSeen(key: string) {
   try {
-    return localStorage.getItem(DETAIL_TIP_KEY) === "1";
+    return localStorage.getItem(key) === "1";
   } catch {
     return true;
   }
@@ -93,11 +95,12 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
   // - つまみ(灰色のバー)を軽く押す → 広げる/戻すを切り替える
   const [expanded, setExpanded] = useState(false);
   // 「詳細はこちら」の吹き出し(下のクーポンのカードを指す)。一度閉じたらブラウザに覚えて出さない
-  const detailTipSeen = useSyncExternalStore(noopSubscribe, readDetailTipSeen, () => true);
+  const detailTipKey = loggedIn ? DETAIL_TIP_KEY : GUEST_DETAIL_TIP_KEY;
+  const detailTipSeen = useSyncExternalStore(noopSubscribe, () => readSeen(detailTipKey), () => true);
   const [detailTipClosed, setDetailTipClosed] = useState(false);
   const showDetailTip = !detailTipSeen && !detailTipClosed;
   const closeDetailTip = () => {
-    try { localStorage.setItem(DETAIL_TIP_KEY, "1"); } catch { /* 覚えられなくても閉じる */ }
+    try { localStorage.setItem(detailTipKey, "1"); } catch { /* 覚えられなくても閉じる */ }
     setDetailTipClosed(true);
   };
   // トップの「〇〇 クーポン配布中」から来たとき(/coupons?shop=お店のID)は、そのお店のクーポンの詳細を最初から開いておく
