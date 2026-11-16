@@ -170,7 +170,7 @@ export default function DemandBubbles() {
               onClick={closeIntro}
               className="flex-1 border border-stone-300 text-stone-600 py-2.5 rounded-full text-sm font-bold bg-white hover:bg-stone-100 transition-colors"
             >
-              わかった
+              閉じる
             </button>
             <Link
               href="/demands"
