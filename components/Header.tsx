@@ -409,12 +409,15 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                 </div>
               )}
               {appsOpen && showCouponTip && (
-                <div className="absolute right-0 top-full mt-3 z-40 w-56 bg-white text-stone-800 rounded-2xl shadow-lg border-2 border-orange-300 p-3.5 text-left">
-                  <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l-2 border-t-2 border-orange-300 rotate-45" aria-hidden="true" />
-                  <p className="text-base font-black text-orange-800">クーポンはこちら</p>
-                  <p className="text-xs text-stone-600 mt-1 leading-relaxed">家のマークから、クーポンのページに移動できます。</p>
-                  <button onClick={closeCouponTip} className="mt-2.5 w-full bg-orange-700 text-white py-1.5 rounded-full text-sm font-bold hover:bg-orange-800">
-                    わかった
+                <div className="absolute right-0 top-full mt-3 z-40 whitespace-nowrap bg-white text-stone-800 rounded-2xl shadow-lg border-2 border-orange-300 pl-4 pr-10 py-3.5 text-left">
+                  <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
+                  <p className="text-base font-black text-orange-800 leading-snug">クーポンはこちら</p>
+                  <button
+                    onClick={closeCouponTip}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-100"
+                    aria-label="閉じる"
+                  >
+                    <IconX size={14} />
                   </button>
                 </div>
               )}
