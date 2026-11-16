@@ -48,21 +48,26 @@ function hasVisibleCoupon() {
 }
 
 // 「☰ からクーポンのページに行けます」の吹き出しを、もう見た(閉じた)か。ブラウザごとに覚える
+// ログインしている人と、まだ登録していない人(ログインしていない人)で別々に覚える
+// (登録前に閉じても、登録したあとにログインしている人向けの吹き出しはもう一度出す)
 const COUPON_TIP_KEY = "hokuma-coupon-tip-seen";
+const GUEST_COUPON_TIP_KEY = "hokuma-coupon-tip-guest-seen";
 const noopSubscribe = () => () => {};
-function couponTipSeen() {
+function seenFlag(key: string) {
   try {
-    return localStorage.getItem(COUPON_TIP_KEY) === "1";
+    return localStorage.getItem(key) === "1";
   } catch {
     return true; // 覚えられないブラウザでは、毎回出さない
   }
 }
+const couponTipSeen = () => seenFlag(COUPON_TIP_KEY);
+const guestCouponTipSeen = () => seenFlag(GUEST_COUPON_TIP_KEY);
 
 // section: いまどのサービスの中か。クーポンのページでは "coupons" にして、フリマ用のタブなどを出さない
 // (いまは運営だけの試作。一般の人にはこれまでどおりフリマのヘッダーを出す)
 export default function Header({ section = "market" }: { section?: SectionKey } = {}) {
   const standalone = useIsStandalone();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isAdmin = isAdminEmail(user?.email);
   // クーポンの地図・☰ のホーム画面などの新しい画面を出すか(運営はいつでも、一般の人は公開日時から)
   const appsOpen = useAppsOpen(user?.email);
@@ -87,6 +92,15 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
   const closeCouponTip = () => {
     try { localStorage.setItem(COUPON_TIP_KEY, "1"); } catch { /* 覚えられなくても閉じる */ }
     setTipClosed(true);
+  };
+  // まだ登録していない人(ログインしていない人)には、× で消せる小さな吹き出しを出す
+  const guestTipSeenStored = useSyncExternalStore(noopSubscribe, guestCouponTipSeen, () => true);
+  const [guestTipClosed, setGuestTipClosed] = useState(false);
+  const showGuestCouponTip =
+    !authLoading && !user && appsOpen && showCoupons && section === "market" && !guestTipSeenStored && !guestTipClosed;
+  const closeGuestCouponTip = () => {
+    try { localStorage.setItem(GUEST_COUPON_TIP_KEY, "1"); } catch { /* 覚えられなくても閉じる */ }
+    setGuestTipClosed(true);
   };
   // フリマ以外のサービス(クーポン・マイページ)では、フリマ用のタブを出さない
   const inCoupons = appsOpen && section !== "market";
@@ -367,13 +381,26 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
               {appsOpen ? (
                 // 目立つ家のマークで、画面いっぱいのホーム画面(フリマ・クーポン・マイページ)を開く
                 <button
-                  onClick={() => { if (showCouponTip) closeCouponTip(); setShowLauncher(true); }}
+                  onClick={() => { if (showCouponTip) closeCouponTip(); if (showGuestCouponTip) closeGuestCouponTip(); setShowLauncher(true); }}
                   className="ml-0.5 w-11 h-11 flex items-center justify-center rounded-2xl bg-white text-orange-700 shadow-sm hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
                   aria-label="HOKUMAのホーム画面(フリマ・クーポン・マイページ)を開く"
                 >
                   <IconHome size={26} />
                 </button>
               ) : null}
+              {appsOpen && showGuestCouponTip && (
+                <div className="absolute right-0 top-full mt-3 z-40 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-orange-200 pl-3.5 pr-8 py-2.5 text-left">
+                  <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
+                  <p className="text-xs font-bold text-orange-800 leading-relaxed">クーポンはここから見られます</p>
+                  <button
+                    onClick={closeGuestCouponTip}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-100"
+                    aria-label="閉じる"
+                  >
+                    <IconX size={14} />
+                  </button>
+                </div>
+              )}
               {appsOpen && showCouponTip && (
                 <div className="absolute right-0 top-full mt-3 z-40 w-60 bg-white text-stone-800 rounded-2xl shadow-lg border border-orange-200 p-3.5 text-left">
                   <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />

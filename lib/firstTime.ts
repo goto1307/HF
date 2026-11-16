@@ -11,6 +11,7 @@ const LOCAL_KEYS = [
   "heroDismissed", // トップの案内
   "hokuma-demands-tutorial-seen", // 欲しい！の使い方(4ステップ)
   "hokuma-coupon-tip-seen", // 「クーポンはこちら」の吹き出し
+  "hokuma-coupon-tip-guest-seen", // 登録していない人向けの「クーポンはここから見られます」
   "hokuma-coupon-banner-closed", // トップのクーポンの帯を閉じたか
 ];
 const LOCAL_PREFIXES = ["hokuma-hokkuma-intro-seen"]; // ホックマの紹介(人ごと)
