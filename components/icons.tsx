@@ -156,3 +156,13 @@ export function IconStar({ className, size, filled = true }: IconProps & { fille
     </Svg>
   );
 }
+
+// 家のマーク(HOKUMA のサービス一覧＝ホーム画面を開くボタン)
+export function IconHome({ className, size }: IconProps) {
+  return (
+    <Svg size={size} className={className}>
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5.5 9v11a1 1 0 0 0 1 1H10v-6h4v6h3.5a1 1 0 0 0 1-1V9" />
+    </Svg>
+  );
+}
