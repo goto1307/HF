@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -47,6 +47,17 @@ function hasVisibleCoupon() {
   return couponCheck;
 }
 
+// 「☰ からクーポンのページに行けます」の吹き出しを、もう見た(閉じた)か。ブラウザごとに覚える
+const COUPON_TIP_KEY = "hokuma-coupon-tip-seen";
+const noopSubscribe = () => () => {};
+function couponTipSeen() {
+  try {
+    return localStorage.getItem(COUPON_TIP_KEY) === "1";
+  } catch {
+    return true; // 覚えられないブラウザでは、毎回出さない
+  }
+}
+
 // section: いまどのサービスの中か。クーポンのページでは "coupons" にして、フリマ用のタブなどを出さない
 // (いまは運営だけの試作。一般の人にはこれまでどおりフリマのヘッダーを出す)
 export default function Header({ section = "market" }: { section?: SectionKey } = {}) {
@@ -69,6 +80,14 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
   // ☰ から開くホーム画面(運営だけの試作)
   const [showLauncher, setShowLauncher] = useState(false);
   const closeLauncher = useCallback(() => setShowLauncher(false), []);
+  // ログインしている人に、☰ からクーポンのページに行けることを一度だけ知らせる
+  const tipSeenStored = useSyncExternalStore(noopSubscribe, couponTipSeen, () => true);
+  const [tipClosed, setTipClosed] = useState(false);
+  const showCouponTip = !!user && appsOpen && section === "market" && !tipSeenStored && !tipClosed;
+  const closeCouponTip = () => {
+    try { localStorage.setItem(COUPON_TIP_KEY, "1"); } catch { /* 覚えられなくても閉じる */ }
+    setTipClosed(true);
+  };
   // フリマ以外のサービス(クーポン・マイページ)では、フリマ用のタブを出さない
   const inCoupons = appsOpen && section !== "market";
   const homeHref = appsOpen ? SECTIONS[section].home : "/";
@@ -344,17 +363,35 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                 </Link>
               </>
             )}
-            <div ref={menuRef}>
+            <div ref={menuRef} className="relative">
               {appsOpen ? (
-                // 運営だけの試作: 目立つ ☰ で、画面いっぱいのホーム画面を開く
+                // 目立つ ☰ で、画面いっぱいのホーム画面(フリマ・クーポン・マイページ)を開く
                 <button
-                  onClick={() => setShowLauncher(true)}
+                  onClick={() => { if (showCouponTip) closeCouponTip(); setShowLauncher(true); }}
                   className="ml-0.5 w-9 h-9 flex items-center justify-center rounded-xl bg-white text-orange-700 shadow-sm hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
                   aria-label="HOKUMAのサービス一覧を開く"
                 >
                   <IconMenu size={20} />
                 </button>
-              ) : (
+              ) : null}
+              {appsOpen && showCouponTip && (
+                <div className="absolute right-0 top-full mt-3 z-40 w-60 bg-white text-stone-800 rounded-2xl shadow-lg border border-orange-200 p-3.5 text-left">
+                  <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
+                  <p className="text-sm font-bold text-orange-800">クーポンはこちら</p>
+                  <p className="text-xs text-stone-600 mt-1 leading-relaxed">
+                    右上の ☰ を押すと「クーポン」のページに移動できます。北大近くのお店で使えるクーポンを配っています。
+                  </p>
+                  <div className="flex gap-2 mt-2.5">
+                    <button onClick={closeCouponTip} className="flex-1 border border-stone-300 text-stone-600 py-1.5 rounded-full text-xs font-bold hover:bg-stone-100">
+                      閉じる
+                    </button>
+                    <Link href="/coupons" onClick={closeCouponTip} className="flex-1 bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold text-center hover:bg-orange-800">
+                      見てみる
+                    </Link>
+                  </div>
+                </div>
+              )}
+              {!appsOpen ? (
               <button
                 onClick={() => setShowMenu((v) => !v)}
                 className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-white/25 transition-colors"
@@ -362,7 +399,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
               >
                 <IconMenu size={18} />
               </button>
-              )}
+              ) : null}
               {showMenu && !appsOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white text-stone-800 rounded-2xl shadow-lg border border-stone-200 overflow-hidden z-30">
                   {isAdmin && (
