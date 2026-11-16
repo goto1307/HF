@@ -6,6 +6,7 @@ import { sectionOf, type SectionKey } from "@/lib/appSections";
 import { loginPath } from "@/lib/nav";
 import { IconX } from "@/components/icons";
 import { useIsStandalone } from "@/lib/standalone";
+import { resetFirstTimeViews } from "@/lib/firstTime";
 
 // ☰ から開く、HOKUMA のホーム画面。サービス(フリマ・クーポン)とマイページのアイコンが並ぶ。
 // 開き方: ☰ を押す → 右上から丸く広がる。右上から左下へなぞる → 指の動きに合わせて広がり、離すと開く。
@@ -193,6 +194,17 @@ export default function AppLauncher({ open, dragRadius, onClose, loggedIn, isAdm
                 </Link>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!confirm("初めての人向けの表示（使い方・吹き出し・ホックマの紹介など）を、このブラウザでもう一度出しますか？")) return;
+                resetFirstTimeViews();
+                window.location.href = "/";
+              }}
+              className="mt-2 w-full rounded-xl border border-stone-300 bg-white py-2 font-bold text-stone-700 hover:bg-stone-100"
+            >
+              初めての表示をもう一度見る
+            </button>
           </details>
         )}
       </div>
