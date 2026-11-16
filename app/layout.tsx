@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/AuthProvider";
 import NavTracker from "@/components/NavTracker";
 import LastSectionRestore from "@/components/LastSectionRestore";
 import Toaster from "@/components/Toaster";
+import ClaimedOverlay from "@/components/ClaimedOverlay";
 import { SITE_URL } from "@/lib/siteUrl";
 
 const mplusRounded = M_PLUS_Rounded_1c({
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <NavTracker />
         <Toaster />
+        <ClaimedOverlay />
         <AuthProvider>
           <LastSectionRestore />
           {children}

@@ -1,4 +1,5 @@
 "use client";
+import { showClaimed } from "@/lib/claimedNotice";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -51,7 +52,7 @@ export default function CouponBoxPage() {
     }
     const claim = data as CouponClaim;
     setRows((prev) => (prev ?? []).map((r) => (r.coupon.id === couponId ? { ...r, claim } : r)));
-    toast("受け取りました。お店で押すと使えます", "success");
+    showClaimed();
   };
 
   return (

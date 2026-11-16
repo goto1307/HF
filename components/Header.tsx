@@ -19,6 +19,7 @@ type Notification = {
   message: string;
   item_id: number | null;
   demand_id: number | null;
+  link?: string | null; // お知らせを押したときに開くサイト内のページ(migration PART BF)
   read: boolean;
   created_at: string;
 };
@@ -216,6 +217,8 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     }
     setShowNotifications(false);
+    // 運営からのお知らせ(規約の変更など)。外のサイトへは飛ばさないよう、"/" から始まるサイト内のパスだけ開く
+    if (n.link && n.link.startsWith("/") && !n.link.startsWith("//")) { router.push(n.link); return; }
     if (n.demand_id && !n.item_id) { router.push(`/demands?mine=1&id=${n.demand_id}`); return; }
     if (!n.item_id) return;
     // 個別チャットの通知は、商品ページを経由せずチャット画面へ直接開く。

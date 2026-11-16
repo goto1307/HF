@@ -1,4 +1,5 @@
 "use client";
+import { showClaimed } from "@/lib/claimedNotice";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -229,7 +230,6 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
                 <span className="min-w-0 flex-1 pl-1">
                   <span className="inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">配布中</span>
                   <span className="mt-1 block text-lg font-extrabold leading-tight">{c?.title ?? s.name}</span>
-                  <span className="mt-1.5 block text-xs text-white/85">押すとクーポンとお店の情報を見られます</span>
                 </span>
                 {/* ホックマのイラスト(手描き。背景は透明) */}
                 {s.illustration && (
@@ -368,7 +368,7 @@ function CouponTab({
     }
     const c = data as CouponClaim;
     onClaimed({ coupon_id: c.coupon_id, used_at: c.used_at, use_count: c.use_count });
-    toast("クーポンボックスに入れました", "success");
+    showClaimed();
   };
   const primary = "block w-full rounded-full py-3.5 text-center font-extrabold";
   const enabled = `${primary} bg-[#BA421D] text-white active:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]`;
