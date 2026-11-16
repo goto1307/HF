@@ -96,17 +96,17 @@ export default function CouponBanner() {
           </span>
           <span className="mt-0.5 block truncate pr-[64px] text-[11px] text-white/90">{formatWindows(coupon.time_windows)}</span>
         </span>
-        <span className="absolute bottom-2.5 right-2.5 text-sm font-black bg-white text-[#7A3393] rounded-full px-4 py-1.5 shadow-sm">
+        <span className="absolute bottom-3 right-4 text-sm font-black bg-white text-[#7A3393] rounded-full px-4 py-1.5 shadow-sm">
           見る
         </span>
       </Link>
       <button
         type="button"
         onClick={() => toggle(true)}
-        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30"
+        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30"
         aria-label="クーポンのお知らせを閉じる"
       >
-        <IconX size={16} />
+        <IconX size={14} />
       </button>
     </div>
   );
