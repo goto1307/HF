@@ -11,6 +11,7 @@ import InstallGuide from "@/components/InstallGuide";
 import { useIsStandalone } from "@/lib/standalone";
 import AppLauncher from "@/components/AppLauncher";
 import { SECTIONS, type SectionKey, useAppsOpen } from "@/lib/appSections";
+import { introPending, subscribeIntroClosed } from "@/lib/firstTime";
 import { loginPath } from "@/lib/nav";
 import { IconSearch, IconBell, IconMenu, IconHome, IconCamera, IconMessage, IconCheckCircle, IconWarning, IconX } from "@/components/icons";
 
@@ -88,7 +89,13 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
   // ログインしている人に、☰ からクーポンのページに行けることを一度だけ知らせる
   const tipSeenStored = useSyncExternalStore(noopSubscribe, couponTipSeen, () => true);
   const [tipClosed, setTipClosed] = useState(false);
-  const showCouponTip = !!user && appsOpen && section === "market" && !tipSeenStored && !tipClosed;
+  // 登録したばかりの人は、トップでホックマの紹介が先に出るので、紹介を閉じてから出す
+  const waitingIntro = useSyncExternalStore(
+    subscribeIntroClosed,
+    () => !!user && pathname === "/" && introPending(user.id, user.created_at),
+    () => true,
+  );
+  const showCouponTip = !!user && appsOpen && section === "market" && !tipSeenStored && !tipClosed && !waitingIntro;
   const closeCouponTip = () => {
     try { localStorage.setItem(COUPON_TIP_KEY, "1"); } catch { /* 覚えられなくても閉じる */ }
     setTipClosed(true);
@@ -402,20 +409,13 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                 </div>
               )}
               {appsOpen && showCouponTip && (
-                <div className="absolute right-0 top-full mt-3 z-40 w-60 bg-white text-stone-800 rounded-2xl shadow-lg border border-orange-200 p-3.5 text-left">
-                  <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
-                  <p className="text-sm font-bold text-orange-800">クーポンはこちら</p>
-                  <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                    右上の家のマークを押すと「クーポン」のページに移動できます。トップページの「クーポン配布中」の帯からも見られます。北大近くのお店で使えるクーポンを配っています。
-                  </p>
-                  <div className="flex gap-2 mt-2.5">
-                    <button onClick={closeCouponTip} className="flex-1 border border-stone-300 text-stone-600 py-1.5 rounded-full text-xs font-bold hover:bg-stone-100">
-                      閉じる
-                    </button>
-                    <Link href="/coupons" onClick={closeCouponTip} className="flex-1 bg-orange-700 text-white py-1.5 rounded-full text-xs font-bold text-center hover:bg-orange-800">
-                      見てみる
-                    </Link>
-                  </div>
+                <div className="absolute right-0 top-full mt-3 z-40 w-56 bg-white text-stone-800 rounded-2xl shadow-lg border-2 border-orange-300 p-3.5 text-left">
+                  <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l-2 border-t-2 border-orange-300 rotate-45" aria-hidden="true" />
+                  <p className="text-base font-black text-orange-800">クーポンはこちら</p>
+                  <p className="text-xs text-stone-600 mt-1 leading-relaxed">家のマークから、クーポンのページに移動できます。</p>
+                  <button onClick={closeCouponTip} className="mt-2.5 w-full bg-orange-700 text-white py-1.5 rounded-full text-sm font-bold hover:bg-orange-800">
+                    わかった
+                  </button>
                 </div>
               )}
               {!appsOpen ? (
@@ -551,7 +551,8 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
         )}
         {/* 未ログインでも「商品を探す」「みんなの欲しい！」は見られるのでタブを出す(クーポンの中ではフリマのタブは出さない) */}
         {!inCoupons && (
-        <div className="border-t border-white/20">
+        // スマホでは情報が多くなりすぎるので、タブはパソコンの幅だけに出す
+        <div className="hidden sm:block border-t border-white/20">
           <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
             {[
               { href: "/", label: "商品を探す" },

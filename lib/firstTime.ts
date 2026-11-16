@@ -38,3 +38,26 @@ export function forceIntro() {
     return false;
   }
 }
+
+// ---------- ホックマの紹介がこれから出るか ----------
+// 登録したばかりの人には、トップでホックマの紹介(components/DemandBubbles.tsx)が先に出る。
+// 「クーポンはこちら」の吹き出しは、紹介を閉じたあとに出す(同時に出すと紹介の暗い画面に隠れるため)
+export const INTRO_SEEN_PREFIX = "hokuma-hokkuma-intro-seen";
+export const INTRO_NEW_USER_DAYS = 14;
+export const INTRO_CLOSED_EVENT = "hokuma-intro-closed";
+
+export function introPending(userId: string, createdAt: string | undefined) {
+  try {
+    if (localStorage.getItem(`${INTRO_SEEN_PREFIX}-${userId}`) === "1") return false;
+    const isNewUser = !!createdAt && Date.now() - new Date(createdAt).getTime() < INTRO_NEW_USER_DAYS * 86400000;
+    return isNewUser || forceIntro();
+  } catch {
+    return false;
+  }
+}
+
+// 紹介が閉じられたら知らせてもらう(useSyncExternalStore 用)
+export function subscribeIntroClosed(cb: () => void) {
+  window.addEventListener(INTRO_CLOSED_EVENT, cb);
+  return () => window.removeEventListener(INTRO_CLOSED_EVENT, cb);
+}
