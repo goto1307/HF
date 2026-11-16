@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 import { isAdminEmail } from "@/lib/adminEmails";
 
 // クーポン(地図)・☰ のホーム画面・マイページのハブを、一般の人にも出し始める日時
-export const APPS_PUBLIC_AT = "2026-11-17T00:00:00+09:00";
+export const APPS_PUBLIC_AT = "2026-11-16T00:00:00+09:00";
 
 const noopSubscribe = () => () => {};
 
