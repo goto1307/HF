@@ -76,7 +76,10 @@ export default function CouponsPage() {
     return (
       <div className="fixed inset-0 z-30 flex flex-col overscroll-none bg-[#EEF2F5]">
         <LockPageScroll />
-        <Header section="coupons" />
+        {/* ヘッダーのお知らせ(ベル)の一覧が、下のクーポンの欄に隠れないよう、ヘッダーを上の層にする */}
+        <div className="relative z-40">
+          <Header section="coupons" />
+        </div>
         {loading ? (
           <div className="flex-1 bg-[#E3E9EE] animate-pulse" />
         ) : (

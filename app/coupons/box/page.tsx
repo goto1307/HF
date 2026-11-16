@@ -52,7 +52,7 @@ export default function CouponBoxPage() {
     }
     const claim = data as CouponClaim;
     setRows((prev) => (prev ?? []).map((r) => (r.coupon.id === couponId ? { ...r, claim } : r)));
-    showClaimed();
+    showClaimed("入手しました！");
   };
 
   return (
