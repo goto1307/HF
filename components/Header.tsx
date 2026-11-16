@@ -398,7 +398,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
               {appsOpen && showGuestCouponTip && (
                 <div className="absolute right-0 top-full mt-3 z-40 whitespace-nowrap bg-white text-stone-800 rounded-2xl shadow-lg border-2 border-orange-300 pl-4 pr-10 py-3.5 text-left">
                   <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
-                  <p className="text-base font-black text-orange-800 leading-snug">クーポンはここから見られます</p>
+                  <p className="text-base font-black text-orange-800 leading-snug">クーポンはこちら</p>
                   <button
                     onClick={closeGuestCouponTip}
                     className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:bg-stone-100"
@@ -551,8 +551,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
         )}
         {/* 未ログインでも「商品を探す」「みんなの欲しい！」は見られるのでタブを出す(クーポンの中ではフリマのタブは出さない) */}
         {!inCoupons && (
-        // スマホでは情報が多くなりすぎるので、タブはパソコンの幅だけに出す
-        <div className="hidden sm:block border-t border-white/20">
+        <div className="border-t border-white/20">
           <div className="max-w-6xl mx-auto px-3 sm:px-4 flex gap-1 overflow-x-auto">
             {[
               { href: "/", label: "商品を探す" },
