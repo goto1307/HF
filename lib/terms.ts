@@ -196,6 +196,7 @@ HOKUMA運営
 export const TERMS_UPDATE = {
   announcedOn: "2026年11月16日",
   effectiveOn: "2026年11月17日",
+  effectiveAt: "2026-11-17T00:00:00+09:00",
   showUntil: "2026-12-01T00:00:00+09:00",
   changes: [
     "第2条：提携店のクーポンを配ること、広告・提携の情報には「PR」「提携」と表示することを追加しました。",

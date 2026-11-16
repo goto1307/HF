@@ -8,12 +8,22 @@ import { TERMS_UPDATE } from "@/lib/terms";
 export default function TermsNotice({ detail = false }: { detail?: boolean }) {
   // 日付の判定はブラウザで行う(サーバーで作ったページが古いまま残っても、期限が過ぎたら消えるように)
   const [show, setShow] = useState(false);
+  // 効力が発生する日の前か後かで、「明日から適用します」「適用しています」を出し分ける
+  const [before, setBefore] = useState(true);
+  const [tomorrow, setTomorrow] = useState(false);
   useEffect(() => {
+    const now = Date.now();
+    const start = new Date(TERMS_UPDATE.effectiveAt).getTime();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setShow(Date.now() < new Date(TERMS_UPDATE.showUntil).getTime());
+    setShow(now < new Date(TERMS_UPDATE.showUntil).getTime());
+    setBefore(now < start);
+    setTomorrow(now < start && start - now <= 24 * 60 * 60 * 1000);
   }, []);
 
   if (!show) return null;
+
+  // 例: 「11月17日（明日）から」「2026年11月17日から」
+  const when = `${TERMS_UPDATE.effectiveOn}${tomorrow ? "（明日）" : ""}から`;
 
   if (!detail) {
     return (
@@ -23,7 +33,7 @@ export default function TermsNotice({ detail = false }: { detail?: boolean }) {
       >
         <span className="shrink-0 text-[10px] font-bold text-white bg-orange-700 rounded px-1.5 py-0.5">お知らせ</span>
         <span className="min-w-0 flex-1 text-sm font-bold">
-          {TERMS_UPDATE.effectiveOn}から利用規約が変わります
+          {before ? `${when}新しい利用規約を適用します` : `${when}新しい利用規約を適用しています`}
         </span>
         <span className="shrink-0 text-xs font-bold text-orange-700">見る</span>
       </Link>
@@ -34,7 +44,9 @@ export default function TermsNotice({ detail = false }: { detail?: boolean }) {
     <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-5 text-sm text-stone-800 leading-relaxed">
       <p className="font-bold">利用規約の変更のお知らせ（{TERMS_UPDATE.announcedOn}）</p>
       <p className="mt-2">
-        {TERMS_UPDATE.effectiveOn}から、利用規約を次のとおり変更します。下の規約は、変更後の内容です。
+        {before
+          ? `${when}、次のとおり変更した利用規約を適用します。下の規約は、変更後の内容です。`
+          : `${when}、次のとおり変更した利用規約を適用しています。`}
       </p>
       <ul className="mt-2 list-disc pl-5 flex flex-col gap-1">
         {TERMS_UPDATE.changes.map((c) => (
