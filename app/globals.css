@@ -81,3 +81,14 @@ a {
     animation: none;
   }
 }
+
+/* iPhone は、文字が 16px より小さい入力欄を押すと画面を自動で拡大し、そのまま戻らない
+   (ログインや検索のあと、ページが拡大されたまま端が切れて見える)。
+   スマホなど指で操作する端末では、入力欄の文字を 16px にして自動の拡大を起こさない */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
