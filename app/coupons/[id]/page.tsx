@@ -279,7 +279,13 @@ export default function CouponPage() {
           </button>
         </div>
 
-        {/* いちばん上の写真はなし(運営の希望。クーポンの中身を先に見せる) */}
+        {/* いちばん上: ホックマのイラスト(後藤の手描き)。お店の写真は出さない */}
+        {shop?.illustration && (
+          <div className="flex justify-center bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={shop.illustration} alt="炙りサーモン丼を見つめるホックマ" className="block h-56 w-auto" />
+          </div>
+        )}
         {/* クーポン名と使える時間(朱色の地) */}
         <div className="bg-[#BA421D] px-6 pb-7 pt-5 text-white">
           <div className="mb-3 flex flex-wrap items-center gap-2">

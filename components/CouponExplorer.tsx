@@ -224,11 +224,18 @@ export default function CouponExplorer({ coupons, claims, loggedIn, isAdmin, onC
               <button
                 key={s.id}
                 onClick={() => { select(s.id); setExpanded(true); }}
-                className="min-w-[78%] sm:min-w-0 sm:w-auto sm:max-w-sm shrink-0 rounded-2xl bg-[#BA421D] p-4 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
+                className="flex min-w-[78%] sm:min-w-0 sm:w-auto sm:max-w-sm shrink-0 items-center gap-3 rounded-2xl bg-[#BA421D] p-3 pr-4 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F2C14E]"
               >
-                <span className="inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">配布中</span>
-                <span className="mt-1 block text-lg font-extrabold leading-tight">{c?.title ?? s.name}</span>
-                <span className="mt-2 block text-xs text-white/85">押すとクーポンとお店の情報を見られます</span>
+                {/* ホックマのイラスト(手描き) */}
+                {s.illustration && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.illustration} alt="" className="h-[84px] w-[84px] shrink-0 rounded-xl bg-white object-cover" />
+                )}
+                <span className="min-w-0">
+                  <span className="inline-block rounded-full bg-[#F2C14E] px-2.5 py-0.5 text-xs font-extrabold text-[#1B243A]">配布中</span>
+                  <span className="mt-1 block text-lg font-extrabold leading-tight">{c?.title ?? s.name}</span>
+                  <span className="mt-1.5 block text-xs text-white/85">押すとクーポンとお店の情報を見られます</span>
+                </span>
               </button>
             );
           })}
@@ -398,6 +405,7 @@ function CouponTab({
         tone="light"
         titleHref={`/coupons/${coupon.id}`}
         titleImage={shop.couponImage}
+        illustration={shop.illustration}
         isAdmin={isAdmin}
         cta={
           <>
