@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { jstToday, type DemandVote } from "@/lib/demand";
 import { IconX } from "@/components/icons";
-import { FORCE_INTRO_KEY, forceIntro } from "@/lib/firstTime";
+import { FORCE_INTRO_KEY, INTRO_CLOSED_EVENT, forceIntro } from "@/lib/firstTime";
 
 // ログイン後、商品を探すページ(/)の右下で上を向いて考え事をしているホックマの
 // まわりに、みんなの欲しい！の商品名を吹き出しでポンポン出す。
@@ -139,6 +139,8 @@ export default function DemandBubbles() {
       localStorage.removeItem(FORCE_INTRO_KEY);
     } catch {}
     setIntroOpen(false);
+    // 紹介のあとに出す「クーポンはこちら」の吹き出し(components/Header.tsx)に知らせる
+    window.dispatchEvent(new Event(INTRO_CLOSED_EVENT));
   };
 
   const hide = () => {
