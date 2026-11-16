@@ -187,8 +187,10 @@ export function CouponHeadline({
   coupon,
   tone = "dark",
   cta,
+  illustration,
 }: {
   coupon: Coupon;
+  illustration?: string; // light のとき、帯の右に出すホックマのイラスト
   tone?: "dark" | "light";
   titleHref?: string;
   cta?: React.ReactNode;
@@ -199,9 +201,16 @@ export function CouponHeadline({
   if (tone === "light") {
     // 10番の画像の枠はやめて、「空きコマクーポン配布中」のバナーにする(受け取るボタンの朱色と見分けるため紺)
     const title = (
-      <span className="-mx-6 -mt-5 flex items-center justify-between gap-3 bg-[#2F3E5C] px-6 py-4 text-white">
-        <span className="text-[24px] leading-tight font-black tracking-tight">{coupon.title}</span>
-        <span className="shrink-0 rounded-full bg-[#F2C14E] px-3 py-1 text-sm font-extrabold text-[#1B243A]">配布中</span>
+      <span className="-mx-6 -mt-5 flex items-center justify-between gap-3 bg-[#2F3E5C] px-6 py-3 text-white">
+        <span className="min-w-0">
+          <span className="inline-block rounded-full bg-[#F2C14E] px-3 py-0.5 text-sm font-extrabold text-[#1B243A]">配布中</span>
+          <span className="mt-1 block text-[24px] leading-tight font-black tracking-tight">{coupon.title}</span>
+        </span>
+        {/* ホックマのイラスト(手描き) */}
+        {illustration && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={illustration} alt="" className="h-24 w-24 shrink-0 rounded-xl bg-white object-cover" />
+        )}
       </span>
     );
     return (
