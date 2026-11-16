@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 import { jstToday, type DemandVote } from "@/lib/demand";
 import { IconX } from "@/components/icons";
+import { FORCE_INTRO_KEY, forceIntro } from "@/lib/firstTime";
 
 // ログイン後、商品を探すページ(/)の右下で上を向いて考え事をしているホックマの
 // まわりに、みんなの欲しい！の商品名を吹き出しでポンポン出す。
@@ -106,7 +107,8 @@ export default function DemandBubbles() {
       setPool(bubbles);
       setSlots(bubbles.slice(0, SLOTS.length).map((bubble, i) => ({ bubble, key: i })));
       const isNewUser = Date.now() - new Date(user.created_at).getTime() < INTRO_NEW_USER_DAYS * 86400000;
-      setIntroOpen(INTRO_ALWAYS || (isNewUser && !introSeen(user.id)));
+      // forceIntro(): 運営が管理者メニューの「初めての表示をもう一度見る」を押したあと
+      setIntroOpen(INTRO_ALWAYS || ((isNewUser || forceIntro()) && !introSeen(user.id)));
     };
     load();
   }, [user]);
@@ -134,6 +136,7 @@ export default function DemandBubbles() {
   const closeIntro = () => {
     try {
       localStorage.setItem(`${INTRO_KEY}-${user.id}`, "1");
+      localStorage.removeItem(FORCE_INTRO_KEY);
     } catch {}
     setIntroOpen(false);
   };
