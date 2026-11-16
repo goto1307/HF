@@ -14,6 +14,7 @@ const LOCAL_KEYS = [
   "hokuma-coupon-tip-guest-seen", // 登録していない人向けの「クーポンはここから見られます」
   "hokuma-coupon-banner-closed", // トップのクーポンの帯を閉じたか
   "hokuma-coupon-detail-tip-seen", // クーポンの地図の「詳細はこちら」の吹き出し
+  "hokuma-coupon-detail-tip-guest-seen", // 同じ(登録前の人向け)
 ];
 const LOCAL_PREFIXES = ["hokuma-hokkuma-intro-seen"]; // ホックマの紹介(人ごと)
 const SESSION_KEYS = ["demandBubblesHidden"]; // 欲しい！の吹き出しを隠したか
