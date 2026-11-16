@@ -389,7 +389,7 @@ export default function Header({ section = "market" }: { section?: SectionKey } 
                 </button>
               ) : null}
               {appsOpen && showGuestCouponTip && (
-                <div className="absolute right-0 top-full mt-3 z-40 w-64 bg-white text-stone-800 rounded-2xl shadow-lg border-2 border-orange-300 pl-4 pr-10 py-3.5 text-left">
+                <div className="absolute right-0 top-full mt-3 z-40 whitespace-nowrap bg-white text-stone-800 rounded-2xl shadow-lg border-2 border-orange-300 pl-4 pr-10 py-3.5 text-left">
                   <span className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-orange-200 rotate-45" aria-hidden="true" />
                   <p className="text-base font-black text-orange-800 leading-snug">クーポンはここから見られます</p>
                   <button
