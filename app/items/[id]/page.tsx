@@ -71,6 +71,7 @@ export default function ItemDetail() {
   const [sellerRating, setSellerRating] = useState<{ avg: number; count: number } | null>(null);
   const [sellerDealCount, setSellerDealCount] = useState<number | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const galleryRef = useRef<HTMLDivElement>(null); // 大きい写真を横に並べた枠(横になぞって切り替える)
   const [likeCount, setLikeCount] = useState(0);
   const [likedByMe, setLikedByMe] = useState(false);
   const [togglingLike, setTogglingLike] = useState(false);
@@ -387,23 +388,43 @@ export default function ItemDetail() {
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mb-4">
           <div className="relative">
             {gallery.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => setShowLightbox(true)}
-                className="block w-full cursor-zoom-in"
-                aria-label="画像を拡大表示"
+              // 写真が何枚かあるときは、横になぞって(スクロールして)次の写真を見られる。押すと拡大表示
+              <div
+                ref={galleryRef}
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  const i = Math.round(el.scrollLeft / el.clientWidth);
+                  if (i !== activeImage && i >= 0 && i < gallery.length) setActiveImage(i);
+                }}
+                className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {/* 大きい写真が届くまでは、一覧で見た小さい写真(すぐ出る)を下に敷いておく */}
-                <img
-                  src={gallery[activeImage]}
-                  alt={item.title}
-                  // HOKUMA の写真置き場の写真のときだけ(よそのURLを背景に読み込まない)
-                  style={isOwnImageUrl(gallery[activeImage]) ? { backgroundImage: `url("${thumbUrl(gallery[activeImage])}")`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" } : undefined}
-                  className={`block w-full aspect-[4/3] bg-stone-100 object-contain ${item.sold ? "opacity-50" : ""}`}
-                />
-              </button>
+                {gallery.map((url, i) => (
+                  <button
+                    key={url + i}
+                    type="button"
+                    onClick={() => { setActiveImage(i); setShowLightbox(true); }}
+                    className="block w-full shrink-0 snap-center cursor-zoom-in"
+                    aria-label={`画像を拡大表示（${i + 1}枚目）`}
+                  >
+                    {/* 大きい写真が届くまでは、一覧で見た小さい写真(すぐ出る)を下に敷いておく */}
+                    <img
+                      src={url}
+                      alt={i === 0 ? item.title : ""}
+                      loading={i === 0 ? "eager" : "lazy"}
+                      // HOKUMA の写真置き場の写真のときだけ(よそのURLを背景に読み込まない)
+                      style={isOwnImageUrl(url) ? { backgroundImage: `url("${thumbUrl(url)}")`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" } : undefined}
+                      className={`block w-full aspect-[4/3] bg-stone-100 object-contain ${item.sold ? "opacity-50" : ""}`}
+                    />
+                  </button>
+                ))}
+              </div>
             ) : (
               <div className={`bg-orange-50 h-48 flex items-center justify-center text-orange-200 ${item.sold ? "opacity-50" : ""}`}><IconPackage size={40} /></div>
+            )}
+            {gallery.length > 1 && (
+              <span className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-bold text-white">
+                {activeImage + 1} / {gallery.length}
+              </span>
             )}
             {item.sold && (
               <div className="absolute top-4 -right-10 w-40 rotate-45 bg-red-600 text-white text-sm font-extrabold text-center py-1 shadow-md tracking-wider">
@@ -416,7 +437,12 @@ export default function ItemDetail() {
               {gallery.map((url, i) => (
                 <button
                   key={url + i}
-                  onClick={() => setActiveImage(i)}
+                  onClick={() => {
+                    setActiveImage(i);
+                    // 上の大きい写真も、その写真の位置まで動かす
+                    const el = galleryRef.current;
+                    if (el) el.scrollTo({ left: el.clientWidth * i, behavior: "smooth" });
+                  }}
                   className={`w-14 h-14 shrink-0 rounded-lg overflow-hidden border-2 ${activeImage === i ? "border-orange-600" : "border-transparent"}`}
                 >
                   <ItemThumb src={url} alt="" className="w-full h-full object-cover" />
