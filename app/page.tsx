@@ -8,7 +8,6 @@ import { ITEM_COLUMNS } from "@/lib/itemColumns";
 import Header from "@/components/Header";
 import Skeleton, { LoadingLabel } from "@/components/Skeleton";
 import CouponBanner from "@/components/CouponBanner";
-import TermsNotice from "@/components/TermsNotice";
 import HokkumaMascot from "@/components/HokkumaMascot";
 import { IconPackage, IconHeart, IconX, IconMenu } from "@/components/icons";
 import { loginPath } from "@/lib/nav";
@@ -570,7 +569,6 @@ function HomeContent() {
         )}
 
         <main className="flex-1 pb-24">
-          <TermsNotice />
           <CouponBanner />
           {loading ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
