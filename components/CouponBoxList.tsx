@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { benefitName, formatDate, formatDateTime, formatTime, formatWindows, hasEnded, usableNow, usedUp, type Coupon, type CouponClaim } from "@/lib/coupon";
+import { benefitName, formatDate, formatDateTime, formatTime, formatWindows, hasEnded, inShownWindow, usedUp, type Coupon, type CouponClaim } from "@/lib/coupon";
 
 // クーポンボックスの一覧(クーポンボックスのページと、HOKUMA のマイページで使う)。
 // 使える順: まだ使えて期限内 → 期限切れ → 使用済み(使える回数を使い切ったもの)
@@ -46,7 +46,8 @@ export default function CouponBoxList({
       {sorted.map(({ claim, coupon }) => {
         const used = usedUp(coupon, claim);
         const ended = !used && hasEnded(coupon);
-        const now = !used && !ended && usableNow(coupon);
+        // 「いま使えます」は、画面に出している時間(13:00〜など)の間だけ出す(実際は少し前から使える)
+        const now = !used && !ended && inShownWindow(coupon);
         return (
           <li key={coupon.id}>
             <Wrap
