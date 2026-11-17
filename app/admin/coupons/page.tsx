@@ -21,6 +21,8 @@ type CouponStats = {
     users_used?: number; // 1回以上使った人数(PART AV から)
     signed_up_on_site?: number; // 登録してから10分以内に使った人 = 店でその場で登録した人(PART BH から)
     signed_up_before?: number; // それより前から登録していた人(クーポンを見て来た可能性が高い)
+    on_site_first_visits?: number; // 店でその場で登録した人のうち、初来店(PART BI から)
+    before_first_visits?: number; // 前から登録していた人のうち、初来店(PART BI から)
     first_visits: number;
     repeat_visits: number;
     lunch: number;
@@ -213,12 +215,20 @@ export default function AdminCouponsPage() {
                 <Tile
                   label="店でその場で登録して使った"
                   value={stats.totals.signed_up_on_site}
-                  note={`登録から10分以内に使用・使った人の ${percent(stats.totals.signed_up_on_site, stats.totals.users_used ?? stats.totals.uses)}`}
+                  note={`登録から10分以内に使用・使った人の ${percent(stats.totals.signed_up_on_site, stats.totals.users_used ?? stats.totals.uses)}${
+                    stats.totals.on_site_first_visits !== undefined
+                      ? `・うち初来店 ${stats.totals.on_site_first_visits}人（${percent(stats.totals.on_site_first_visits, stats.totals.signed_up_on_site)}）`
+                      : ""
+                  }`}
                 />
                 <Tile
                   label="前から登録していて使った"
                   value={stats.totals.signed_up_before ?? 0}
-                  note="クーポンを見て来た可能性が高い"
+                  note={`クーポンを見て来た可能性が高い${
+                    stats.totals.before_first_visits !== undefined
+                      ? `・うち初来店 ${stats.totals.before_first_visits}人（${percent(stats.totals.before_first_visits, stats.totals.signed_up_before ?? 0)}）`
+                      : ""
+                  }`}
                 />
               </div>
             )}
