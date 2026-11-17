@@ -59,6 +59,16 @@ export function usableNow(c: Coupon, now = new Date()) {
   return c.time_windows.some((w) => time >= (w.use_from ?? w.from) && time < (w.use_to ?? w.to));
 }
 
+// 画面に出す時間(from〜to。お店と決めた時間)の中か。「いま使えます」の表示に使う。
+// 実際に押せる時間(use_from〜use_to。少し余裕を持たせている)は usableNow で判定する
+export function inShownWindow(c: Coupon, now = new Date()) {
+  const { date, isoDow, time } = jstNow(now);
+  if (date < c.use_from || date > c.use_until) return false;
+  if (!c.weekdays.includes(isoDow)) return false;
+  if (c.time_windows.length === 0) return true;
+  return c.time_windows.some((w) => time >= w.from && time < w.to);
+}
+
 // 受け取れる期間か
 export function claimOpen(c: Coupon, now = new Date()) {
   return now.getTime() >= new Date(c.claim_from).getTime() && jstNow(now).date <= c.use_until;
