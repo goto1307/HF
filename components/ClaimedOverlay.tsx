@@ -27,9 +27,9 @@ export default function ClaimedOverlay() {
           {getClaimedTitle()}
         </p>
         <p className="mt-3 text-sm leading-relaxed text-[#2F3E5C]">
-          お店で、お店の方に画面を見せながら
+          お店で「お店で使う」を押して、
           <br />
-          「お店で使う」を押すと使えます
+          出てきた画面をお店の方に見せてください
         </p>
         {!noImage && (
           // eslint-disable-next-line @next/next/no-img-element
