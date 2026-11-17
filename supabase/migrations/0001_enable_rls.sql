@@ -5967,3 +5967,99 @@ update public.coupon set
   use_from = '2026-11-17'
 where id = 'futagozan-1';
 
+
+
+
+-- ============================================================
+-- PART BH: クーポン集計に「店でその場で登録して使った人」を足す
+-- ============================================================
+-- 登録してから10分以内にクーポンを使った人 = 店に来てから(店の人にすすめられて)その場で登録した人、
+-- それより前から登録していた人 = クーポンを見て来た可能性が高い人、として分けて数える。
+-- 過去の分もさかのぼって数えられる(登録日時は auth.users、使った日時は coupon_use にある)。
+-- admin_coupon_stats を作り直すだけ。何度実行しても大丈夫
+create or replace function public.admin_coupon_stats(p_coupon text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  c public.coupon;
+  v_staff uuid[] := public.staff_ids();
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception '管理者のみ実行できます';
+  end if;
+  select * into c from public.coupon where id = p_coupon;
+  if not found then
+    raise exception 'このクーポンは見つかりません';
+  end if;
+
+  with claims as (
+    select x.*, u.created_at as user_created_at
+    from public.coupon_claim x
+    join auth.users u on u.id = x.user_id
+    where x.coupon_id = p_coupon and not (x.user_id = any (v_staff))
+  ),
+  used as (
+    select y.*, (y.used_at at time zone 'Asia/Tokyo') as used_jst,
+           -- 登録してから10分以内に使った = 店でその場で登録して使った(店の人にすすめられた)とみなす
+           (y.used_at - u.created_at) <= interval '10 minutes' as signed_up_on_site
+    from public.coupon_use y
+    join auth.users u on u.id = y.user_id
+    where y.coupon_id = p_coupon and not (y.user_id = any (v_staff))
+  )
+  select jsonb_build_object(
+    'totals', jsonb_build_object(
+      'views', (select count(*) from public.coupon_view v where v.coupon_id = p_coupon),
+      'views_logged_out', (select count(*) from public.coupon_view v where v.coupon_id = p_coupon and not v.logged_in),
+      'claims', (select count(*) from claims),
+      'uses', (select count(*) from used),
+      'users_used', (select count(distinct user_id) from used),
+      'signed_up_on_site', (select count(distinct user_id) from used where signed_up_on_site),
+      'signed_up_before', (select count(distinct user_id) from used where not signed_up_on_site),
+      'first_visits', (select count(*) from used where first_visit),
+      'repeat_visits', (select count(*) from used where not first_visit),
+      'lunch', (select count(*) from used where extract(hour from used_jst) < 15),
+      'evening', (select count(*) from used where extract(hour from used_jst) >= 15),
+      'new_users_claimed', (select count(*) from claims where user_created_at >= c.claim_from),
+      'signup_from_coupon_links', (
+        select count(*) from public.signup_source s
+        where s.source like '%coupon%' and not (s.user_id = any (v_staff))
+          and not exists (select 1 from public.deleted_users d where d.user_id = s.user_id)
+      )
+    ),
+    'benefits', (
+      select coalesce(jsonb_agg(jsonb_build_object('benefit', b.benefit, 'uses', b.n) order by b.n desc), '[]'::jsonb)
+      from (select benefit, count(*) as n from used group by benefit) b
+    ),
+    'daily', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'date', d.day,
+        'views', (select count(*) from public.coupon_view v
+                  where v.coupon_id = p_coupon and (v.created_at at time zone 'Asia/Tokyo')::date = d.day),
+        'claims', (select count(*) from claims x where (x.claimed_at at time zone 'Asia/Tokyo')::date = d.day),
+        'uses', (select count(*) from used x where x.used_jst::date = d.day),
+        'lunch', (select count(*) from used x where x.used_jst::date = d.day and extract(hour from x.used_jst) < 15),
+        'evening', (select count(*) from used x where x.used_jst::date = d.day and extract(hour from x.used_jst) >= 15),
+        'first_visits', (select count(*) from used x where x.used_jst::date = d.day and x.first_visit),
+        'signed_up_on_site', (select count(*) from used x where x.used_jst::date = d.day and x.signed_up_on_site)
+      ) order by d.day), '[]'::jsonb)
+      from (
+        select g::date as day
+        from generate_series(
+          least((c.claim_from at time zone 'Asia/Tokyo')::date, c.use_from),
+          least(c.use_until, public.jst_today()),
+          interval '1 day'
+        ) g
+      ) d
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+revoke execute on function public.admin_coupon_stats(text) from public, anon;
+grant execute on function public.admin_coupon_stats(text) to authenticated;

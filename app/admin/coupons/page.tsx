@@ -11,7 +11,7 @@ import { loginPath } from "@/lib/nav";
 import { toast } from "@/lib/toast";
 
 // admin_coupon_stats()(migration PART AT)の戻り値。運営2人の分は含まない
-type Day = { date: string; views: number; claims: number; uses: number; lunch: number; evening: number; first_visits: number };
+type Day = { date: string; views: number; claims: number; uses: number; lunch: number; evening: number; first_visits: number; signed_up_on_site?: number };
 type CouponStats = {
   totals: {
     views: number;
@@ -19,6 +19,8 @@ type CouponStats = {
     claims: number;
     uses: number;
     users_used?: number; // 1回以上使った人数(PART AV から)
+    signed_up_on_site?: number; // 登録してから10分以内に使った人 = 店でその場で登録した人(PART BH から)
+    signed_up_before?: number; // それより前から登録していた人(クーポンを見て来た可能性が高い)
     first_visits: number;
     repeat_visits: number;
     lunch: number;
@@ -49,7 +51,7 @@ function weekStart(ymd: string) {
 }
 
 function sum(days: Day[], key: keyof Omit<Day, "date">) {
-  return days.reduce((n, d) => n + d[key], 0);
+  return days.reduce((n, d) => n + (d[key] ?? 0), 0);
 }
 
 function percent(a: number, b: number) {
@@ -81,8 +83,8 @@ function reportText(coupon: Coupon, weekDays: Day[], stats: CouponStats) {
 }
 
 function downloadCsv(coupon: Coupon, days: Day[]) {
-  const header = "日付,ページを見た(ブラウザ数),受け取り,使用,うち13時台,うち夕方,うち初来店";
-  const rows = days.map((d) => [d.date, d.views, d.claims, d.uses, d.lunch, d.evening, d.first_visits].join(","));
+  const header = "日付,ページを見た(ブラウザ数),受け取り,使用,うち13時台,うち夕方,うち初来店,うち店でその場で登録";
+  const rows = days.map((d) => [d.date, d.views, d.claims, d.uses, d.lunch, d.evening, d.first_visits, d.signed_up_on_site ?? ""].join(","));
   const blob = new Blob(["﻿" + [header, ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -205,6 +207,21 @@ export default function AdminCouponsPage() {
                 note={`使った人の ${percent(stats.totals.first_visits, stats.totals.users_used ?? stats.totals.uses)}・2回目以降・常連の使用 ${stats.totals.repeat_visits}回`}
               />
             </div>
+            {/* 店でその場で登録して使った人と、前から登録していた人(PART BH を実行すると出る) */}
+            {stats.totals.signed_up_on_site !== undefined && (
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <Tile
+                  label="店でその場で登録して使った"
+                  value={stats.totals.signed_up_on_site}
+                  note={`登録から10分以内に使用・使った人の ${percent(stats.totals.signed_up_on_site, stats.totals.users_used ?? stats.totals.uses)}`}
+                />
+                <Tile
+                  label="前から登録していて使った"
+                  value={stats.totals.signed_up_before ?? 0}
+                  note="クーポンを見て来た可能性が高い"
+                />
+              </div>
+            )}
             {/* クーポンのリンクから来て登録した人数は、管理者の「集計」の「どこから来たか」で見る */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               <Tile label="13時台に使用" value={stats.totals.lunch} />
@@ -259,6 +276,7 @@ export default function AdminCouponsPage() {
                           <th className="font-normal">13時台</th>
                           <th className="font-normal">夕方</th>
                           <th className="font-normal">初来店</th>
+                          <th className="font-normal">店で登録</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -271,6 +289,7 @@ export default function AdminCouponsPage() {
                             <td>{d.lunch}</td>
                             <td>{d.evening}</td>
                             <td>{d.first_visits}</td>
+                            <td>{d.signed_up_on_site ?? "—"}</td>
                           </tr>
                         ))}
                       </tbody>
