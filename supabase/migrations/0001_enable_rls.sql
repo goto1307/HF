@@ -6197,10 +6197,14 @@ execute function public.enforce_hokudai_email();
 alter table public.profile drop constraint if exists profile_avatar_url_own_storage;
 alter table public.profile add constraint profile_avatar_url_own_storage
 check (avatar_url is null
-       or avatar_url like 'https://cchsbakrlranhpgetcwg.supabase.co/storage/v1/object/public/images/%')
+       or avatar_url like 'https://cchsbakrlranhpgetcwg.supabase.co/storage/v1/object/public/images/%'
+       or avatar_url ~ '^/avatars/preset-[0-9]+\.png$')  -- マイページで選べる用意済みのアイコン(lib/avatarPresets.ts)
 not valid;
+-- 注意: not valid でも、行を更新するときは確かめられる。用意済みアイコンを許さないと、
+--   それを選んでいる人が一言メッセージ・性別・年齢を保存できなくなる(2026-11-27 に気づいて修正)
 
 -- 5) 受け渡しの約束(meetup)の買い手・商品を、あとから書き換えられないようにする
+--    ※ 2026-11-27 時点で本番では実行していない(運営の判断で見送り)
 create or replace function public.meetup_lock_parties()
 returns trigger
 language plpgsql
