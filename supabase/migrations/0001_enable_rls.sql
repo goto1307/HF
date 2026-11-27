@@ -6160,3 +6160,136 @@ end;
 $$;
 revoke execute on function public.admin_coupon_stats(text) from public, anon;
 grant execute on function public.admin_coupon_stats(text) to authenticated;
+
+
+-- ============================================================
+-- PART BJ: 2026-11-27 セキュリティ点検で見つかった問題の修正
+-- ============================================================
+
+-- 1) 未ログインでも公開Q&Aが読めていた(PART A の古いポリシーが残っていた)
+drop policy if exists "message_select_participant_or_public" on public.message;
+
+-- 2) ログインしていない人から、小さな関数を呼べないようにする
+--    (RLSのポリシーの中で使うものは authenticated に残す)
+revoke execute on function public.is_blocked_by(uuid, uuid) from public, anon;
+grant  execute on function public.is_blocked_by(uuid, uuid) to authenticated;
+revoke execute on function public.is_deleted(uuid) from public;
+grant  execute on function public.is_deleted(uuid) to anon, authenticated; -- 未ログインの商品・欲しい！一覧のポリシーで使う
+revoke execute on function public.item_has_report(bigint) from public, anon;
+grant  execute on function public.item_has_report(bigint) to authenticated;
+revoke execute on function public.get_nickname(uuid) from public, anon;
+grant  execute on function public.get_nickname(uuid) to authenticated;
+revoke execute on function public.demand_wanters(bigint) from public, anon;
+grant  execute on function public.demand_wanters(bigint) to authenticated;
+
+-- 3) 登録後に北大以外のメールアドレスへ変えられないようにする
+--    (退会時の deleted_...@deleted.invalid への書き換えは通す)
+drop trigger if exists enforce_hokudai_email_update_trigger on auth.users;
+create trigger enforce_hokudai_email_update_trigger
+before update of email on auth.users
+for each row
+when (new.email is distinct from old.email
+      and new.email not like 'deleted\_%@deleted.invalid')
+execute function public.enforce_hokudai_email();
+
+-- 4) アイコンは自分たちの Storage の画像だけにする
+--    (今ある行は確かめない "not valid"。新しく入れる・変える分から効く)
+alter table public.profile drop constraint if exists profile_avatar_url_own_storage;
+alter table public.profile add constraint profile_avatar_url_own_storage
+check (avatar_url is null
+       or avatar_url like 'https://cchsbakrlranhpgetcwg.supabase.co/storage/v1/object/public/images/%')
+not valid;
+
+-- 5) 受け渡しの約束(meetup)の買い手・商品を、あとから書き換えられないようにする
+create or replace function public.meetup_lock_parties()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.buyer_id is distinct from old.buyer_id or new.item_id is distinct from old.item_id then
+    raise exception '買い手と商品は変更できません';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists meetup_lock_parties_trigger on public.meetup;
+create trigger meetup_lock_parties_trigger
+before update on public.meetup
+for each row execute function public.meetup_lock_parties();
+
+
+-- ============================================================
+-- PART BK: 運営だけが認証アプリ(2段階認証)を登録できるようにする
+-- ============================================================
+--
+-- 背景: 運営のログインと管理画面に、認証アプリ(Google Authenticator)の6桁を足す。
+--   一般の利用者に6桁を聞くことは絶対にしないので、運営以外のアカウントでは
+--   認証アプリの登録(auth.mfa_factors への追加)そのものを止める。
+--   これを先に実行しても、一般の利用者には何も変わらない(今は誰も登録していない)。
+--   運営を増やすときは、is_admin() と同じくここのアドレスも直す。
+
+create or replace function public.only_staff_mfa()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text;
+begin
+  select email into v_email from auth.users where id = new.user_id;
+  if v_email is null or not (v_email = any (array[
+    'debuchi.sora.b0@elms.hokudai.ac.jp',
+    'goto.kanata.w1@elms.hokudai.ac.jp'
+  ])) then
+    raise exception '2段階認証は運営アカウントだけが登録できます';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.only_staff_mfa() from public, anon, authenticated;
+
+drop trigger if exists only_staff_mfa_trigger on auth.mfa_factors;
+create trigger only_staff_mfa_trigger
+before insert on auth.mfa_factors
+for each row execute function public.only_staff_mfa();
+
+-- 確認用: 登録しているのが運営の2人だけか(読むだけ)
+-- select u.email, f.status from auth.mfa_factors f join auth.users u on u.id = f.user_id;
+
+
+-- ============================================================
+-- PART BL: 運営の権限は、認証アプリの6桁を済ませたログインのときだけにする
+-- ============================================================
+--
+-- !!! 運営2人が /admin/mfa で認証アプリの登録を済ませてから実行すること !!!
+--   先に実行すると、2人とも管理画面のデータが見られなくなる
+--   (サイトは普通に使える。戻すときは、下の is_admin() から「and coalesce(...) = 'aal2'」の行を消して実行し直す)。
+--
+-- 背景: パスワードが漏れても管理者の権限(全チャット閲覧・BAN・全データの書き出しなど)を
+--   使えないように、ログインの証明書(JWT)の aal が aal2(6桁済み)のときだけ管理者とみなす。
+--   画面の6桁(app/login・app/admin/layout.tsx)は API を直接呼べば飛ばせるので、ここが本当の守り。
+--   通報(report)の閲覧・削除のポリシーはメールアドレスを直接書いていたので、is_admin() に揃える。
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select (auth.jwt() ->> 'email') = any (array[
+    'debuchi.sora.b0@elms.hokudai.ac.jp',
+    'goto.kanata.w1@elms.hokudai.ac.jp'
+  ])
+  and coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2';
+$$;
+
+drop policy if exists "report_select_admin_only" on public.report;
+create policy "report_select_admin_only" on public.report
+for select to authenticated using (public.is_admin());
+
+drop policy if exists "report_delete_admin_only" on public.report;
+create policy "report_delete_admin_only" on public.report
+for delete to authenticated using (public.is_admin());

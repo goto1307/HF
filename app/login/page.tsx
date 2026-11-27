@@ -6,6 +6,8 @@ import Header from "@/components/Header";
 import PasswordInput from "@/components/PasswordInput";
 import { safeNext } from "@/lib/nav";
 import { toast } from "@/lib/toast";
+import { needsMfaCode } from "@/lib/mfa";
+import MfaCodeForm from "@/components/MfaCodeForm";
 
 // ?next= に入っている、ログイン後に戻るページ
 function nextPath() {
@@ -16,14 +18,20 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // 運営アカウント(認証アプリを登録済み)だけ、パスワードのあとに6桁を入れる
+  const [needCode, setNeedCode] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) {
-        router.replace(nextPath());
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (cancelled || !data.session) return;
+      // パスワードだけでログインしたまま6桁を入れていない運営は、ここで6桁を聞く
+      if (await needsMfaCode()) {
+        if (!cancelled) setNeedCode(true);
+        return;
       }
+      if (!cancelled) router.replace(nextPath());
     });
     return () => { cancelled = true; };
   }, [router]);
@@ -52,6 +60,11 @@ export default function Login() {
         }
         return;
       }
+      // 運営アカウントなら、6桁を入れるまでログインを終えない
+      if (await needsMfaCode()) {
+        setNeedCode(true);
+        return;
+      }
       // ログインのきっかけになったページ(?next=)に戻す
       router.replace(nextPath());
     } catch (err) {
@@ -66,6 +79,19 @@ export default function Login() {
       <Header />
       <main className="max-w-md mx-auto px-4 py-16">
         <h2 className="text-2xl font-bold mb-8 text-center">ログイン</h2>
+        {needCode ? (
+          <div className="flex flex-col gap-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+            <MfaCodeForm
+              onVerified={() => router.replace(nextPath())}
+              onGiveUp={async () => {
+                // パスワードだけのログイン状態を残さない
+                await supabase.auth.signOut();
+                setNeedCode(false);
+                setPassword("");
+              }}
+            />
+          </div>
+        ) : (
         <div className="flex flex-col gap-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
           <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="flex flex-col gap-4">
             <input
@@ -104,6 +130,7 @@ export default function Login() {
             パスワードを忘れた方はこちら
           </button>
         </div>
+        )}
       </main>
     </div>
   );
